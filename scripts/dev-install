@@ -1,0 +1,36 @@
+#!/usr/bin/env bash
+# Builds the compositor with the fast `hwtest` profile and installs it where the session
+# "splice (Dev)" (programs.splice.devSession) picks it up: log out and in again to test a change on
+# the real hardware, without `nixos-rebuild switch` and without a reboot.
+#
+# Run inside the development shell: `nix develop -c scripts/dev-install`.
+# Environment (optional): SPLICE_DEV_DIR, default ~/.local/state/splice/dev.
+# `scripts/dev-install --remove` goes back to the packaged compositor.
+set -euo pipefail
+
+cd "$(dirname "$0")/.."
+dest=${SPLICE_DEV_DIR:-${XDG_STATE_HOME:-$HOME/.local/state}/splice/dev}
+
+if [ "${1:-}" = "--remove" ]; then
+    rm -rf -- "$dest/bin"
+    echo "Removed $dest/bin: splice (Dev) starts the packaged compositor again."
+    exit 0
+fi
+
+: "${SPLICE_RUNTIME_LIBS:?run this inside the development shell: nix develop -c scripts/dev-install}"
+
+binaries=(splice-compositor splice-portal splice-shell-services)
+packages=()
+for binary in "${binaries[@]}"; do packages+=(-p "$binary"); done
+cargo build --profile hwtest "${packages[@]}"
+
+mkdir -p "$dest/bin"
+for binary in "${binaries[@]}"; do
+    # Rename into place instead of overwriting: a running dev session keeps its old file.
+    install -m755 "target/hwtest/$binary" "$dest/bin/.$binary.new"
+    # EGL, libinput and libxkbcommon are opened at run time; the package patches the same libraries in.
+    patchelf --add-rpath "$SPLICE_RUNTIME_LIBS" "$dest/bin/.$binary.new"
+    mv -f -- "$dest/bin/.$binary.new" "$dest/bin/$binary"
+done
+
+echo "Installed into $dest/bin. Log out and choose \"splice (Dev)\" to test it."

@@ -50,5 +50,14 @@ tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 lto = "thin"
 codegen-units = 1
 
+# For hardware tests (`scripts/dev-install`): optimized like release, but without LTO and with
+# incremental, parallel codegen, so that a change builds in well under a minute instead of minutes.
+# Frame timings measured with it are slightly worse than the release build's.
+[profile.hwtest]
+inherits = "release"
+lto = false
+codegen-units = 16
+incremental = true
+
 [dev-dependencies]
 drm-ffi = "0.9"

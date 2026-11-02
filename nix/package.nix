@@ -45,6 +45,20 @@ let
     linux-pam
   ];
 
+  # The helpers the compositor and the session start.
+  helpers = [
+    swayidle
+    wlopm
+    wl-clipboard
+    gammastep # the shell's night light
+    wireplumber # wpctl: the built-in bar's volume
+    iproute2 # the shell's local addresses
+    fontconfig # fc-match: the font of the shell's form fields
+    libnotify
+    xwayland
+    coreutils
+  ];
+
   # Only what cargo reads, so that changes to the scripts, tests, docs or the shell input do not
   # rebuild the compositor.
   unwrapped = rustPlatform.buildRustPackage {
@@ -136,28 +150,21 @@ stdenvNoCC.mkDerivation {
     runHook postInstall
   '';
 
-  # The helpers the compositor and the session start.
   postFixup = ''
     wrapProgram $out/bin/splice-compositor \
-      --prefix PATH : ${lib.makeBinPath [
-        swayidle
-        wlopm
-        wl-clipboard
-        gammastep # the shell's night light
-        wireplumber # wpctl: the built-in bar's volume
-        iproute2 # the shell's local addresses
-        fontconfig # fc-match: the font of the shell's form fields
-        libnotify
-        xwayland
-        coreutils
-      ]}
+      --prefix PATH : ${lib.makeBinPath helpers}
     wrapProgram $out/bin/splice-session \
       --set-default SPLICE_BINARY $out/bin/splice-compositor \
       --set-default SPLICE_SESSION_ENVIRONMENT $out/bin/session-environment \
       --prefix PATH : ${lib.makeBinPath [ dbus systemd coreutils util-linux ]}
   '';
 
-  passthru = { inherit unwrapped; };
+  # What `scripts/dev-install` and the dev session need to run a binary built outside Nix.
+  passthru = {
+    inherit unwrapped;
+    helperPath = lib.makeBinPath helpers;
+    runtimeLibraryPath = lib.makeLibraryPath runtimeLibraries;
+  };
 
   inherit meta;
 }

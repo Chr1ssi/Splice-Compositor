@@ -38,6 +38,14 @@ let
     exec > "$state/session.log" 2>&1
     echo "$(date --iso-8601=ns) session launch, pid $$"
     export RUST_LOG="''${RUST_LOG:-info,perf=debug,smithay::xwayland::xwm=warn}"
+    # A build made by `scripts/dev-install` replaces the packaged compositor, so a change can be tested
+    # on the hardware by logging in again. Built outside Nix, it needs the helpers the package's wrapper adds.
+    dev="$state/dev/bin"
+    if [ -x "$dev/splice-compositor" ]; then
+      export SPLICE_BINARY="$dev/splice-compositor"
+      ${lib.optionalString (cfg.package ? helperPath) ''export PATH="${cfg.package.helperPath}:$PATH"''}
+      echo "using the compositor from $dev"
+    fi
   '';
 
   sessionPackage = name: title: comment: logging:
@@ -102,7 +110,9 @@ in
       description = ''
         Also offer the session "splice (Dev)": the same compositor, but with the whole session's
         output in `~/.local/state/splice/session.log` and frame statistics (`perf`) in the log.
-        The normal session only logs warnings and errors.
+        The normal session only logs warnings and errors. If `scripts/dev-install` has put a build
+        into `~/.local/state/splice/dev/bin`, this session runs that instead of the packaged
+        compositor, so a change can be tested by logging in again, without a rebuild of the system.
       '';
     };
 

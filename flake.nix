@@ -29,9 +29,11 @@
           # libraries so that the nested compositor (`cargo run`) finds EGL, xkbcommon and libinput.
           default = pkgs.mkShell {
             inputsFrom = [ self.packages.${system}.default.unwrapped self.packages.${system}.splice-settings ];
-            packages = with pkgs; [ clippy rustfmt rust-analyzer ];
+            # patchelf: scripts/dev-install gives the binaries it builds the package's library path.
+            packages = with pkgs; [ clippy rustfmt rust-analyzer patchelf ];
             # bindgen (pipewire-sys) needs libclang.
             LIBCLANG_PATH = "${pkgs.llvmPackages.libclang.lib}/lib";
+            SPLICE_RUNTIME_LIBS = self.packages.${system}.default.runtimeLibraryPath;
             LD_LIBRARY_PATH = pkgs.lib.makeLibraryPath (with pkgs; [
               wayland
               libxkbcommon

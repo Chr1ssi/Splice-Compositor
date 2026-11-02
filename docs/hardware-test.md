@@ -24,6 +24,27 @@ RUST_LOG=info SPLICE_CONFIG=$HOME/.config/splice/config.toml \
 Mit `SPLICE_BACKEND=drm` lässt sich die Backend-Wahl erzwingen. Beenden: `Super+m`
 (Standard-Binding `exit`; mit laufender Bar danach Enter), oder per SSH `pkill -TERM splice-compositor`.
 
+## Schneller Testlauf in der Sitzung „splice (Dev)“
+
+Für Änderungen, die nur auf der Hardware zu prüfen sind, braucht es weder `nixos-rebuild switch` noch
+einen Neustart. Voraussetzung ist einmalig `programs.splice.devSession = true` (danach `switch` und
+Neustart, weil greetd die Sitzungsliste erst beim Start liest).
+
+```sh
+nix develop -c scripts/dev-install
+```
+
+Das Skript baut mit dem Profil `hwtest` (optimiert wie Release, aber ohne LTO und mit inkrementellem,
+parallelem Codegen: eine Codeänderung dauert etwa 15 s statt knapp 3 min) und legt Compositor, Portal und
+Shell-Dienste nach `~/.local/state/splice/dev/bin`. Danach abmelden und im Anmeldebildschirm „splice (Dev)“
+wählen: Diese Sitzung startet den Build von dort (steht im Log: `using the compositor from …`) und schreibt
+`session.log` mit den `perf`-Zeilen. „splice“ bleibt unverändert das gepackte Release. `scripts/dev-install
+--remove` geht zurück zum gepackten Compositor.
+
+Grenzen: Das Portal (`splice-portal`) startet weiter über D-Bus aus dem System; Änderungen daran gelten erst
+nach einem `switch`. Frame-Zeiten aus dem `hwtest`-Build sind etwas schlechter als im Release (ohne LTO),
+für den Vergleich vor und nach einer Änderung reicht es; endgültige Zahlen kommen aus dem Release-Build.
+
 ## Monitore
 
 Statt kanshi gibt es `[[outputs]]` in der Config (`crates/splice-config/example.toml`).
