@@ -3,6 +3,7 @@
 Needs Xwayland, xterm, xeyes and libX11. Run from the repository root with $DISPLAY set:
     PYTHONPATH=tests python3 tests/xwayland_smoke.py
 """
+import os
 import time
 from smoke_support import Bar, Compositor, wait
 
@@ -40,6 +41,28 @@ try:
 except BaseException:
     looped.process.kill()
     print(log(looped)[-3000:])
+    raise
+
+# Xwayland runs only once an X11 client connects: the sockets exist from the start, the server does not.
+lazy = Compositor()
+try:
+    import re
+    import subprocess
+    assert wait(lambda: "Xwayland starts with the first X11 client" in log(lazy), 15), "no on-demand start announced"
+    time.sleep(1)
+    spawned = lambda: subprocess.run(["pgrep", "-P", str(lazy.process.pid), "-x", "Xwayland"], capture_output=True).returncode == 0
+    assert not spawned(), "Xwayland started without a client"
+    number = re.search(r"on DISPLAY=:(\d+)", log(lazy)).group(1)
+    client = subprocess.Popen(["xterm", "-e", "sleep 30"], env=dict(os.environ, DISPLAY=f":{number}"))
+    assert wait(lambda: 'app_id=Some("XTerm")' in log(lazy), 20), "a late X11 client was not managed"
+    assert spawned(), "Xwayland is not running after its first client"
+    assert "X11 primary output" in log(lazy), "the primary output was not set\n" + log(lazy)[-1500:]
+    client.terminate()
+    assert lazy.stop()
+    print("Xwayland on demand OK")
+except BaseException:
+    lazy.process.kill()
+    print(log(lazy)[-3000:])
     raise
 
 off = Compositor(top="xwayland = false\n", extra_args="sleep 2 & ")

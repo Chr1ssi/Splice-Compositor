@@ -19,7 +19,8 @@ Sperre, Idle, Monitor-Power, Xwayland, Capture und Multi-Monitor mit virtuellen 
 Hinweise zum Test auf neuer Hardware: `docs/hardware-test.md`.
 
 Langfristig läuft alles nativ unter Wayland: Xwayland ist nur für Apps da, die es noch
-brauchen (Steam selbst, ältere Spiele) und lässt sich mit `xwayland = false` abschalten.
+brauchen (Steam selbst, ältere Spiele). Es startet erst, wenn sich der erste X11-Client verbindet, und lässt
+sich mit `xwayland = false` ganz abschalten.
 Spiele laufen nativ (SDL: `SDL_VIDEODRIVER=wayland`, Proton: `PROTON_ENABLE_WAYLAND=1`).
 
 Aufbau:

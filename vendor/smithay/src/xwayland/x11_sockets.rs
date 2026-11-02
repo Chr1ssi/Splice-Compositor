@@ -44,6 +44,38 @@ pub(crate) fn prepare_x11_sockets(
     ))
 }
 
+/// An X11 display slot (its lockfile) and the sockets an X server listens on, opened before the
+/// server runs. A compositor can wait for the first client to connect to one of them
+/// ([`listeners`](Self::listeners)) and only then start Xwayland with
+/// [`XWayland::spawn_with_sockets`](super::XWayland::spawn_with_sockets); the connection waits in
+/// the socket's backlog until Xwayland accepts it.
+///
+/// Dropping this removes the socket files and the lockfile, so keep it until Xwayland has its own copy.
+#[derive(Debug)]
+pub struct X11Sockets {
+    pub(crate) lock: X11Lock,
+    pub(crate) sockets: Vec<UnixStream>,
+}
+
+impl X11Sockets {
+    /// Find a free X11 display slot (or only `display`, if given) and open its sockets.
+    pub fn prepare(display: Option<u32>, open_abstract_socket: bool) -> std::io::Result<Self> {
+        let (lock, sockets) = prepare_x11_sockets(display, open_abstract_socket)?;
+        Ok(Self { lock, sockets })
+    }
+
+    /// The display number, for the `DISPLAY` variable of programs that will use the server.
+    pub fn display_number(&self) -> u32 {
+        self.lock.display_number()
+    }
+
+    /// The listening sockets: one of them becomes readable when a client connects.
+    pub fn listeners(&self) -> impl Iterator<Item = std::os::fd::BorrowedFd<'_>> {
+        use std::os::fd::AsFd;
+        self.sockets.iter().map(|socket| socket.as_fd())
+    }
+}
+
 #[derive(Debug)]
 pub(crate) struct X11Lock {
     display: u32,

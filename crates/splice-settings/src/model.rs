@@ -72,7 +72,7 @@ pub static SETTINGS: &[Setting] = &[
     s("appearance.gaps_inner", "Abstand zwischen Fenstern", "Pixel.", Windows, Int { min: 0, max: 128 }, "8"),
     s("appearance.gaps_outer", "Abstand zum Rand", "Pixel.", Windows, Int { min: 0, max: 128 }, "8"),
     s("appearance.border_width", "Rahmenbreite", "Pixel.", Windows, Int { min: 0, max: 32 }, "2"),
-    restart(s("xwayland", "Xwayland", "X11-Programme (Steam, ältere Spiele) unterstützen.", Windows, Bool, "true")),
+    restart(s("xwayland", "Xwayland", "X11-Programme (Steam, ältere Spiele) unterstützen. Xwayland startet mit dem ersten X11-Programm.", Windows, Bool, "true")),
     // Effects
     s("appearance.style", "Stil der Shell", "„cyberdeck“: Fasen, Linien und kräftige Farben aus dem Wallpaper. Erzeugt das Farbschema neu.", Effects, Choice { options: &["default", "cyberdeck"], optional: false }, "default"),
     s("effects.corner_radius", "Abgerundete Ecken", "Radius in Pixeln; 0 = eckig. Nie bei Vollbild.", Effects, Int { min: 0, max: 64 }, "0"),

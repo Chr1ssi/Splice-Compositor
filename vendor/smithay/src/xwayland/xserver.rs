@@ -18,7 +18,7 @@ use wayland_server::{Client, DisplayHandle};
 
 use crate::{utils::user_data::UserDataMap, wayland::compositor::CompositorClientState};
 
-use super::x11_sockets::{prepare_x11_sockets, X11Lock};
+use super::x11_sockets::{X11Lock, X11Sockets};
 
 /// A handle to a running XWayland process. Using XWayland as an xserver for
 /// X11-based clients requires two connections: one wayland socket, where
@@ -124,10 +124,30 @@ impl XWayland {
         V: AsRef<OsStr>,
         F: FnOnce(&UserDataMap),
     {
+        let sockets = X11Sockets::prepare(display.into(), open_abstract_socket)?;
+        Self::spawn_with_sockets(dh, sockets, envs, stdout, stderr, user_data)
+    }
+
+    /// Like [`spawn`](Self::spawn), with the display slot and sockets opened beforehand
+    /// ([`X11Sockets::prepare`]), so that the server can be started when the first client connects.
+    pub fn spawn_with_sockets<K, V, I, F>(
+        dh: &DisplayHandle,
+        sockets: X11Sockets,
+        envs: I,
+        stdout: impl Into<std::process::Stdio>,
+        stderr: impl Into<std::process::Stdio>,
+        user_data: F,
+    ) -> std::io::Result<(Self, Client)>
+    where
+        I: IntoIterator<Item = (K, V)>,
+        K: AsRef<OsStr>,
+        V: AsRef<OsStr>,
+        F: FnOnce(&UserDataMap),
+    {
         let (x_wm_x11, x_wm_me) = UnixStream::pair()?;
         let (wl_x11, wl_me) = UnixStream::pair()?;
 
-        let (lock, listen_sockets) = prepare_x11_sockets(display.into(), open_abstract_socket)?;
+        let X11Sockets { lock, sockets: listen_sockets } = sockets;
         let display_number = lock.display_number();
 
         // XWayland writes the the display number and a newline to this pipe when it's ready.
