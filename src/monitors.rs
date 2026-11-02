@@ -150,9 +150,14 @@ impl State {
     /// Name of the monitor with workspace 1 (the first of `workspace_outputs`): where the login and lock
     /// screens ask for the password (`SPLICE_PRIMARY_OUTPUT`).
     pub fn primary_output_name(&self) -> Option<String> {
+        self.primary_output().map(|output| output.name())
+    }
+
+    /// The monitor with workspace 1, see `primary_output_name`.
+    pub fn primary_output(&self) -> Option<Output> {
         let desk = &self.desktop.desk;
         let monitor = (0..desk.monitors.len()).find(|index| desk.home_number(*index) == 1)?;
-        self.outputs.get(monitor).map(|entry| entry.output.name())
+        self.outputs.get(monitor).map(|entry| entry.output.clone())
     }
 
     /// The scratchpad appears on the monitor under the pointer.

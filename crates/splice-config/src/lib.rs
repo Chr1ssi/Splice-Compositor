@@ -100,7 +100,7 @@ pub struct Config {
     pub input: InputConfig,
     pub effects: EffectsConfig,
     pub rules: Vec<Rule>,
-    /// Run Xwayland for legacy X11 apps (Steam, older games).
+    /// Run Xwayland for legacy X11 apps (Steam, older games). It starts with the first X11 client.
     pub xwayland: bool,
     /// Native output setup (kanshi and wlr-randr work too).
     pub outputs: Vec<OutputConfig>,

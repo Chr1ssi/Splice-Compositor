@@ -18,6 +18,10 @@ changes in `smithay.patch`:
   through `WM_STATE`.
 - `X11Wm::new_selection` flushes the X connection. The owner change otherwise stays buffered until
   another X event arrives, so a freshly copied Wayland selection was invisible to X11 clients.
+- `X11Sockets` and `XWayland::spawn_with_sockets`: the display slot and listening sockets can be opened first
+  (`X11Sockets::prepare`) and handed to Xwayland later, so that the compositor starts it when the first X11
+  client connects (the connection waits in the socket's backlog). `XWayland::spawn` is now `prepare` plus
+  `spawn_with_sockets`.
 - `#![allow(warnings)]` in `src/lib.rs` so the vendored code does not clutter our build.
 
 The root `Cargo.toml` redirects `smithay` here with `[patch.crates-io]`.

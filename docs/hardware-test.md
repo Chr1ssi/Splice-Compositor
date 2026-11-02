@@ -120,7 +120,7 @@ Prüfen:
 - **Sperre/Idle**: `Super+Escape` startet den eingebauten Sperrbildschirm (Passwort über den PAM-Dienst
   `splice-lock`). Auf Hardware startet der Compositor außerdem `swayidle` (Sperre nach `[idle] lock_after_seconds`,
   danach Monitore aus über `wlopm`). Dafür müssen `swayidle` und `wlopm` installiert sein.
-- **Steam/X11**: `steam` läuft über Xwayland (`DISPLAY` setzt der Compositor für gestartete
+- **Steam/X11**: `steam` läuft über Xwayland, das mit dem ersten X11-Client startet (`DISPLAY` setzt der Compositor für gestartete
   Programme selbst). Nativ: Proton mit `PROTON_ENABLE_WAYLAND=1`, SDL mit `SDL_VIDEODRIVER=wayland`.
 - **Streaming**: siehe `docs/streaming.md`.
 
@@ -226,6 +226,22 @@ Prüfen:
 2. Der Stream selbst läuft flüssig, ohne hängende oder doppelte Bilder, auch bei stillem Bild
    (Keepalive) und nach dem Wechsel eines geteilten Fensters zu einer anderen Größe.
 3. Ende des Streams und Monitor-Aus während eines Streams: keine Warnungen `image capture failed`.
+
+## Xwayland nur bei Bedarf
+
+Xwayland läuft nicht mehr von Anfang an: Der Compositor legt nur `DISPLAY` und die X-Sockets an und startet
+den Server, sobald sich der erste X11-Client verbindet (der wartet im Socket, bis Xwayland da ist). Den
+primären Ausgang (Monitor mit Workspace 1) setzt der Compositor dann selbst über RandR; die frühere
+Hilfsunit `xwayland-primary-output` (ein `xrandr`-Aufruf beim Login) würde Xwayland sonst gleich wieder wecken.
+Nested ist das in `tests/xwayland_smoke.py` geprüft, auf der Hardware bleibt zu bestätigen:
+
+1. Nach dem Login (ohne Steam) läuft kein `Xwayland` (`pgrep -a Xwayland`), im Log steht
+   `Xwayland starts with the first X11 client, on DISPLAY=:0`.
+2. Steam starten: Das Fenster erscheint, im Log folgen `Xwayland on DISPLAY=:0`, `X11 window manager ready`
+   und `X11 primary output: DP-3` (der Monitor mit Workspace 1).
+3. `xrandr --query | grep primary` zeigt dort DP-3.
+4. Ein X11-Fenster aus Steam (Bibliothek, Einstellungen) lässt sich fokussieren, tippen und kopieren/einfügen
+   wie vorher.
 
 ## Bekannte Lücken
 

@@ -1,11 +1,14 @@
 //! Xwayland for the legacy X11 apps that remain (Steam itself, older games). Everything else
 //! runs as native Wayland clients; `xwayland = false` in the config switches this off.
-use std::{os::unix::io::OwnedFd, process::Stdio};
+use std::{cell::RefCell, os::unix::io::OwnedFd, process::Stdio, rc::Rc};
 
 use smithay::{
     delegate_xwayland_shell,
     desktop::Window,
-    reexports::wayland_server::protocol::wl_surface::WlSurface,
+    reexports::{
+        calloop::{generic::Generic, Interest, Mode, PostAction, RegistrationToken},
+        wayland_server::protocol::wl_surface::WlSurface,
+    },
     utils::{Logical, Rectangle},
     wayland::{
         selection::{
@@ -18,7 +21,7 @@ use smithay::{
         xwayland_shell::{XWaylandShellHandler, XWaylandShellState},
     },
     xwayland::{
-        X11Surface, X11Wm, XWayland, XWaylandEvent, XwmHandler,
+        X11Sockets, X11Surface, X11Wm, XWayland, XWaylandEvent, XwmHandler,
         xwm::{Reorder, ResizeEdge, WmWindowProperty, XwmId},
     },
 };
@@ -56,11 +59,82 @@ fn cursor_environment() -> Vec<(String, String)> {
     env
 }
 
-/// Spawn Xwayland and, once it is up, become its window manager.
+/// Xwayland starts with the first X11 client: until then only its sockets exist, so a session without
+/// X11 apps does not carry the server (about 27 MB of private memory on the NVIDIA setup). `DISPLAY` is
+/// set from the start; a client that connects waits in the socket's backlog until Xwayland is up.
 pub fn start(state: &mut State) {
     if !state.config.xwayland {
         return;
     }
+    let sockets = match X11Sockets::prepare(None, true) {
+        Ok(sockets) => sockets,
+        Err(error) => {
+            tracing::warn!("cannot open the X11 sockets: {error}");
+            return;
+        }
+    };
+    state.xdisplay = Some(sockets.display_number());
+    // The sources watch copies of the descriptors: the originals go to Xwayland with the lock that
+    // keeps the socket files.
+    let watched: Result<Vec<OwnedFd>, _> = sockets.listeners().map(|fd| fd.try_clone_to_owned()).collect();
+    let watched = match watched {
+        Ok(watched) => watched,
+        Err(error) => {
+            tracing::warn!("cannot watch the X11 sockets, starting Xwayland now: {error}");
+            spawn(state, sockets);
+            return;
+        }
+    };
+    tracing::info!("Xwayland starts with the first X11 client, on DISPLAY=:{}", sockets.display_number());
+    let waiting = Rc::new(RefCell::new(Some(Waiting { sockets, tokens: Vec::new() })));
+    let mut tokens = Vec::new();
+    for (index, fd) in watched.into_iter().enumerate() {
+        let shared = waiting.clone();
+        let source = Generic::new(fd, Interest::READ, Mode::Level);
+        let inserted = state.loop_handle.insert_source(source, move |_, _, state| {
+            first_client(state, &shared, index);
+            Ok(PostAction::Remove)
+        });
+        match inserted {
+            Ok(token) => tokens.push(token),
+            Err(error) => {
+                // Not watching all sockets would leave a client waiting forever for Xwayland.
+                tracing::warn!("cannot watch the X11 sockets, starting Xwayland now: {}", error.error);
+                for token in tokens {
+                    state.loop_handle.remove(token);
+                }
+                if let Some(Waiting { sockets, .. }) = waiting.borrow_mut().take() {
+                    spawn(state, sockets);
+                }
+                return;
+            }
+        }
+    }
+    if let Some(waiting) = waiting.borrow_mut().as_mut() {
+        waiting.tokens = tokens;
+    }
+}
+
+/// The sockets Xwayland will take over, and the sources that watch them.
+struct Waiting {
+    sockets: X11Sockets,
+    tokens: Vec<RegistrationToken>,
+}
+
+/// A client connected to the socket watched by source `fired`: stop watching and start Xwayland.
+fn first_client(state: &mut State, waiting: &RefCell<Option<Waiting>>, fired: usize) {
+    let Some(Waiting { sockets, tokens }) = waiting.borrow_mut().take() else { return };
+    // The fired source removes itself by returning `PostAction::Remove`.
+    for (index, token) in tokens.into_iter().enumerate() {
+        if index != fired {
+            state.loop_handle.remove(token);
+        }
+    }
+    spawn(state, sockets);
+}
+
+/// Spawn Xwayland on `sockets` and, once it is up, become its window manager.
+fn spawn(state: &mut State, sockets: X11Sockets) {
     let environment = cursor_environment();
     tracing::info!(
         "Xwayland cursor: theme {:?}, size {:?}, {} search directories",
@@ -68,24 +142,15 @@ pub fn start(state: &mut State) {
         environment.iter().find(|(k, _)| k == "XCURSOR_SIZE").map(|(_, v)| v.as_str()),
         environment.iter().find(|(k, _)| k == "XCURSOR_PATH").map_or(0, |(_, v)| v.split(':').count())
     );
-    let spawned = XWayland::spawn(
-        &state.display_handle,
-        None,
-        environment,
-        true,
-        Stdio::null(),
-        Stdio::null(),
-        |_| {},
-    );
+    let spawned = XWayland::spawn_with_sockets(&state.display_handle, sockets, environment, Stdio::null(), Stdio::null(), |_| {});
     let (xwayland, client) = match spawned {
         Ok(spawned) => spawned,
         Err(error) => {
             tracing::warn!("cannot start Xwayland (is it installed?): {error}");
+            state.xdisplay = None;
             return;
         }
     };
-    // The X sockets already listen, so clients started from now on can connect and will wait.
-    state.xdisplay = Some(xwayland.display_number());
     tracing::info!("Xwayland on DISPLAY=:{}", xwayland.display_number());
     let handle = state.loop_handle.clone();
     let registered = handle.insert_source(xwayland, move |event, _, state| match event {
@@ -94,6 +159,7 @@ pub fn start(state: &mut State) {
                 Ok(wm) => {
                     tracing::info!("X11 window manager ready on :{display_number}");
                     state.xwm = Some(wm);
+                    set_x11_primary_output(state, display_number);
                 }
                 Err(error) => tracing::error!("cannot manage Xwayland: {error}"),
             }
@@ -106,6 +172,36 @@ pub fn start(state: &mut State) {
     if let Err(error) = registered {
         tracing::error!("cannot watch Xwayland: {}", error.error);
     }
+}
+
+/// The monitor with workspace 1 is the primary RandR output, which X11 apps (Steam, games) treat as the
+/// main screen. Xwayland starts with none, and nobody else sets one.
+fn set_x11_primary_output(state: &State, display: u32) {
+    let Some(name) = state.primary_output_name() else { return };
+    match mark_primary(display, &name) {
+        Ok(()) => tracing::info!("X11 primary output: {name}"),
+        Err(error) => tracing::warn!("cannot make {name} the X11 primary output: {error}"),
+    }
+}
+
+/// Like `xrandr --output <name> --primary`, with a connection of its own. Not the window manager's:
+/// it ignores each event that carries the sequence number of its last request, and with this request
+/// last, that is every event of the X11 clients that were already waiting for Xwayland (their windows
+/// would never be managed).
+fn mark_primary(display: u32, name: &str) -> Result<(), Box<dyn std::error::Error>> {
+    use x11rb::{connection::Connection, protocol::randr::ConnectionExt, rust_connection::RustConnection, wrapper::ConnectionExt as _};
+    let (connection, screen) = RustConnection::connect(Some(&format!(":{display}")))?;
+    let root = connection.setup().roots[screen].root;
+    let resources = connection.randr_get_screen_resources_current(root)?.reply()?;
+    for output in resources.outputs {
+        if connection.randr_get_output_info(output, resources.config_timestamp)?.reply()?.name == name.as_bytes() {
+            connection.randr_set_output_primary(root, output)?;
+            // The request is done when the server has answered a later one.
+            connection.sync()?;
+            return Ok(());
+        }
+    }
+    Err("Xwayland does not know the output".into())
 }
 
 impl XWaylandShellHandler for State {

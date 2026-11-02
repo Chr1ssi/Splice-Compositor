@@ -21,6 +21,8 @@ png = "0.17"
 # Already built for splice-theme; decodes the wallpaper.
 image = "0.25"
 libc = "0.2"
+# Marks the primary output on Xwayland (RandR), the way xrandr does; the version smithay uses.
+x11rb = { version = "0.13", default-features = false, features = ["randr"] }
 splice-ipc = { path = "crates/splice-ipc" }
 # The built-in shell's pictures (bar, power menu, notices).
 splice-ui = { path = "crates/splice-ui" }
