@@ -16,7 +16,10 @@ use smithay::{
     wayland::shell::wlr_layer::Layer,
 };
 
-use smithay::wayland::seat::WaylandFocus;
+use smithay::wayland::{
+    compositor::{TraversalAction, with_surface_tree_downward},
+    seat::WaylandFocus,
+};
 
 use crate::{State, cursor::CursorElement, desktop::Managed};
 
@@ -254,28 +257,40 @@ impl State {
             let start = bucket.len();
             if owner.is_some() {
                 let rounded = managed.is_some_and(|m| !m.fullscreen) && self.config.effects.corner_radius > 0;
-                let main = window.wl_surface().map(|s| Id::from_wayland_resource(&*s));
+                // The toplevel's own surface and its subsurfaces (Firefox draws its content into one), not its popups.
+                let mut tree = Vec::new();
+                if let Some(surface) = window.wl_surface() {
+                    with_surface_tree_downward(
+                        &surface,
+                        (),
+                        |_, _, ()| TraversalAction::DoChildren(()),
+                        |surface, _, ()| tree.push(Id::from_wayland_resource(surface)),
+                        |_, _, ()| true,
+                    );
+                }
                 let geometry = window.geometry();
+                // The window geometry in output pixels: where the shader keeps the surfaces' pixels.
+                let shape = Rectangle::new(
+                    render_location.to_f64() + geometry.loc.to_f64().to_physical(scale),
+                    geometry.size.to_f64().to_physical(scale),
+                );
                 for element in surfaces {
-                    let shader = self.effect_shaders.as_ref().filter(|_| rounded && Some(element.id()) == main.as_ref());
+                    let shader = self.effect_shaders.as_ref().filter(|_| rounded && tree.contains(element.id()));
                     // Pixels of the surface's buffer per physical pixel on screen.
                     let (buf, dst) = (element.src().size, element.geometry(Scale::from(scale)).size);
                     let factor = (buf.w / f64::from(dst.w.max(1)), buf.h / f64::from(dst.h.max(1)));
+                    let (src, origin) = (element.src().loc, element.geometry(Scale::from(scale)).loc.to_f64());
                     let Some(cropped) = CropRenderElement::from_element(element, scale, visible_area) else { continue };
                     match shader {
                         Some(shader) => {
+                            // The geometry relative to this surface's own buffer (a subsurface sits elsewhere).
                             let geo_px = [
-                                (f64::from(geometry.loc.x) * scale * factor.0) as f32,
-                                (f64::from(geometry.loc.y) * scale * factor.1) as f32,
-                                (f64::from(geometry.size.w) * scale * factor.0) as f32,
-                                (f64::from(geometry.size.h) * scale * factor.1) as f32,
+                                (src.x + (shape.loc.x - origin.x) * factor.0) as f32,
+                                (src.y + (shape.loc.y - origin.y) * factor.1) as f32,
+                                (shape.size.w * factor.0) as f32,
+                                (shape.size.h * factor.1) as f32,
                             ];
                             let radius = (f64::from(self.config.effects.corner_radius) * scale * factor.0) as f32;
-                            // The window geometry in output pixels: where the shader keeps the surface's pixels.
-                            let shape = Rectangle::new(
-                                render_location.to_f64() + geometry.loc.to_f64().to_physical(scale),
-                                geometry.size.to_f64().to_physical(scale),
-                            );
                             let corner = f64::from(self.config.effects.corner_radius) * scale;
                             let corners = crate::effects::Corners::of(self.config.appearance.style);
                             bucket.push(OutputElement::from(

@@ -30,7 +30,7 @@ use wayland_client::{
         wl_keyboard::{self, WlKeyboard},
         wl_pointer::{self, WlPointer},
         wl_buffer::{self, WlBuffer}, wl_compositor::WlCompositor, wl_registry::WlRegistry, wl_seat::WlSeat, wl_shm::{self, WlShm},
-        wl_shm_pool::WlShmPool, wl_surface::WlSurface, wl_region::WlRegion,
+        wl_shm_pool::WlShmPool, wl_surface::WlSurface, wl_region::WlRegion, wl_subcompositor::WlSubcompositor, wl_subsurface::WlSubsurface,
         wl_callback::{self, WlCallback},
     },
 };
@@ -244,6 +244,8 @@ impl Dispatch<WlBuffer, ()> for App {
 }
 delegate_noop!(App: ignore WlSurface);
 delegate_noop!(App: ignore WlRegion);
+delegate_noop!(App: ignore WlSubcompositor);
+delegate_noop!(App: ignore WlSubsurface);
 delegate_noop!(App: ignore WpContentTypeManagerV1);
 delegate_noop!(App: ignore WpContentTypeV1);
 delegate_noop!(App: ignore ZxdgExporterV2);
@@ -325,6 +327,54 @@ fn simple_window(app: &mut App, queue: &mut wayland_client::EventQueue<App>, com
         buffer.destroy();
         pool.destroy();
         frame = frame.wrapping_add(1);
+    }
+}
+
+/// A window drawn like Firefox does: the toplevel's own surface is transparent and the content (opaque white) is a
+/// subsurface covering it.
+fn subsurface_window(
+    app: &mut App,
+    queue: &mut wayland_client::EventQueue<App>,
+    (compositor, subcompositor): (&WlCompositor, &WlSubcompositor),
+    shm: &WlShm,
+    wm_base: &XdgWmBase,
+    seconds: u64,
+) {
+    let qh = queue.handle();
+    app.configured = vec![false];
+    let surface = compositor.create_surface(&qh, ());
+    let xdg = wm_base.get_xdg_surface(&surface, &qh, 0);
+    let toplevel = xdg.get_toplevel(&qh, ());
+    toplevel.set_app_id("splice.test.subsurface".into());
+    surface.commit();
+    while !app.configured[0] {
+        queue.blocking_dispatch(app).unwrap();
+    }
+    let (w, h) = if app.toplevel_size.0 > 0 && app.toplevel_size.1 > 0 { app.toplevel_size } else { (256, 256) };
+    let length = (w * h * 4) as usize;
+    let file = std::fs::File::options().read(true).write(true).create(true).truncate(true).open(std::env::temp_dir().join(format!("splice-tc-{}", std::process::id()))).unwrap();
+    file.set_len(length as u64).unwrap();
+    // The first half of the file stays transparent for the toplevel, the content is written after it.
+    file.set_len(2 * length as u64).unwrap();
+    std::os::unix::fs::FileExt::write_all_at(&file, &vec![0xFF; length], length as u64).unwrap();
+    let pool = shm.create_pool(file.as_fd(), 2 * length as i32, &qh, ());
+    let clear = pool.create_buffer(0, w, h, w * 4, wl_shm::Format::Argb8888, &qh, ());
+    let white = pool.create_buffer(length as i32, w, h, w * 4, wl_shm::Format::Xrgb8888, &qh, ());
+    let child = compositor.create_surface(&qh, ());
+    let sub = subcompositor.get_subsurface(&child, &surface, &qh, ());
+    sub.set_desync();
+    child.attach(Some(&white), 0, 0);
+    child.damage_buffer(0, 0, w, h);
+    child.commit();
+    surface.attach(Some(&clear), 0, 0);
+    surface.damage_buffer(0, 0, w, h);
+    surface.commit();
+    let end = Instant::now() + Duration::from_secs(seconds);
+    while Instant::now() < end {
+        if queue.roundtrip(app).is_err() {
+            return;
+        }
+        std::thread::sleep(Duration::from_millis(100));
     }
 }
 
@@ -604,6 +654,12 @@ fn main() {
 
     if mode == "simple" {
         simple_window(&mut app, &mut queue, &compositor, &shm, &wm_base, seconds);
+        return;
+    }
+
+    if mode == "subsurface" {
+        let subcompositor: WlSubcompositor = globals.bind(&qh, 1..=1, ()).expect("subcompositor");
+        subsurface_window(&mut app, &mut queue, (&compositor, &subcompositor), &shm, &wm_base, seconds);
         return;
     }
 

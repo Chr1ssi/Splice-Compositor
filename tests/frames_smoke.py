@@ -43,6 +43,18 @@ assert deck["top right"] != BACKGROUND and deck["bottom left"] != BACKGROUND, de
 assert deck["bracket"] != BACKGROUND, deck
 assert deck["past the bracket"] == BACKGROUND, deck
 
+# A client that draws into a subsurface (Firefox does) gets the same cut corner.
+comp = Compositor(config='[appearance]\nstyle = "cyberdeck"\n' + GAPS + "[effects]\ncorner_radius = 20\n",
+                  extra_args="./target/debug/splice-test-client subsurface 3600 & sleep 1; ")
+try:
+    time.sleep(3)
+    sub = dict(zip(["top left", "top right"], pixels(comp, [(26, 26), (1253, 26)])))
+finally:
+    comp.stop()
+print(sub)
+assert sub["top left"] == BACKGROUND, sub
+assert sub["top right"] != BACKGROUND, sub
+
 comp, round_ = look("default", "corner_radius = 20\n")
 assert comp.stop()
 assert round_["bracket"] == BACKGROUND, round_
