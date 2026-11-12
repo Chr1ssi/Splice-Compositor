@@ -1,9 +1,11 @@
-# What `nix flake check` runs besides building the packages: clippy and the unit tests of the whole
-# workspace (`cargo clippy --workspace --all-targets`, `cargo test --workspace`), in the sandbox.
+# What `nix flake check` runs besides building the packages: the formatting, clippy and the unit tests of
+# the whole workspace (`cargo fmt --all --check`, `cargo clippy --workspace --all-targets`,
+# `cargo test --workspace`), in the sandbox.
 {
   lib,
   rustPlatform,
   clippy,
+  rustfmt,
   fontconfig,
   makeFontsConf,
   dejavu_fonts,
@@ -20,6 +22,7 @@ rustPlatform.buildRustPackage {
     fileset = lib.fileset.unions [
       ../Cargo.toml
       ../Cargo.lock
+      ../rustfmt.toml
       ../src
       ../crates
       ../vendor/smithay
@@ -28,7 +31,7 @@ rustPlatform.buildRustPackage {
 
   cargoLock.lockFile = ../Cargo.lock;
 
-  nativeBuildInputs = splice.unwrapped.nativeBuildInputs ++ splice-settings.nativeBuildInputs ++ [ clippy ];
+  nativeBuildInputs = splice.unwrapped.nativeBuildInputs ++ splice-settings.nativeBuildInputs ++ [ clippy rustfmt ];
   buildInputs = splice.unwrapped.buildInputs ++ splice-settings.buildInputs;
   # splice-ui's tests draw text: fc-match and a font it can name.
   nativeCheckInputs = [ fontconfig ];
@@ -37,6 +40,7 @@ rustPlatform.buildRustPackage {
   # The development profile, as in `nix develop`: nothing here is installed.
   buildPhase = ''
     runHook preBuild
+    cargo fmt --all --check
     cargo clippy --workspace --all-targets --offline -j "$NIX_BUILD_CORES" -- -D warnings
     runHook postBuild
   '';
