@@ -12,6 +12,25 @@ use std::{
 
 use splice_shell_protocol::{COVER_SIZE, IMAGE_SIZE, Image};
 
+/// What a picture file may ask of the decoder: files come from other programs (notifications, players, tray
+/// items), and one claiming to be gigantic must not take the process's memory.
+fn limits() -> image::Limits {
+    let mut limits = image::Limits::default();
+    limits.max_image_width = Some(8192);
+    limits.max_image_height = Some(8192);
+    limits.max_alloc = Some(128 << 20);
+    limits
+}
+
+fn decode<R: std::io::BufRead + std::io::Seek>(mut reader: image::ImageReader<R>) -> Option<image::RgbaImage> {
+    reader.limits(limits());
+    Some(reader.with_guessed_format().ok()?.decode().ok()?.into_rgba8())
+}
+
+fn decode_file(path: &Path) -> Option<image::RgbaImage> {
+    decode(image::ImageReader::open(path).ok()?)
+}
+
 /// Pixels as a D-Bus `image-data` hint (`iiibiiay`) has them.
 pub struct Raw<'a> {
     pub width: i32,
@@ -75,7 +94,7 @@ pub fn load_icon(location: &str, extra: &[PathBuf], size: u32) -> Option<Image> 
 
 /// A picture in a file format (`icon-data` of a menu entry: PNG), fitting `size`.
 pub fn from_bytes(data: &[u8], size: u32) -> Option<Image> {
-    let image = image::load_from_memory(data).ok()?.into_rgba8();
+    let image = decode(image::ImageReader::new(std::io::Cursor::new(data)))?;
     Some(fit(image, size))
 }
 
@@ -121,25 +140,29 @@ pub fn load_cover(url: &str) -> Option<Image> {
         None if url.starts_with('/') => PathBuf::from(url),
         None => return None,
     };
-    let image = image::ImageReader::open(&path).ok()?.with_guessed_format().ok()?.decode().ok()?.into_rgba8();
+    Some(cover(decode_file(&path)?))
+}
+
+/// `image` scaled down to just cover `COVER_SIZE`. The media panel shows the middle of a cover, and it is never
+/// higher than wide nor more than four times as wide as high: what lies beyond that is cut off first, so that
+/// no picture, however long and thin, grows past a line of the protocol.
+fn cover(image: image::RgbaImage) -> Image {
     let (width, height) = image.dimensions();
-    let scale = (f64::from(COVER_SIZE.0) / f64::from(width.max(1))).max(f64::from(COVER_SIZE.1) / f64::from(height.max(1)));
+    let (wide, high) = (width.min(height.saturating_mul(4)), height.min(width));
+    let part = image::imageops::crop_imm(&image, (width - wide) / 2, (height - high) / 2, wide, high);
+    let scale = (f64::from(COVER_SIZE.0) / f64::from(wide.max(1))).max(f64::from(COVER_SIZE.1) / f64::from(high.max(1)));
     let image = if scale < 1.0 {
         let size = |v: u32| ((f64::from(v) * scale).round() as u32).max(1);
-        image::imageops::resize(&image, size(width), size(height), image::imageops::FilterType::CatmullRom)
+        image::imageops::resize(&*part, size(wide), size(high), image::imageops::FilterType::CatmullRom)
     } else {
-        image
+        part.to_image()
     };
-    Some(Image { width: image.width(), height: image.height(), rgba: image.into_raw() })
+    Image { width: image.width(), height: image.height(), rgba: image.into_raw() }
 }
 
 fn load_file(path: &Path, size: u32) -> Option<Image> {
     let svg = path.extension().is_some_and(|e| e.eq_ignore_ascii_case("svg") || e.eq_ignore_ascii_case("svgz"));
-    let image = if svg {
-        render_svg(&std::fs::read(path).ok()?, size)?
-    } else {
-        image::ImageReader::open(path).ok()?.with_guessed_format().ok()?.decode().ok()?.into_rgba8()
-    };
+    let image = if svg { render_svg(&std::fs::read(path).ok()?, size)? } else { decode_file(path)? };
     Some(fit(image, size))
 }
 
@@ -344,6 +367,30 @@ mod tests {
         assert_eq!((image.width, image.height), (IMAGE_SIZE, IMAGE_SIZE / 2));
         let small = fit(image::RgbaImage::new(16, 8), IMAGE_SIZE);
         assert_eq!((small.width, small.height), (16, 8));
+    }
+
+    #[test]
+    fn covers_are_cut_to_what_the_panel_can_show() {
+        let wide = cover(image::RgbaImage::new(8000, 200));
+        assert_eq!((wide.width, wide.height), (800, 200), "the middle 800 of 8000 columns");
+        let high = cover(image::RgbaImage::new(100, 50000));
+        assert_eq!((high.width, high.height), (100, 100), "never scaled up");
+        let square = cover(image::RgbaImage::new(1000, 1000));
+        assert_eq!((square.width, square.height), (400, 400));
+        let mut marked = image::RgbaImage::new(40, 100);
+        marked.put_pixel(0, 30, image::Rgba([9, 0, 0, 255]));
+        let cut = cover(marked);
+        assert_eq!((cut.width, cut.height, cut.rgba[0]), (40, 40, 9), "rows 30 to 69 stay");
+    }
+
+    #[test]
+    fn a_picture_larger_than_the_limits_is_refused() {
+        let mut png = Vec::new();
+        image::RgbaImage::new(8193, 1).write_to(&mut std::io::Cursor::new(&mut png), image::ImageFormat::Png).unwrap();
+        assert!(from_bytes(&png, 36).is_none());
+        let mut png = Vec::new();
+        image::RgbaImage::new(64, 2).write_to(&mut std::io::Cursor::new(&mut png), image::ImageFormat::Png).unwrap();
+        assert_eq!(from_bytes(&png, 36).map(|image| (image.width, image.height)), Some((36, 1)));
     }
 
     #[test]
