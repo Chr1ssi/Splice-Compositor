@@ -249,7 +249,12 @@ impl State {
                 Generic::new(display, Interest::READ, Mode::Level),
                 |_, display, state| {
                     // SAFETY: the display is never dropped while the source is alive.
-                    unsafe { display.get_mut().dispatch_clients(state).unwrap() };
+                    if let Err(error) = unsafe { display.get_mut().dispatch_clients(state) } {
+                        // Not a client's error (that ends the client): the display itself cannot be read any
+                        // more, so no request would ever arrive again. End the session in order.
+                        tracing::error!("cannot read the Wayland display: {error}; ending the session");
+                        state.loop_signal.stop();
+                    }
                     Ok(PostAction::Continue)
                 },
             )
