@@ -78,10 +78,10 @@ latency** (especially for gaming). Primary target is **NixOS**.
 ## Git workflow
 
 - Changes that you could fully test yourself (build, `nix build`, tests, nested smoke
-  tests) are committed and pushed to `master` without asking for additional confirmation,
+  tests) are committed and pushed to `main` without asking for additional confirmation,
   so the user can rebuild and test them immediately.
 - Changes that can only be verified on real hardware go on their own branch
-  (descriptive name, e.g. `hw/<topic>`) and are pushed there, never to `master`. Tell the
+  (descriptive name, e.g. `hw/<topic>`) and are pushed there, never to `main`. Tell the
   user what needs testing; they merge after the hardware test.
 - Do not push changes that have not passed the relevant checks; report blockers instead.
 - Small, focused commits with an imperative, descriptive subject line (see `git log`).
