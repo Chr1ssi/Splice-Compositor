@@ -405,12 +405,23 @@ impl AuthOutcome {
 }
 
 /// What the compositor's login screen asks of `splice-shell-services --login`: one JSON object on its stdin.
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, PartialEq, Serialize, Deserialize)]
 pub struct LoginRequest {
     pub user: String,
     pub password: String,
     /// The session to start once greetd accepted the password.
     pub command: Vec<String>,
+}
+
+/// Without the password: a request that ends up in a log line must not carry it.
+impl std::fmt::Debug for LoginRequest {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("LoginRequest")
+            .field("user", &self.user)
+            .field("password", &"<hidden>")
+            .field("command", &self.command)
+            .finish()
+    }
 }
 
 /// What `splice-shell-services --login` tells on its stdout, one JSON object per line, as greetd answers.
@@ -432,6 +443,14 @@ pub enum LoginEvent {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_login_request_does_not_print_its_password() {
+        let request = LoginRequest { user: "anna".into(), password: "geheim".into(), command: vec!["sway".into()] };
+        let printed = format!("{request:?}");
+        assert!(printed.contains("anna") && printed.contains("sway"), "{printed}");
+        assert!(!printed.contains("geheim"), "{printed}");
+    }
 
     #[test]
     fn login_events_read_back() {
