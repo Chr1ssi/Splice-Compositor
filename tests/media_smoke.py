@@ -70,7 +70,6 @@ def called():
     return open(calls).read().split()
 
 
-comp = None
 try:
     processes.append(subprocess.Popen(["python3", "tests/fake_mpris.py", "Testlied", "Testband", f"file://{work}/cover.png", calls], env=env))
     extra = {"DBUS_SESSION_BUS_ADDRESS": address, "DBUS_SYSTEM_BUS_ADDRESS": "unix:path=/nonexistent", "PIPEWIRE_RUNTIME_DIR": "/nonexistent"}
@@ -103,11 +102,6 @@ try:
     assert wait(lambda: region(comp, 640, COVER_MIDDLE, 1, 1) != RED, 5), "the panel did not close"
     assert comp.stop()
     print("OK")
-except BaseException:
-    if comp:
-        comp.process.kill()
-        print(open(comp.dir + "/log").read()[-3000:])
-    raise
 finally:
     for process in processes:
         process.kill()

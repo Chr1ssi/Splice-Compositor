@@ -73,7 +73,6 @@ def signalled(pattern):
     return re.search(pattern, open(f"{work}/signals.log").read(), re.S)
 
 
-comp = None
 try:
     extra = {"DBUS_SESSION_BUS_ADDRESS": address, "DBUS_SYSTEM_BUS_ADDRESS": "unix:path=/nonexistent",
              "PIPEWIRE_RUNTIME_DIR": "/nonexistent", "LANG": "de_DE.UTF-8"}
@@ -153,9 +152,6 @@ try:
     assert comp.stop()
     print("OK")
 except BaseException:
-    if comp:
-        comp.process.kill()
-        print(open(comp.dir + "/log").read()[-3000:])
     print(open(f"{work}/signals.log").read()[-2000:])
     raise
 finally:

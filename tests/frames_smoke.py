@@ -22,15 +22,10 @@ def pixels(comp, points):
 def look(style, effects):
     config = (f'[appearance]\nstyle = "{style}"\n' + GAPS + "[effects]\n" + effects)
     comp = Compositor(config=config, windows=1)
-    try:
-        time.sleep(3)
-        names = ["top left", "bottom right", "top right", "bottom left", "bracket", "past the bracket", "side", "far"]
-        points = [(26, 26), (1253, 773), (1253, 26), (26, 773), (1259, 30), (1259, 100), (18, 400), (4, 400)]
-        return comp, dict(zip(names, pixels(comp, points)))
-    except BaseException:
-        comp.process.kill()
-        print(open(comp.dir + "/log").read()[-3000:])
-        raise
+    time.sleep(3)
+    names = ["top left", "bottom right", "top right", "bottom left", "bracket", "past the bracket", "side", "far"]
+    points = [(26, 26), (1253, 773), (1253, 26), (26, 773), (1259, 30), (1259, 100), (18, 400), (4, 400)]
+    return comp, dict(zip(names, pixels(comp, points)))
 
 
 # Cyberdeck, no shadow: cut corners show the background, the others the window; a bracket stands where the

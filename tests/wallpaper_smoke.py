@@ -40,22 +40,17 @@ def choose(state_home, path):
 
 # The state directory is the compositor's own; the choice must be there before it starts.
 comp = Compositor(extra_env={"SPLICE_VIRTUAL_OUTPUTS": "1"}, top=f'wallpaper_directory = "{images}"\n')
-try:
-    # Without a saved choice: the first image of the directory (sorted, "green" < "split").
-    env = comp.env()
-    assert wait(lambda: pixel(env, "winit", 640, 400) == GREEN, 15), pixel(env, "winit", 640, 400)
+# Without a saved choice: the first image of the directory (sorted, "green" < "split").
+env = comp.env()
+assert wait(lambda: pixel(env, "winit", 640, 400) == GREEN, 15), pixel(env, "winit", 640, 400)
 
-    # The picker saves a choice and asks for a theme reload; the picture changes on both outputs.
-    choose(comp.dir + "/state", split)
-    bar = Bar(comp.sock)
-    assert bar.send("theme-reload") == "v1 ok"
-    assert wait(lambda: pixel(env, "winit", 640, 400) == RED, 15), pixel(env, "winit", 640, 400)
-    assert pixel(env, "virtual-1", 640, 400) == BLUE, pixel(env, "virtual-1", 640, 400)
-    assert comp.stop()
-except BaseException:
-    comp.process.kill()
-    print(open(comp.dir + "/log").read()[-3000:])
-    raise
+# The picker saves a choice and asks for a theme reload; the picture changes on both outputs.
+choose(comp.dir + "/state", split)
+bar = Bar(comp.sock)
+assert bar.send("theme-reload") == "v1 ok"
+assert wait(lambda: pixel(env, "winit", 640, 400) == RED, 15), pixel(env, "winit", 640, 400)
+assert pixel(env, "virtual-1", 640, 400) == BLUE, pixel(env, "virtual-1", 640, 400)
+assert comp.stop()
 
 # With animations the new picture fades in over the old one: a blend shows, then only the new one.
 only_green = tempfile.mkdtemp()
@@ -63,18 +58,13 @@ subprocess.run(["cp", green, only_green], check=True)
 red_image = f"{images}/red.png"
 subprocess.run(["convert", "-size", "64x32", "xc:#ff0000", red_image], check=True)
 comp = Compositor(config="[effects]\nanimation_ms = 100\n", top=f'wallpaper_directory = "{only_green}"\n')
-try:
-    env = comp.env()
-    assert wait(lambda: pixel(env, "winit", 640, 400) == GREEN, 15), pixel(env, "winit", 640, 400)
-    choose(comp.dir + "/state", red_image)
-    assert Bar(comp.sock).send("theme-reload") == "v1 ok"
-    seen = []
-    assert wait(lambda: seen.append(pixel(env, "winit", 640, 400)) or seen[-1] == RED, 15), seen
-    print("fade samples", seen)
-    assert any(mixed(color) for color in seen), seen
-    assert comp.stop()
-    print("OK")
-except BaseException:
-    comp.process.kill()
-    print(open(comp.dir + "/log").read()[-3000:])
-    raise
+env = comp.env()
+assert wait(lambda: pixel(env, "winit", 640, 400) == GREEN, 15), pixel(env, "winit", 640, 400)
+choose(comp.dir + "/state", red_image)
+assert Bar(comp.sock).send("theme-reload") == "v1 ok"
+seen = []
+assert wait(lambda: seen.append(pixel(env, "winit", 640, 400)) or seen[-1] == RED, 15), seen
+print("fade samples", seen)
+assert any(mixed(color) for color in seen), seen
+assert comp.stop()
+print("OK")

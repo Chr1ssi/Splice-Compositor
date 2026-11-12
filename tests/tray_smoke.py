@@ -65,7 +65,6 @@ def called():
     return open(calls).read().splitlines()
 
 
-comp = None
 try:
     extra = {"DBUS_SESSION_BUS_ADDRESS": address, "DBUS_SYSTEM_BUS_ADDRESS": "unix:path=/nonexistent", "PIPEWIRE_RUNTIME_DIR": "/nonexistent"}
     comp = Compositor(top="builtin_shell = true\n", extra_env=extra)
@@ -112,9 +111,6 @@ try:
     assert comp.stop()
     print("OK")
 except BaseException:
-    if comp:
-        comp.process.kill()
-        print(open(comp.dir + "/log").read()[-3000:])
     print("calls:", called())
     raise
 finally:

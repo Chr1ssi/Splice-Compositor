@@ -5,7 +5,7 @@ compositor draws the strip there (the shell no longer opens a panel window for i
 Run from the repository root with $DISPLAY set: PYTHONPATH=tests python3 tests/edge_markers_smoke.py
 """
 import subprocess, time
-from smoke_support import Bar, Compositor
+from smoke_support import Bar, Compositor, wait
 
 ACCENT = "#89B4FA"  # the default active border
 
@@ -18,26 +18,19 @@ def pixel(comp, x, y):
 
 
 comp = Compositor(windows=3)
-try:
-    bar = Bar(comp.sock)
-    time.sleep(4)
-    # The first column focused: the row scrolls back and the last window reaches beyond the right edge.
-    comp.key("alt+h")
-    comp.key("alt+h")
-    bar.until(lambda s: s[0]["right"] and not s[0]["left"])
-    time.sleep(0.5)
-    assert pixel(comp, 1278, 400) == ACCENT, pixel(comp, 1278, 400)
-    assert pixel(comp, 1, 400) != ACCENT, pixel(comp, 1, 400)
-    # The last column focused: now the first one lies beyond the left edge.
-    comp.key("alt+l")
-    comp.key("alt+l")
-    bar.until(lambda s: s[0]["left"] and not s[0]["right"])
-    time.sleep(0.5)
-    assert pixel(comp, 1, 400) == ACCENT, pixel(comp, 1, 400)
-    assert pixel(comp, 1278, 400) != ACCENT, pixel(comp, 1278, 400)
-    assert comp.stop()
-    print("OK")
-except BaseException:
-    comp.process.kill()
-    print(open(comp.dir + "/log").read()[-3000:])
-    raise
+bar = Bar(comp.sock)
+time.sleep(4)
+# The first column focused: the row scrolls back and the last window reaches beyond the right edge.
+comp.key("alt+h")
+comp.key("alt+h")
+bar.until(lambda s: s[0]["right"] and not s[0]["left"])
+assert wait(lambda: pixel(comp, 1278, 400) == ACCENT), pixel(comp, 1278, 400)
+assert pixel(comp, 1, 400) != ACCENT, pixel(comp, 1, 400)
+# The last column focused: now the first one lies beyond the left edge.
+comp.key("alt+l")
+comp.key("alt+l")
+bar.until(lambda s: s[0]["left"] and not s[0]["right"])
+assert wait(lambda: pixel(comp, 1, 400) == ACCENT), pixel(comp, 1, 400)
+assert pixel(comp, 1278, 400) != ACCENT, pixel(comp, 1278, 400)
+assert comp.stop()
+print("OK")

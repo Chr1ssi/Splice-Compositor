@@ -10,21 +10,16 @@ from smoke_support import Compositor, wait
 CLIENT = "./target/debug/splice-test-client"
 
 comp = Compositor(windows=1)
-try:
-    time.sleep(3)
-    client = subprocess.Popen([CLIENT, "layer", "overlay", "420", "300", "0000FF", "20", "exclusive"], env=comp.env(),
-                              stdout=subprocess.PIPE, text=True)
-    got = []
-    end = time.time() + 8
-    while time.time() < end and "keyboard focus" not in got:
-        ready, _, _ = select.select([client.stdout], [], [], 0.2)
-        if ready:
-            got.append(client.stdout.readline().strip())
-    client.kill()
-    assert "keyboard focus" in got, f"the launcher-like layer never got the keyboard: {got}"
-    assert comp.stop()
-    print("OK")
-except BaseException:
-    comp.process.kill()
-    print(open(comp.dir + "/log").read()[-2500:])
-    raise
+time.sleep(3)
+client = subprocess.Popen([CLIENT, "layer", "overlay", "420", "300", "0000FF", "20", "exclusive"], env=comp.env(),
+                          stdout=subprocess.PIPE, text=True)
+got = []
+end = time.time() + 8
+while time.time() < end and "keyboard focus" not in got:
+    ready, _, _ = select.select([client.stdout], [], [], 0.2)
+    if ready:
+        got.append(client.stdout.readline().strip())
+client.kill()
+assert "keyboard focus" in got, f"the launcher-like layer never got the keyboard: {got}"
+assert comp.stop()
+print("OK")

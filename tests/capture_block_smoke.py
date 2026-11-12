@@ -47,43 +47,32 @@ def black_pixels(path):
 shots = tempfile.mkdtemp()
 rule = "[[rules]]\napp_id = 'splice.test.*'\nblock_from_capture = true\n"
 comp = Compositor(config=rule, windows=1, top=f'screenshot_directory = "{shots}"\n')
-try:
-    time.sleep(3)
-    results = {"output": capture(comp, "output"), "toplevel": capture(comp, "toplevel"), "screencopy": grim(comp)}
-    comp.key("alt+shift+s")
-    assert wait(lambda: glob.glob(shots + "/*.png"), 10), "no screenshot written"
-    time.sleep(0.5)
-    results["screenshot"] = pixel(glob.glob(shots + "/*.png")[0])
-    print("captures:", results)
-    assert all(center == BLACK for center in results.values()), results
-    shown = screen()
-    print("screen:", shown)
-    assert shown != BLACK, "the window is black on the screen too"
+time.sleep(3)
+results = {"output": capture(comp, "output"), "toplevel": capture(comp, "toplevel"), "screencopy": grim(comp)}
+comp.key("alt+shift+s")
+assert wait(lambda: glob.glob(shots + "/*.png"), 10), "no screenshot written"
+results["screenshot"] = pixel(glob.glob(shots + "/*.png")[0])
+print("captures:", results)
+assert all(center == BLACK for center in results.values()), results
+shown = screen()
+print("screen:", shown)
+assert shown != BLACK, "the window is black on the screen too"
 
-    # The overview shows the window as a thumbnail elsewhere: black in a capture, not on the screen.
-    comp.key("alt+Tab")
-    time.sleep(1)
-    captured = tempfile.mktemp(suffix=".png")
-    subprocess.run(["grim", captured], env=comp.env(), check=True)
-    in_capture, on_screen = black_pixels(captured), black_pixels(screen_file())
-    print("black pixels in the overview, capture and screen:", in_capture, on_screen)
-    assert in_capture > 10_000 and on_screen < in_capture // 10, (in_capture, on_screen)
-    assert comp.stop()
-except BaseException:
-    comp.process.kill()
-    print(open(comp.dir + "/log").read()[-3000:])
-    raise
+# The overview shows the window as a thumbnail elsewhere: black in a capture, not on the screen.
+comp.key("alt+Tab")
+time.sleep(1)
+captured = tempfile.mktemp(suffix=".png")
+subprocess.run(["grim", captured], env=comp.env(), check=True)
+in_capture, on_screen = black_pixels(captured), black_pixels(screen_file())
+print("black pixels in the overview, capture and screen:", in_capture, on_screen)
+assert in_capture > 10_000 and on_screen < in_capture // 10, (in_capture, on_screen)
+assert comp.stop()
 print("blocked window black in every capture, shown on screen OK")
 
 comp = Compositor(windows=1)
-try:
-    time.sleep(3)
-    plain = {"output": capture(comp, "output"), "screencopy": grim(comp)}
-    print("without the rule:", plain)
-    assert all(center != BLACK for center in plain.values()), plain
-    assert comp.stop()
-except BaseException:
-    comp.process.kill()
-    print(open(comp.dir + "/log").read()[-3000:])
-    raise
+time.sleep(3)
+plain = {"output": capture(comp, "output"), "screencopy": grim(comp)}
+print("without the rule:", plain)
+assert all(center != BLACK for center in plain.values()), plain
+assert comp.stop()
 print("OK")

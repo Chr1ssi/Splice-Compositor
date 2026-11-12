@@ -3,7 +3,7 @@
 Needs an X server ($DISPLAY, e.g. Xvfb :99) and a debug build of the workspace (`cargo build --workspace`:
 the compositor and splice-test-client). `tests/run-smoke` sets all of this up.
 """
-import os, socket, subprocess, tempfile, time
+import atexit, os, shutil, signal, socket, subprocess, sys, tempfile, time
 
 DEBUG_BINARY = "./target/debug/splice-compositor"
 # An ordinary animated window (the role weston-simple-shm used to play).
@@ -53,6 +53,50 @@ def wait(cond, timeout=8):
     return False
 
 
+# Every compositor a test started. A test needs no cleanup of its own: when it fails, the last one's log is
+# printed, and when it ends, however it ends, none is left running and their directories are removed.
+_compositors = []
+
+
+def _failed(kind, value, trace):
+    for comp in _compositors:
+        comp.process.kill()
+    if _compositors:
+        print(open(_compositors[-1].dir + "/log").read()[-3000:], flush=True)
+    sys.__excepthook__(kind, value, trace)
+
+
+def _terminated(*_):
+    # `timeout` in run-smoke ends a test that hangs with SIGTERM: fail like any other test, with the log.
+    raise TimeoutError("the test was terminated")
+
+
+@atexit.register
+def _cleanup():
+    for comp in _compositors:
+        if comp.process.poll() is None:
+            comp.process.kill()
+            comp.process.wait()
+        comp.log.close()
+        shutil.rmtree(comp.dir, ignore_errors=True)
+
+
+sys.excepthook = _failed
+signal.signal(signal.SIGTERM, _terminated)
+
+
+def pixel(comp, x, y):
+    """The color the compositor shows at a point of its first output, as three bytes (grim)."""
+    shot = subprocess.run(["grim", "-g", f"{x},{y} 1x1", "-t", "ppm", "-"], env=comp.env(), capture_output=True, check=True, timeout=15)
+    return shot.stdout[-3:]
+
+
+def file_pixel(path, x, y):
+    """The color of a point of a picture file as `#RRGGBB` (ImageMagick)."""
+    out = subprocess.check_output(["convert", path, "-crop", "1x1+%d+%d" % (x, y), "txt:-"]).decode()
+    return out.strip().splitlines()[-1].split()[2].upper()[:7]
+
+
 class Compositor:
     def __init__(self, config="", extra_env=None, windows=0, extra_args="", top="", layout="us", argv=None):
         """`argv`: the compositor's arguments instead of the command that starts the `windows` and `extra_args`."""
@@ -84,6 +128,7 @@ class Compositor:
         self.log = open(f"{self.dir}/log", "w")
         self.process = subprocess.Popen([DEBUG_BINARY, *(argv if argv is not None else [clients])], env=env, stdout=self.log,
                                         stderr=subprocess.STDOUT)
+        _compositors.append(self)
         assert wait(lambda: os.path.exists(self.sock)), "control socket missing"
         # The window clients start one after the other; tests count on all of them being there.
         assert wait(lambda: open(f"{self.dir}/log").read().count("new window") >= windows, 30), "the windows did not appear"

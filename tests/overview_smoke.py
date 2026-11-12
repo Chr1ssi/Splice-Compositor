@@ -5,7 +5,7 @@ zoom when opening and closing.
 Run from the repository root with $DISPLAY set: PYTHONPATH=tests python3 tests/overview_smoke.py
 """
 import subprocess, time
-from smoke_support import Bar, Compositor, wait
+from smoke_support import Bar, Compositor, file_pixel, wait
 
 SURFACE = "#313244"  # default `surface` color: the background of an (empty) cell
 MUTED = "#A6ADC8"  # default `muted_text`: the `+`
@@ -14,11 +14,6 @@ BACKGROUND = "#1E1E2E"  # the desktop without a wallpaper
 WS1, WS2, NEW, SCRATCH = (248, 273), (640, 273), (1032, 273), (248, 527)
 # One workspace, `+` and the scratchpad: one row.
 ONE_WS, ONE_NEW, ONE_SCRATCH = (248, 400), (640, 400), (1032, 400)
-
-
-def pixel(path, x, y):
-    out = subprocess.check_output(["convert", path, "-crop", "1x1+%d+%d" % (x, y), "txt:-"]).decode()
-    return out.strip().splitlines()[-1].split()[2].upper()
 
 
 def screenshot(comp, name="overview.png"):
@@ -65,14 +60,9 @@ def workspaces(bar):
 
 def run(name, test, **compositor):
     comp = Compositor(**compositor)
-    try:
-        test(comp)
-        assert comp.stop()
-        print(name, "OK")
-    except BaseException:
-        comp.process.kill()
-        print(open(comp.dir + "/log").read()[-3000:])
-        raise
+    test(comp)
+    assert comp.stop()
+    print(name, "OK")
 
 
 def basics(comp):
@@ -87,13 +77,13 @@ def basics(comp):
     comp.key("alt+Tab")
     time.sleep(1)
     shot = screenshot(comp)
-    assert pixel(shot, *WS1) != SURFACE, "workspace 1 shows no window"
-    assert pixel(shot, *WS2) != SURFACE, "workspace 2 shows no window"
-    assert pixel(shot, *NEW) == MUTED, f"no + in its cell: {pixel(shot, *NEW)}"
-    assert pixel(shot, *SCRATCH) == SURFACE, "the empty scratchpad's cell is not empty"
-    assert pixel(shot, 62, WS1[1]) == "#FFFFFF", f"the selected cell has no white frame: {pixel(shot, 62, WS1[1])}"
-    assert pixel(shot, 444, 273) not in (BACKGROUND, SURFACE), "gap between thumbnails is not dimmed"
-    assert pixel(shot, 5, 5) != BACKGROUND, "the background is not dimmed"
+    assert file_pixel(shot, *WS1) != SURFACE, "workspace 1 shows no window"
+    assert file_pixel(shot, *WS2) != SURFACE, "workspace 2 shows no window"
+    assert file_pixel(shot, *NEW) == MUTED, f"no + in its cell: {file_pixel(shot, *NEW)}"
+    assert file_pixel(shot, *SCRATCH) == SURFACE, "the empty scratchpad's cell is not empty"
+    assert file_pixel(shot, 62, WS1[1]) == "#FFFFFF", f"the selected cell has no white frame: {file_pixel(shot, 62, WS1[1])}"
+    assert file_pixel(shot, 444, 273) not in (BACKGROUND, SURFACE), "gap between thumbnails is not dimmed"
+    assert file_pixel(shot, 5, 5) != BACKGROUND, "the background is not dimmed"
 
     # Keys: Right selects the second cell, Enter goes there; a digit goes straight to that workspace.
     comp.key("Right")
@@ -122,8 +112,8 @@ def basics(comp):
     drag(WS2, WS1)
     bar.until(lambda s: set(s[0]["workspaces"]) == {1})
     shot = screenshot(comp)
-    assert pixel(shot, 5, 5) != BACKGROUND, "the overview closed after the drop"
-    assert pixel(shot, *ONE_NEW) == MUTED, "the overview did not follow the drop"
+    assert file_pixel(shot, 5, 5) != BACKGROUND, "the overview closed after the drop"
+    assert file_pixel(shot, *ONE_NEW) == MUTED, "the overview did not follow the drop"
     # Onto `+`: a new workspace with that window (the left one: two columns meet in the middle of the cell).
     drag((ONE_WS[0] - 90, ONE_WS[1]), ONE_NEW)
     bar.until(lambda s: s[0]["workspaces"] == {1: True, 2: True} and s[0]["active"] == 1)
@@ -132,7 +122,7 @@ def basics(comp):
     bar.until(lambda s: set(s[0]["workspaces"]) == {1})
     assert wait(lambda: (bar.poll(), bar.scratchpad == (False, True))[1]), bar.scratchpad
     shot = screenshot(comp)
-    assert pixel(shot, *ONE_SCRATCH) != SURFACE, "the scratchpad's cell shows no window"
+    assert file_pixel(shot, *ONE_SCRATCH) != SURFACE, "the scratchpad's cell shows no window"
     print("dragging OK")
 
     # A click on the scratchpad's cell shows it.
@@ -148,14 +138,12 @@ def basics(comp):
     click(ONE_SCRATCH, button=2)
     assert wait(lambda: (bar.poll(), bar.scratchpad == (False, False))[1]), bar.scratchpad
     shot = screenshot(comp)
-    assert pixel(shot, 5, 5) != BACKGROUND, "closing a window closed the overview"
+    assert file_pixel(shot, 5, 5) != BACKGROUND, "closing a window closed the overview"
     print("closing windows OK")
 
     # Escape closes the overview without switching.
     comp.key("Escape")
-    time.sleep(0.5)
-    shot = screenshot(comp)
-    assert pixel(shot, 5, 5) == BACKGROUND, "the overview is still showing"
+    assert wait(lambda: file_pixel(screenshot(comp), 5, 5) == BACKGROUND), "the overview is still showing"
     assert bar.state[0]["active"] == 1
 
 
@@ -165,11 +153,10 @@ def urgent(comp):
     comp.key("alt+Tab")
     time.sleep(0.5)
     # Selected, the cell is framed white; selecting another, its urgent window frames it red.
-    assert pixel(screenshot(comp), 62, ONE_WS[1]) == "#FFFFFF"
+    assert file_pixel(screenshot(comp), 62, ONE_WS[1]) == "#FFFFFF"
     comp.key("Right")
-    time.sleep(0.3)
-    frame = pixel(screenshot(comp), 62, ONE_WS[1])
-    assert frame == "#F38BA8", f"no urgent frame: {frame}"
+    assert wait(lambda: file_pixel(screenshot(comp), 62, ONE_WS[1]) == "#F38BA8"), \
+        f"no urgent frame: {file_pixel(screenshot(comp), 62, ONE_WS[1])}"
 
 
 def every_monitor(comp):
@@ -204,18 +191,17 @@ def zoom(comp):
     took = time.monotonic() - started
     time.sleep(1.2)
     late = screenshot(comp, "late.png")
-    assert pixel(late, 5, 5) != BACKGROUND, "the overview did not open"
+    assert file_pixel(late, 5, 5) != BACKGROUND, "the overview did not open"
     # Eased over 1000 ms: after ~0.4 s it is visibly darker still; a slower machine cannot tell.
     if took < 0.4:
-        assert pixel(early, 5, 5) != pixel(late, 5, 5), f"no zoom when opening ({pixel(early, 5, 5)} after {took:.2f} s)"
+        assert file_pixel(early, 5, 5) != file_pixel(late, 5, 5), f"no zoom when opening ({file_pixel(early, 5, 5)} after {took:.2f} s)"
     else:
         print(f"opening not checked: the first picture took {took:.2f} s")
     # Closing plays it backwards: slow at first, so right after Escape it is mostly there, and then gone.
     comp.key("Escape")
     closing = screenshot(comp, "closing.png")
-    assert pixel(closing, 5, 5) != BACKGROUND, "no zoom when closing"
-    time.sleep(1.2)
-    assert pixel(screenshot(comp, "closed.png"), 5, 5) == BACKGROUND, "the overview did not close"
+    assert file_pixel(closing, 5, 5) != BACKGROUND, "no zoom when closing"
+    assert wait(lambda: file_pixel(screenshot(comp, "closed.png"), 5, 5) == BACKGROUND), "the overview did not close"
 
 
 run("basics", basics, windows=2)

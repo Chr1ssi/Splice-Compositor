@@ -25,37 +25,32 @@ def stays_awake(seconds):
     return not wait(lambda: os.path.exists(IDLE), seconds)
 
 
-try:
-    bar = Bar(comp.sock)
-    bar.until(lambda s: len(s) == 1)
-    assert wait(lambda: os.path.exists(IDLE), 8), "swayidle never saw the session go idle"
+bar = Bar(comp.sock)
+bar.until(lambda s: len(s) == 1)
+assert wait(lambda: os.path.exists(IDLE), 8), "swayidle never saw the session go idle"
 
-    # A fullscreen window that is no game: the session still goes idle.
-    other = subprocess.Popen([CLIENT, "frames", "30", "fullscreen"], env=comp.env(), stdout=subprocess.DEVNULL)
-    bar.until(lambda s: s[0]["workspaces"].get(1))
-    time.sleep(1)
-    bar.poll()
-    assert not bar.gaming, "a fullscreen window without the game content type counts as a game"
-    assert not stays_awake(5), "a fullscreen window that is no game kept the session awake"
-    other.kill()
-    other.wait()
-    print("fullscreen non-game OK")
+# A fullscreen window that is no game: the session still goes idle.
+other = subprocess.Popen([CLIENT, "frames", "30", "fullscreen"], env=comp.env(), stdout=subprocess.DEVNULL)
+bar.until(lambda s: s[0]["workspaces"].get(1))
+time.sleep(1)
+bar.poll()
+assert not bar.gaming, "a fullscreen window without the game content type counts as a game"
+assert not stays_awake(5), "a fullscreen window that is no game kept the session awake"
+other.kill()
+other.wait()
+print("fullscreen non-game OK")
 
-    game = subprocess.Popen([CLIENT, "frames", "30", "fullscreen", "game"], env=comp.env(), stdout=subprocess.DEVNULL)
-    bar.until(lambda s: 0 in s[0]["workspaces"] and s[0]["active"] == 0)
-    assert wait(lambda: (bar.poll(), bar.gaming)[1]), "the bar was not told about the game"
-    print("game content type puts the window on the gaming workspace OK")
-    assert stays_awake(5), "the session went idle under a fullscreen game"
-    print("no idle under a fullscreen game OK")
+game = subprocess.Popen([CLIENT, "frames", "30", "fullscreen", "game"], env=comp.env(), stdout=subprocess.DEVNULL)
+bar.until(lambda s: 0 in s[0]["workspaces"] and s[0]["active"] == 0)
+assert wait(lambda: (bar.poll(), bar.gaming)[1]), "the bar was not told about the game"
+print("game content type puts the window on the gaming workspace OK")
+assert stays_awake(5), "the session went idle under a fullscreen game"
+print("no idle under a fullscreen game OK")
 
-    game.kill()
-    game.wait()
-    assert wait(lambda: (bar.poll(), not bar.gaming)[1]), "gaming stayed on after the game exited"
-    assert not stays_awake(5), "the session stays awake after the game exited"
-    print("idle again after the game OK")
-    assert comp.stop()
-except BaseException:
-    comp.process.kill()
-    print(open(comp.dir + "/log").read()[-3000:])
-    raise
+game.kill()
+game.wait()
+assert wait(lambda: (bar.poll(), not bar.gaming)[1]), "gaming stayed on after the game exited"
+assert not stays_awake(5), "the session stays awake after the game exited"
+print("idle again after the game OK")
+assert comp.stop()
 print("OK")

@@ -34,7 +34,6 @@ def brightness(path):
     return float(out.decode())
 
 
-comp = None
 try:
     spawn(bus_command, pw_env, "dbus")
     assert wait(lambda: os.path.exists(f"{work}/bus")), "no bus"
@@ -168,8 +167,9 @@ try:
     # Anchored: the compositor's own command line contains the client command it started. Only this
     # test's windows (children of the compositor's shell, or of this script): other tests run side by side.
     parents = subprocess.run(["pgrep", "-P", str(comp.process.pid)], capture_output=True, text=True).stdout.split()
-    subprocess.run(["pkill", "-P", ",".join([*parents, str(os.getpid())]), "-f", "^" + re.escape(WINDOW_CLIENT)])
-    time.sleep(1)
+    owners = ",".join([*parents, str(os.getpid())])
+    subprocess.run(["pkill", "-P", owners, "-f", "^" + re.escape(WINDOW_CLIENT)])
+    assert wait(lambda: subprocess.run(["pgrep", "-P", owners, "-f", "^" + re.escape(WINDOW_CLIENT)], capture_output=True).returncode != 0), "the window clients did not exit"
     session, node, size, source_type = stream(lambda: comp.key("Return"), "still")
     start = time.time()
     # Four frames of a picture that never changes: the first at once, the others from the keepalive.
@@ -267,9 +267,6 @@ try:
     assert comp.stop()
     print("OK")
 except BaseException:
-    if comp:
-        comp.process.kill()
-        print(open(comp.dir + "/log").read()[-2000:])
     print("exit codes:", [(p.args[0], p.poll()) for p in processes])
     for name in ("portal", "pipewire", "dbus"):
         if os.path.exists(f"{work}/{name}.log"):

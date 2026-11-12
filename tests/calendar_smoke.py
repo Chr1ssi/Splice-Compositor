@@ -7,7 +7,7 @@ Needs `cargo build --workspace`. Run from the repository root with $DISPLAY set:
     PYTHONPATH=tests python3 tests/calendar_smoke.py
 """
 import datetime, os, shutil, subprocess, sys, tempfile, time
-from smoke_support import Compositor, wait
+from smoke_support import Compositor, pixel, wait
 
 if not shutil.which("grim"):
     print("SKIP: grim is not installed")
@@ -70,15 +70,10 @@ def type_text(comp, text):
     time.sleep(0.3)
 
 
-def pixel(comp, x, y):
-    return subprocess.run(["grim", "-g", f"{x},{y} 1x1", "-t", "ppm", "-"], env=comp.env(), capture_output=True).stdout[-3:]
-
-
 def first_of(year, month):
     return datetime.date(year + (month - 1) // 12, (month - 1) % 12 + 1, 1)
 
 
-comp = None
 try:
     extra = {"DBUS_SESSION_BUS_ADDRESS": "unix:path=/nonexistent", "DBUS_SYSTEM_BUS_ADDRESS": "unix:path=/nonexistent",
              "PIPEWIRE_RUNTIME_DIR": "/nonexistent", "PATH": f"{stubs}:{os.environ['PATH']}", "LANG": "de_DE.UTF-8"}
@@ -132,8 +127,5 @@ try:
     assert comp.stop()
     print("OK")
 except BaseException:
-    if comp:
-        comp.process.kill()
-        print(open(comp.dir + "/log").read()[-3000:])
     print("recorded:", recorded())
     raise

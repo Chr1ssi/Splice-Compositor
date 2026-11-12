@@ -84,7 +84,6 @@ def compositor():
     return comp
 
 
-comp = None
 try:
     comp = compositor()
     click(*CONTROL_BUTTON)
@@ -131,9 +130,6 @@ try:
     assert comp.stop()
     print("OK")
 except BaseException:
-    if comp:
-        comp.process.kill()
-        print(open(comp.dir + "/log").read()[-3000:])
     print("bluez:", calls())
     print("recorded:", recorded())
     raise

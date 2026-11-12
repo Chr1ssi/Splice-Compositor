@@ -64,30 +64,25 @@ class Client:
 
 
 comp = Compositor()
-try:
-    display = re.search(r'WAYLAND_DISPLAY="([^"]+)"', open(comp.dir + "/log").read() if wait(lambda: 'WAYLAND_DISPLAY' in open(comp.dir + "/log").read()) else "").group(1)
-    client = Client(os.path.join(os.environ["XDG_RUNTIME_DIR"], display))
-    client.sock.sendall(message(1, 1, 2))  # get_registry -> object 2
-    assert client.roundtrip()
-    compositor, shell = client.globals["wl_compositor"], client.globals["zwlr_layer_shell_v1"]
-    client.next_id = 8  # objects 4 to 7 are created below
-    client.sock.sendall(message(2, 0, compositor[0], "wl_compositor", 1, 4))
-    client.sock.sendall(message(2, 0, shell[0], "zwlr_layer_shell_v1", 1, 5))
-    client.sock.sendall(message(4, 0, 6))  # wl_compositor.create_surface -> object 6
-    # get_layer_surface(id 7, surface 6, output null, layer top, namespace)
-    client.sock.sendall(message(5, 0, 7, 6, 0, 2, "test-marker"))
-    # zero width, anchored top, bottom and right only: invalid by the letter of the protocol
-    client.sock.sendall(message(7, 1, TOP | BOTTOM | RIGHT))  # set_anchor
-    client.sock.sendall(message(7, 0, 0, 0))  # set_size(0, 0)
-    client.sock.sendall(message(6, 6))  # wl_surface.commit
-    assert client.roundtrip(), f"the compositor disconnected the client: {client.error}"
-    # The client fixes its size afterwards, as Quickshell does.
-    client.sock.sendall(message(7, 0, 5, 0))
-    client.sock.sendall(message(6, 6))
-    assert client.roundtrip(), f"disconnected after the corrected size: {client.error}"
-    assert comp.stop()
-    print("OK")
-except BaseException:
-    comp.process.kill()
-    print(open(comp.dir + "/log").read()[-3000:])
-    raise
+display = re.search(r'WAYLAND_DISPLAY="([^"]+)"', open(comp.dir + "/log").read() if wait(lambda: 'WAYLAND_DISPLAY' in open(comp.dir + "/log").read()) else "").group(1)
+client = Client(os.path.join(os.environ["XDG_RUNTIME_DIR"], display))
+client.sock.sendall(message(1, 1, 2))  # get_registry -> object 2
+assert client.roundtrip()
+compositor, shell = client.globals["wl_compositor"], client.globals["zwlr_layer_shell_v1"]
+client.next_id = 8  # objects 4 to 7 are created below
+client.sock.sendall(message(2, 0, compositor[0], "wl_compositor", 1, 4))
+client.sock.sendall(message(2, 0, shell[0], "zwlr_layer_shell_v1", 1, 5))
+client.sock.sendall(message(4, 0, 6))  # wl_compositor.create_surface -> object 6
+# get_layer_surface(id 7, surface 6, output null, layer top, namespace)
+client.sock.sendall(message(5, 0, 7, 6, 0, 2, "test-marker"))
+# zero width, anchored top, bottom and right only: invalid by the letter of the protocol
+client.sock.sendall(message(7, 1, TOP | BOTTOM | RIGHT))  # set_anchor
+client.sock.sendall(message(7, 0, 0, 0))  # set_size(0, 0)
+client.sock.sendall(message(6, 6))  # wl_surface.commit
+assert client.roundtrip(), f"the compositor disconnected the client: {client.error}"
+# The client fixes its size afterwards, as Quickshell does.
+client.sock.sendall(message(7, 0, 5, 0))
+client.sock.sendall(message(6, 6))
+assert client.roundtrip(), f"disconnected after the corrected size: {client.error}"
+assert comp.stop()
+print("OK")

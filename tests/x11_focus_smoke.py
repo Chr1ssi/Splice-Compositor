@@ -9,18 +9,13 @@ from smoke_support import Compositor, wait
 
 events = os.path.join(os.environ.get("TMPDIR", "/tmp"), f"xev-{os.getpid()}.txt")
 comp = Compositor(extra_args=f"xev -event keyboard > {events} 2>&1 & ")
-try:
-    log = lambda: open(comp.dir + "/log").read()
-    assert wait(lambda: "new window" in log(), 15), "xev was not managed"
-    time.sleep(1)
-    comp.key("a")
-    time.sleep(0.5)
-    comp.key("b")
-    assert wait(lambda: os.path.exists(events) and "keysym 0x62" in open(events).read(), 5), \
-        "keys never arrived: " + (open(events).read()[-500:] if os.path.exists(events) else "no output")
-    assert comp.stop()
-    print("OK")
-except BaseException:
-    comp.process.kill()
-    print(log()[-2500:])
-    raise
+log = lambda: open(comp.dir + "/log").read()
+assert wait(lambda: "new window" in log(), 15), "xev was not managed"
+time.sleep(1)
+comp.key("a")
+time.sleep(0.5)
+comp.key("b")
+assert wait(lambda: os.path.exists(events) and "keysym 0x62" in open(events).read(), 5), \
+    "keys never arrived: " + (open(events).read()[-500:] if os.path.exists(events) else "no output")
+assert comp.stop()
+print("OK")

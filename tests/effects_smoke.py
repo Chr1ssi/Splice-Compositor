@@ -3,14 +3,10 @@
 Run from the repository root with $DISPLAY set: PYTHONPATH=tests python3 tests/effects_smoke.py
 """
 import subprocess, tempfile, time
-from smoke_support import Compositor
+from smoke_support import Compositor, file_pixel, pixel, wait
 
 BACKGROUND, ACTIVE = "#1E1E2E", "#89B4FA"
-
-
-def pixel(path, x, y):
-    out = subprocess.check_output(["convert", path, "-crop", "1x1+%d+%d" % (x, y), "txt:-"]).decode()
-    return out.strip().splitlines()[-1].split()[2].upper()
+BACKGROUND_RGB = bytes.fromhex(BACKGROUND[1:])
 
 
 def shot(comp, name):
@@ -21,33 +17,24 @@ def shot(comp, name):
 
 def run(config, windows=1):
     comp = Compositor(config=config, windows=windows)
-    try:
-        time.sleep(3)
-        return comp, shot(comp, "shot")
-    except BaseException:
-        comp.process.kill()
-        print(open(comp.dir + "/log").read()[-3000:])
-        raise
+    # The window is on screen once its middle is no longer the bare background.
+    assert wait(lambda: pixel(comp, 640, 400) != BACKGROUND_RGB), "the window was not drawn"
+    return comp, shot(comp, "shot")
 
 
 # Square corners by default: the window's corner pixel is not background.
 comp, path = run("")
-assert pixel(path, 11, 11) != BACKGROUND, pixel(path, 11, 11)
+assert file_pixel(path, 11, 11) != BACKGROUND, file_pixel(path, 11, 11)
 assert comp.stop()
 
 # Rounded: the corner shows the background, the ring edge the border color, the middle the window.
 comp, path = run("[effects]\ncorner_radius = 30\n")
-try:
-    assert pixel(path, 11, 11) == BACKGROUND, pixel(path, 11, 11)
-    assert pixel(path, 40, 9) == ACTIVE, pixel(path, 40, 9)
-    assert pixel(path, 640, 400) not in (BACKGROUND, ACTIVE)
-    # A straight edge far from the corners stays intact.
-    assert pixel(path, 640, 11) != BACKGROUND
-    assert comp.stop()
-except BaseException:
-    comp.process.kill()
-    print(open(comp.dir + "/log").read()[-3000:])
-    raise
+assert file_pixel(path, 11, 11) == BACKGROUND, file_pixel(path, 11, 11)
+assert file_pixel(path, 40, 9) == ACTIVE, file_pixel(path, 40, 9)
+assert file_pixel(path, 640, 400) not in (BACKGROUND, ACTIVE)
+# A straight edge far from the corners stays intact.
+assert file_pixel(path, 640, 11) != BACKGROUND
+assert comp.stop()
 
 # Opacity from a rule blends the window with the dark background: its average brightness drops.
 def brightness(path, crop="600x400+340+200"):
@@ -103,29 +90,20 @@ assert faded_inhibit < opaque_inhibit * 0.8, (opaque_inhibit, faded_inhibit)
 
 # Shadow: the strip next to the window is darker than the plain background.
 comp, path = run("[effects]\nshadow = 30\n")
-try:
-    assert pixel(path, 4, 400) != BACKGROUND, pixel(path, 4, 400)
-    assert pixel(path, 640, 400) != BACKGROUND
-    assert comp.stop()
-except BaseException:
-    comp.process.kill()
-    raise
+assert file_pixel(path, 4, 400) != BACKGROUND, file_pixel(path, 4, 400)
+assert file_pixel(path, 640, 400) != BACKGROUND
+assert comp.stop()
 
 # Animation: right after the window appears it is still fading in.
 comp = Compositor(config="[effects]\nanimation_ms = 1000\n", windows=1)
-try:
-    from smoke_support import wait
-    assert wait(lambda: "new window" in open(comp.dir + "/log").read(), 10)
-    early = brightness(shot(comp, "early"))
-    time.sleep(1.5)
-    late = brightness(shot(comp, "late"))
-    print("fade", early, late)
-    assert early < late * 0.9, (early, late)
-    assert comp.stop()
-except BaseException:
-    comp.process.kill()
-    print(open(comp.dir + "/log").read()[-3000:])
-    raise
+assert wait(lambda: "new window" in open(comp.dir + "/log").read(), 10)
+early = brightness(shot(comp, "early"))
+# Pacing: the fade lasts animation_ms (1000), so the late shot is taken after it has run out.
+time.sleep(1.5)
+late = brightness(shot(comp, "late"))
+print("fade", early, late)
+assert early < late * 0.9, (early, late)
+assert comp.stop()
 
 # Blur: behind a nearly transparent window the wallpaper shows soft instead of sharp.
 def contrast(path):
@@ -141,15 +119,12 @@ subprocess.run(["convert", "-size", "1280x800", "tile:/tmp/tile.png", wallpaper]
 def blurred(amount):
     cfg = f"[effects]\nblur = {amount}\n[[rules]]\napp_id = 'splice.test.simple'\nopacity = 0.1\n"
     comp = Compositor(config=cfg, windows=1, extra_args=f"swaybg -i {wallpaper} -m fill & sleep 1; ")
-    try:
-        time.sleep(4)
-        value = contrast(shot(comp, "blur"))
-        assert comp.stop()
-        return value
-    except BaseException:
-        comp.process.kill()
-        print(open(comp.dir + "/log").read()[-3000:])
-        raise
+    # Kept: swaybg runs as a separate process from the shell line, so there is no handle to wait on, and
+    # its first frame is not a clear pixel change behind the nearly transparent window.
+    time.sleep(4)
+    value = contrast(shot(comp, "blur"))
+    assert comp.stop()
+    return value
 
 
 sharp, soft = blurred(0), blurred(8)

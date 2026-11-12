@@ -15,31 +15,26 @@ def rates(process, count):
 
 
 comp = Compositor()
-try:
-    env = comp.env()
-    shown = subprocess.Popen([CLIENT, "frames", "40"], env=env, stdout=subprocess.PIPE, text=True)
-    rates(shown, 1)  # mapping
-    visible = rates(shown, 2)
-    print("visible:", visible)
-    assert min(visible) >= 10, f"a shown window draws too slowly: {visible}"
+env = comp.env()
+shown = subprocess.Popen([CLIENT, "frames", "40"], env=env, stdout=subprocess.PIPE, text=True)
+rates(shown, 1)  # mapping
+visible = rates(shown, 2)
+print("visible:", visible)
+assert min(visible) >= 10, f"a shown window draws too slowly: {visible}"
 
-    cover = subprocess.Popen([CLIENT, "frames", "40", "fullscreen"], env=env, stdout=subprocess.PIPE, text=True)
-    rates(cover, 1)
-    rates(shown, 1)  # the second in which the fullscreen window appeared
-    covered = rates(shown, 3)
-    print("covered:", covered)
-    assert max(covered) <= 2 and sum(covered) >= 2, f"a covered window should draw about once a second: {covered}"
+cover = subprocess.Popen([CLIENT, "frames", "40", "fullscreen"], env=env, stdout=subprocess.PIPE, text=True)
+rates(cover, 1)
+rates(shown, 1)  # the second in which the fullscreen window appeared
+covered = rates(shown, 3)
+print("covered:", covered)
+assert max(covered) <= 2 and sum(covered) >= 2, f"a covered window should draw about once a second: {covered}"
 
-    cover.kill()
-    cover.wait()
-    rates(shown, 1)
-    uncovered = rates(shown, 2)
-    print("uncovered:", uncovered)
-    assert min(uncovered) >= 10, f"the window did not get its frames back: {uncovered}"
-    shown.kill()
-    assert comp.stop()
-    print("OK")
-except BaseException:
-    comp.process.kill()
-    print(open(comp.dir + "/log").read()[-3000:])
-    raise
+cover.kill()
+cover.wait()
+rates(shown, 1)
+uncovered = rates(shown, 2)
+print("uncovered:", uncovered)
+assert min(uncovered) >= 10, f"the window did not get its frames back: {uncovered}"
+shown.kill()
+assert comp.stop()
+print("OK")

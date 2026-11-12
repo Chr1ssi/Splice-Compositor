@@ -36,10 +36,6 @@ def greeter(style):
             ["grim", "-g", "5,795 1x1", "-t", "ppm", "-"], env=comp.env(), capture_output=True).stdout[-3:], 15), "no card"
         time.sleep(1)
         return rows(comp)
-    except BaseException:
-        comp.process.kill()
-        print(open(comp.dir + "/log").read()[-3000:])
-        raise
     finally:
         if comp.process.poll() is None:
             comp.stop()

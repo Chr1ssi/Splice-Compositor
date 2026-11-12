@@ -16,15 +16,10 @@ keys = ["Super+udiaeresis"]
 command = ["touch", "{marks}/udiaeresis"]
 """
 comp = Compositor(config=config, layout="de")
-try:
-    # The X server is us: these are the keys at those places (nested, Alt stands for Super).
-    comp.key("alt+minus")
-    assert wait(lambda: os.path.exists(f"{marks}/ssharp"), 5), "Super+ssharp did nothing"
-    comp.key("alt+bracketleft")
-    assert wait(lambda: os.path.exists(f"{marks}/udiaeresis"), 5), "Super+udiaeresis did nothing"
-    assert comp.stop()
-    print("OK")
-except BaseException:
-    comp.process.kill()
-    print(open(comp.dir + "/log").read()[-3000:])
-    raise
+# The X server is us: these are the keys at those places (nested, Alt stands for Super).
+comp.key("alt+minus")
+assert wait(lambda: os.path.exists(f"{marks}/ssharp"), 5), "Super+ssharp did nothing"
+comp.key("alt+bracketleft")
+assert wait(lambda: os.path.exists(f"{marks}/udiaeresis"), 5), "Super+udiaeresis did nothing"
+assert comp.stop()
+print("OK")

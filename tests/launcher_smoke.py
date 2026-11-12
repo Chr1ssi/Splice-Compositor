@@ -7,7 +7,7 @@ Needs dbus-daemon and `cargo build --workspace`. Run from the repository root wi
     PYTHONPATH=tests python3 tests/launcher_smoke.py
 """
 import json, os, shutil, struct, subprocess, sys, tempfile, time, zlib
-from smoke_support import Compositor, wait
+from smoke_support import Compositor, pixel, wait
 
 if not shutil.which("grim"):
     print("SKIP: grim is not installed")
@@ -55,10 +55,6 @@ with open(f"{apps}/hidden.desktop", "w") as f:
     f.write(f"[Desktop Entry]\nType=Application\nName=Hidden Probe\nExec={probe}\nNoDisplay=true\n")
 
 
-def pixel(comp, x, y):
-    return subprocess.run(["grim", "-g", f"{x},{y} 1x1", "-t", "ppm", "-"], env=comp.env(), capture_output=True).stdout[-3:]
-
-
 def window():
     return subprocess.check_output(["xdotool", "search", "--onlyvisible", "--name", "Smithay"]).split()[0].decode()
 
@@ -78,69 +74,66 @@ def launched(path):
         return None
 
 
-comp = None
-try:
-    extra = {"DBUS_SYSTEM_BUS_ADDRESS": "unix:path=/nonexistent", "PIPEWIRE_RUNTIME_DIR": "/nonexistent",
-             "XDG_DATA_HOME": f"{base}/data", "XDG_DATA_DIRS": f"{base}/empty", "LANG": "de_DE.UTF-8"}
-    comp = Compositor(top=f'builtin_shell = true\nterminal = ["{terminal}", "--test-arg"]\n', extra_env=extra)
-    assert wait(lambda: pixel(comp, 15, 22) == bytes.fromhex("313244"), 20), "the bar was not drawn"
-    closed = pixel(comp, *CARD)
+extra = {"DBUS_SYSTEM_BUS_ADDRESS": "unix:path=/nonexistent", "PIPEWIRE_RUNTIME_DIR": "/nonexistent",
+         "XDG_DATA_HOME": f"{base}/data", "XDG_DATA_DIRS": f"{base}/empty", "LANG": "de_DE.UTF-8"}
+comp = Compositor(top=f'builtin_shell = true\nterminal = ["{terminal}", "--test-arg"]\n', extra_env=extra)
+assert wait(lambda: pixel(comp, 15, 22) == bytes.fromhex("313244"), 20), "the bar was not drawn"
+closed = pixel(comp, *CARD)
 
-    def open_launcher():
-        comp.key("alt+space")
-        assert wait(lambda: pixel(comp, *CARD) != closed), "the launcher did not open"
-        time.sleep(0.5)
 
-    def is_closed():
-        return pixel(comp, *CARD) == closed
-
-    # Keywords count; Return starts it with its arguments in its directory, and the launcher closes.
-    open_launcher()
-    type_text("INTERNET web")
-    assert wait(lambda: pixel(comp, *FIRST_ICON) == bytes.fromhex("ff0000")), "no icon"
-    comp.key("Return")
-    assert wait(lambda: launched(marker)), "nothing started"
-    assert launched(marker) == [["two words"], base, None], launched(marker)
-    assert wait(is_closed), "the launcher stayed open"
-    print("search and launch OK")
-
-    # The arrow selects the second (by name); it wants a terminal.
-    open_launcher()
-    comp.key("Down")
-    comp.key("Return")
-    assert wait(lambda: launched(terminal_marker)), "the terminal did not start"
-    assert launched(terminal_marker) == ["--test-arg", "-e", probe], launched(terminal_marker)
-    print("terminal OK")
-
-    # No match: Return starts nothing and the launcher stays; Escape closes it.
-    os.remove(marker)
-    open_launcher()
-    type_text("no-such-application")
-    comp.key("Return")
+def open_launcher():
+    comp.key("alt+space")
+    assert wait(lambda: pixel(comp, *CARD) != closed), "the launcher did not open"
     time.sleep(0.5)
-    assert not os.path.exists(marker) and not is_closed()
-    # Held Backspace repeats and empties the field: Return then starts the first application.
-    subprocess.run(["xdotool", "keydown", "BackSpace"], check=True)
-    time.sleep(1.5)
-    subprocess.run(["xdotool", "keyup", "BackSpace"], check=True)
-    comp.key("Return")
-    assert wait(lambda: launched(marker)), "the held Backspace did not empty the search"
-    print("no match and key repeat OK")
-    os.remove(marker)
-    open_launcher()
-    comp.key("Escape")
-    assert wait(is_closed), "Escape did not close"
 
-    # A click on a row starts it.
-    open_launcher()
-    subprocess.run(["xdotool", "mousemove", *map(str, FIRST_ROW), "click", "1"], check=True)
-    assert wait(lambda: launched(marker)), "the click started nothing"
-    assert wait(is_closed)
-    print("click OK")
-    assert comp.stop()
-    print("OK")
-except BaseException:
-    if comp:
-        comp.process.kill()
-        print(open(comp.dir + "/log").read()[-3000:])
-    raise
+
+def is_closed():
+    return pixel(comp, *CARD) == closed
+
+
+# Keywords count; Return starts it with its arguments in its directory, and the launcher closes.
+open_launcher()
+type_text("INTERNET web")
+assert wait(lambda: pixel(comp, *FIRST_ICON) == bytes.fromhex("ff0000")), "no icon"
+comp.key("Return")
+assert wait(lambda: launched(marker)), "nothing started"
+assert launched(marker) == [["two words"], base, None], launched(marker)
+assert wait(is_closed), "the launcher stayed open"
+print("search and launch OK")
+
+# The arrow selects the second (by name); it wants a terminal.
+open_launcher()
+comp.key("Down")
+comp.key("Return")
+assert wait(lambda: launched(terminal_marker)), "the terminal did not start"
+assert launched(terminal_marker) == ["--test-arg", "-e", probe], launched(terminal_marker)
+print("terminal OK")
+
+# No match: Return starts nothing and the launcher stays; Escape closes it.
+os.remove(marker)
+open_launcher()
+# Short, so that the held key below empties the field with time to spare (four repeats, not nineteen).
+type_text("qqqq")
+comp.key("Return")
+time.sleep(0.5)
+assert not os.path.exists(marker) and not is_closed()
+# Held Backspace repeats and empties the field: Return then starts the first application.
+subprocess.run(["xdotool", "keydown", "BackSpace"], check=True)
+time.sleep(1.5)
+subprocess.run(["xdotool", "keyup", "BackSpace"], check=True)
+comp.key("Return")
+assert wait(lambda: launched(marker)), "the held Backspace did not empty the search"
+print("no match and key repeat OK")
+os.remove(marker)
+open_launcher()
+comp.key("Escape")
+assert wait(is_closed), "Escape did not close"
+
+# A click on a row starts it.
+open_launcher()
+subprocess.run(["xdotool", "mousemove", *map(str, FIRST_ROW), "click", "1"], check=True)
+assert wait(lambda: launched(marker)), "the click started nothing"
+assert wait(is_closed)
+print("click OK")
+assert comp.stop()
+print("OK")

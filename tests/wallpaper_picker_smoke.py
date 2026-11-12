@@ -8,7 +8,7 @@ Needs grim. Run from the repository root with $DISPLAY set:
     PYTHONPATH=tests python3 tests/wallpaper_picker_smoke.py
 """
 import json, os, shutil, struct, subprocess, sys, tempfile, time, zlib
-from smoke_support import Compositor, wait
+from smoke_support import Compositor, pixel, wait
 
 if not shutil.which("grim"):
     print("SKIP: grim is not installed")
@@ -40,10 +40,6 @@ with open(f"{images}/ignored.txt", "w") as f:
     f.write("not an image")
 
 
-def pixel(comp, x, y):
-    return subprocess.run(["grim", "-g", f"{x},{y} 1x1", "-t", "ppm", "-"], env=comp.env(), capture_output=True).stdout[-3:]
-
-
 def window():
     return subprocess.check_output(["xdotool", "search", "--onlyvisible", "--name", "Smithay"]).split()[0].decode()
 
@@ -59,104 +55,101 @@ def click(x, y, button="1"):
     time.sleep(0.3)
 
 
-comp = None
-try:
-    extra = {"DBUS_SYSTEM_BUS_ADDRESS": "unix:path=/nonexistent", "PIPEWIRE_RUNTIME_DIR": "/nonexistent", "LANG": "de_DE.UTF-8"}
-    comp = Compositor(top=f'builtin_shell = true\nwallpaper_directory = "{images}"\n', extra_env=extra)
-    state = f"{comp.dir}/state/splice"
-    is_closed = lambda: max(pixel(comp, *CORNER)) > 120
-    assert wait(is_closed, 20), "the wallpaper was not drawn"
+extra = {"DBUS_SYSTEM_BUS_ADDRESS": "unix:path=/nonexistent", "PIPEWIRE_RUNTIME_DIR": "/nonexistent", "LANG": "de_DE.UTF-8"}
+comp = Compositor(top=f'builtin_shell = true\nwallpaper_directory = "{images}"\n', extra_env=extra)
+state = f"{comp.dir}/state/splice"
+is_closed = lambda: max(pixel(comp, *CORNER)) > 120
+assert wait(is_closed, 20), "the wallpaper was not drawn"
 
-    def open_picker():
-        subprocess.run(["xdotool", "mousemove", *map(str, BESIDE)], check=True)
-        comp.key("alt+shift+w")
-        assert wait(lambda: max(pixel(comp, *CORNER)) < 90), "the picker did not open"
-        # The pictures load in the background (a choice waits for its own).
-        time.sleep(1)
 
-    def saved():
-        try:
-            return json.load(open(f"{state}/wallpaper.json"))["wallpaper"]
-        except (OSError, ValueError, KeyError):
-            return None
+def open_picker():
+    subprocess.run(["xdotool", "mousemove", *map(str, BESIDE)], check=True)
+    comp.key("alt+shift+w")
+    assert wait(lambda: max(pixel(comp, *CORNER)) < 90), "the picker did not open"
+    # The pictures load in the background (a choice waits for its own).
+    time.sleep(1)
 
-    # The filter; Return saves the choice and closes; the wallpaper and the theme follow it.
-    open_picker()
-    type_text("SECOND")
-    comp.key("Return")
-    assert wait(lambda: (saved() or "").endswith("/b%20second.PNG")), saved()
-    assert json.load(open(f"{state}/wallpaper.json"))["version"] == 1
-    assert wait(is_closed), "the picker stayed open"
-    assert wait(lambda: pixel(comp, 640, 400) == bytes.fromhex("00c800"), 15), pixel(comp, 640, 400)
 
-    def theme_source():
-        try:
-            return json.load(open(f"{state}/theme.json"))["source"]
-        except (OSError, ValueError, KeyError):
-            return ""
-    assert wait(lambda: theme_source().endswith("/b second.PNG"), 20), theme_source()
-    print("filter, save, wallpaper and theme OK")
+def saved():
+    try:
+        return json.load(open(f"{state}/wallpaper.json"))["wallpaper"]
+    except (OSError, ValueError, KeyError):
+        return None
 
-    # It opens on the image in use (the second): the next one does not load, so it is refused and the picker stays.
-    open_picker()
-    comp.key("Right")
-    comp.key("Return")
-    time.sleep(1.5)
-    assert not is_closed(), "a broken image was accepted"
-    assert saved().endswith("/b%20second.PNG"), saved()
-    comp.key("Escape")
-    assert wait(is_closed), "Escape did not close"
-    print("current image, broken image, Escape OK")
 
-    # No match: Return saves nothing and the picker stays.
-    open_picker()
-    type_text("no matches")
-    comp.key("Return")
-    time.sleep(0.5)
-    assert not is_closed()
-    comp.key("Escape")
-    assert wait(is_closed)
+# The filter; Return saves the choice and closes; the wallpaper and the theme follow it.
+open_picker()
+type_text("SECOND")
+comp.key("Return")
+assert wait(lambda: (saved() or "").endswith("/b%20second.PNG")), saved()
+assert json.load(open(f"{state}/wallpaper.json"))["version"] == 1
+assert wait(is_closed), "the picker stayed open"
+assert wait(lambda: pixel(comp, 640, 400) == bytes.fromhex("00c800"), 15), pixel(comp, 640, 400)
 
-    # A click beside the tiles closes it.
-    open_picker()
-    click(*BESIDE)
-    assert wait(is_closed), "the click beside did not close"
 
-    # A click on the neighbour selects it, a second one (now it is the selected tile) chooses it.
-    open_picker()
-    click(*NEIGHBOUR)
-    time.sleep(0.5)
-    assert not is_closed()
-    click(*SELECTED)
-    assert wait(lambda: "%23" in (saved() or "") and "%25" in saved()), saved()
-    assert saved().endswith("/a%20gradient%20%23%20100%25.png"), saved()
-    assert wait(is_closed)
-    print("clicks OK")
+def theme_source():
+    try:
+        return json.load(open(f"{state}/theme.json"))["source"]
+    except (OSError, ValueError, KeyError):
+        return ""
+assert wait(lambda: theme_source().endswith("/b second.PNG"), 20), theme_source()
+print("filter, save, wallpaper and theme OK")
 
-    # The held arrow stops at the last image (the broken one); one back is the second.
-    open_picker()
-    subprocess.run(["xdotool", "keydown", "Right"], check=True)
-    time.sleep(1.5)
-    subprocess.run(["xdotool", "keyup", "Right"], check=True)
-    comp.key("Left")
-    comp.key("Return")
-    assert wait(lambda: (saved() or "").endswith("/b%20second.PNG")), saved()
-    assert wait(is_closed)
+# It opens on the image in use (the second): the next one does not load, so it is refused and the picker stays.
+open_picker()
+comp.key("Right")
+comp.key("Return")
+time.sleep(1.5)
+assert not is_closed(), "a broken image was accepted"
+assert saved().endswith("/b%20second.PNG"), saved()
+comp.key("Escape")
+assert wait(is_closed), "Escape did not close"
+print("current image, broken image, Escape OK")
 
-    # The wheel over the tiles: down is the next one (the broken one again).
-    open_picker()
-    subprocess.run(["xdotool", "mousemove", *map(str, SELECTED)], check=True)
-    click(*SELECTED, button="5")
-    comp.key("Return")
-    time.sleep(1.5)
-    assert not is_closed(), "the wheel did not move to the broken image"
-    comp.key("Escape")
-    assert wait(is_closed)
-    print("held arrow and wheel OK")
-    assert comp.stop()
-    print("OK")
-except BaseException:
-    if comp:
-        comp.process.kill()
-        print(open(comp.dir + "/log").read()[-3000:])
-    raise
+# No match: Return saves nothing and the picker stays.
+open_picker()
+type_text("no matches")
+comp.key("Return")
+time.sleep(0.5)
+assert not is_closed()
+comp.key("Escape")
+assert wait(is_closed)
+
+# A click beside the tiles closes it.
+open_picker()
+click(*BESIDE)
+assert wait(is_closed), "the click beside did not close"
+
+# A click on the neighbour selects it, a second one (now it is the selected tile) chooses it.
+open_picker()
+click(*NEIGHBOUR)
+time.sleep(0.5)
+assert not is_closed()
+click(*SELECTED)
+assert wait(lambda: "%23" in (saved() or "") and "%25" in saved()), saved()
+assert saved().endswith("/a%20gradient%20%23%20100%25.png"), saved()
+assert wait(is_closed)
+print("clicks OK")
+
+# The held arrow stops at the last image (the broken one); one back is the second.
+open_picker()
+subprocess.run(["xdotool", "keydown", "Right"], check=True)
+time.sleep(1.5)
+subprocess.run(["xdotool", "keyup", "Right"], check=True)
+comp.key("Left")
+comp.key("Return")
+assert wait(lambda: (saved() or "").endswith("/b%20second.PNG")), saved()
+assert wait(is_closed)
+
+# The wheel over the tiles: down is the next one (the broken one again).
+open_picker()
+subprocess.run(["xdotool", "mousemove", *map(str, SELECTED)], check=True)
+click(*SELECTED, button="5")
+comp.key("Return")
+time.sleep(1.5)
+assert not is_closed(), "the wheel did not move to the broken image"
+comp.key("Escape")
+assert wait(is_closed)
+print("held arrow and wheel OK")
+assert comp.stop()
+print("OK")

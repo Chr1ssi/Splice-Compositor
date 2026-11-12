@@ -38,50 +38,45 @@ def answer(client):
 
 
 comp = Compositor(windows=1)
-try:
-    bar = Bar(comp.sock)
-    bar.until(lambda s: s[0]["workspaces"].get(1))
-    time.sleep(1)
-    assert bar.send("new-workspace 1") == "v1 ok"
-    bar.until(lambda s: s[0]["active"] == 2)
+bar = Bar(comp.sock)
+bar.until(lambda s: s[0]["workspaces"].get(1))
+time.sleep(1)
+assert bar.send("new-workspace 1") == "v1 ok"
+bar.until(lambda s: s[0]["active"] == 2)
 
-    # A click on the window's thumbnail: its workspace is shown again.
-    comp.key("alt+Tab")
-    time.sleep(0.5)
-    click(FIRST_CELL_WITH_EXTRAS)
-    bar.until(lambda s: s[0]["active"] == 1)
-    print("a thumbnail click shows the window OK")
+# A click on the window's thumbnail: its workspace is shown again.
+comp.key("alt+Tab")
+time.sleep(0.5)
+click(FIRST_CELL_WITH_EXTRAS)
+bar.until(lambda s: s[0]["active"] == 1)
+print("a thumbnail click shows the window OK")
 
-    assert bar.send("new-workspace 1") == "v1 ok"
-    bar.until(lambda s: s[0]["active"] == 2)
-    # Sharing: the window on the hidden workspace, picked from its thumbnail.
-    client = ask(comp, "both")
-    click(FIRST_CELL)
-    chosen = answer(client)
-    print("thumbnail:", chosen)
-    assert chosen.startswith("v1 chosen window "), chosen
-    # The empty cell: the monitor.
-    client = ask(comp, "both")
-    click(SECOND_CELL)
-    assert answer(client) == "v1 chosen monitor winit"
-    # Monitors only: a window's thumbnail picks its monitor.
-    client = ask(comp, "monitor")
-    click(FIRST_CELL)
-    assert answer(client) == "v1 chosen monitor winit"
-    # Escape: nothing.
-    client = ask(comp, "both")
-    comp.key("Escape")
-    assert answer(client) == "v1 chosen none"
-    # A click beside the cells closes the overview, and that answers too: the portal never waits for good.
-    client = ask(comp, "both")
-    click((20, 20))
-    assert answer(client) == "v1 chosen none"
-    print("sharing from the overview OK")
-    assert comp.stop()
-except BaseException:
-    comp.process.kill()
-    print(open(comp.dir + "/log").read()[-3000:])
-    raise
+assert bar.send("new-workspace 1") == "v1 ok"
+bar.until(lambda s: s[0]["active"] == 2)
+# Sharing: the window on the hidden workspace, picked from its thumbnail.
+client = ask(comp, "both")
+click(FIRST_CELL)
+chosen = answer(client)
+print("thumbnail:", chosen)
+assert chosen.startswith("v1 chosen window "), chosen
+# The empty cell: the monitor.
+client = ask(comp, "both")
+click(SECOND_CELL)
+assert answer(client) == "v1 chosen monitor winit"
+# Monitors only: a window's thumbnail picks its monitor.
+client = ask(comp, "monitor")
+click(FIRST_CELL)
+assert answer(client) == "v1 chosen monitor winit"
+# Escape: nothing.
+client = ask(comp, "both")
+comp.key("Escape")
+assert answer(client) == "v1 chosen none"
+# A click beside the cells closes the overview, and that answers too: the portal never waits for good.
+client = ask(comp, "both")
+click((20, 20))
+assert answer(client) == "v1 chosen none"
+print("sharing from the overview OK")
+assert comp.stop()
 
 # Two monitors: picking what to share, the overview is on both, not only under the pointer.
 def surface_pixels(comp, output):
@@ -93,23 +88,18 @@ def surface_pixels(comp, output):
 
 
 comp = Compositor(config='[bindings]\nfocus_output_right = ["Super+Ctrl+period"]\n', extra_env={"SPLICE_VIRTUAL_OUTPUTS": "1"})
-try:
-    bar = Bar(comp.sock)
-    bar.until(lambda s: len(s) == 2)
-    time.sleep(1)
-    comp.key("alt+ctrl+period")  # the pointer goes to the second monitor
-    time.sleep(0.5)
-    before = surface_pixels(comp, "winit")
-    client = ask(comp, "both")
-    during = surface_pixels(comp, "winit")
-    print("overview pixels on the monitor without the pointer, before and while picking:", before, during)
-    assert before < 1000 < 50_000 < during, (before, during)
-    comp.key("Return")
-    assert answer(client) == "v1 chosen monitor virtual-1"
-    print("the overview is on every monitor; Enter shares the one under the pointer OK")
-    assert comp.stop()
-except BaseException:
-    comp.process.kill()
-    print(open(comp.dir + "/log").read()[-3000:])
-    raise
+bar = Bar(comp.sock)
+bar.until(lambda s: len(s) == 2)
+time.sleep(1)
+comp.key("alt+ctrl+period")  # the pointer goes to the second monitor
+time.sleep(0.5)
+before = surface_pixels(comp, "winit")
+client = ask(comp, "both")
+during = surface_pixels(comp, "winit")
+print("overview pixels on the monitor without the pointer, before and while picking:", before, during)
+assert before < 1000 < 50_000 < during, (before, during)
+comp.key("Return")
+assert answer(client) == "v1 chosen monitor virtual-1"
+print("the overview is on every monitor; Enter shares the one under the pointer OK")
+assert comp.stop()
 print("OK")

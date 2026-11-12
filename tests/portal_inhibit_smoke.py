@@ -67,8 +67,6 @@ try:
     print("a crashed portal releases its inhibitions OK")
     assert comp.stop()
 except BaseException:
-    comp.process.kill()
-    print(open(comp.dir + "/log").read()[-2000:])
     print(open(f"{work}/portal.log").read()[-2000:] if os.path.exists(f"{work}/portal.log") else "no portal log")
     raise
 finally:

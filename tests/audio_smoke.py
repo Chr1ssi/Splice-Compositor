@@ -7,7 +7,7 @@ $DISPLAY set:
     PYTHONPATH=tests python3 tests/audio_smoke.py
 """
 import os, re, shutil, subprocess, sys, tempfile, time
-from smoke_support import Compositor, hermetic_wireplumber, private_bus, wait
+from smoke_support import Compositor, hermetic_wireplumber, pixel, private_bus, wait
 
 for tool in ("dbus-daemon", "pipewire", "wireplumber", "pw-cli", "pw-cat", "wpctl", "grim"):
     if not shutil.which(tool):
@@ -56,16 +56,10 @@ def default_sink():
     return found.group(1) if found else None
 
 
-def pixel(comp, x, y):
-    shot = subprocess.run(["grim", "-g", f"{x},{y} 1x1", "-t", "ppm", "-"], env=comp.env(), capture_output=True, check=True, timeout=15).stdout
-    return shot[-3:]
-
-
 def mouse(*args):
     subprocess.run(["xdotool", *args], check=True)
 
 
-comp = None
 try:
     spawn(bus_command, "bus")
     assert wait(lambda: os.path.exists(f"{work}/session/bus")), "no bus"
@@ -104,10 +98,12 @@ try:
 
     # The fonts load in the background; the bar takes clicks once it is drawn (the selected workspace's pill).
     assert wait(lambda: pixel(comp, 15, 22) == bytes.fromhex("313244"), 20), "the bar was not drawn"
-    mouse("mousemove", *map(str, AUDIO_BUTTON), "click", "1")
-    time.sleep(1)
     # Drag the default output's slider from a quarter to three quarters.
     quarter, three_quarters = SLIDER_X + 7 + 0.25 * 322, SLIDER_X + 7 + 0.75 * 322
+    # The panel has no animation: its track's filled part shows as soon as the panel is drawn.
+    closed = pixel(comp, int(quarter), SLIDER)
+    mouse("mousemove", *map(str, AUDIO_BUTTON), "click", "1")
+    assert wait(lambda: pixel(comp, int(quarter), SLIDER) != closed), "the audio panel did not open"
     mouse("mousemove", str(int(quarter)), str(SLIDER), "mousedown", "1")
     assert wait(lambda: volume() and abs(volume()[0] - 0.25) < 0.02, 5), volume()
     mouse("mousemove", str(int(three_quarters)), str(SLIDER), "mouseup", "1")
@@ -118,18 +114,14 @@ try:
     assert wait(lambda: volume() and volume()[1], 5), volume()
     print("mute OK")
     # Another output, chosen as the default; the list folds up again.
+    collapsed = pixel(comp, PANEL_X + 100, OTHER)
     mouse("mousemove", str(PANEL_X + 180), str(EXPAND), "click", "1")
-    time.sleep(0.5)
+    assert wait(lambda: pixel(comp, PANEL_X + 100, OTHER) != collapsed), "the other outputs were not listed"
     mouse("mousemove", str(PANEL_X + 100), str(OTHER), "click", "1")
     assert wait(lambda: default_sink() not in (None, first), 5), default_sink()
     print("default output chosen OK")
     assert comp.stop()
     print("OK")
-except BaseException:
-    if comp:
-        comp.process.kill()
-        print(open(comp.dir + "/log").read()[-3000:])
-    raise
 finally:
     for process in processes:
         process.kill()

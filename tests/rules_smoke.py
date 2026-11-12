@@ -68,10 +68,6 @@ try:
     assert size != (1280, 800), size
     print("fullscreen rules OK")
     assert comp.stop()
-except BaseException:
-    comp.process.kill()
-    print(open(comp.dir + "/log").read()[-3000:])
-    raise
 finally:
     for client in clients:
         client.kill()

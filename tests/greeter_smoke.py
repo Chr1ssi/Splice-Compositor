@@ -9,7 +9,7 @@ Needs grim and `cargo build --workspace`. Run from the repository root with $DIS
     PYTHONPATH=tests python3 tests/greeter_smoke.py
 """
 import os, subprocess, sys, tempfile, time
-from smoke_support import Compositor, wait
+from smoke_support import Compositor, pixel, wait
 
 USER, PASSWORD = "tester", "geheim"
 # On the 1280x800 output the card begins at y = 416 (52 %): avatar, user field (532-580), password field (596-644).
@@ -20,10 +20,6 @@ PASSWORD_BORDER = (469, 620)
 POWEROFF = (1238, 760)
 # The theme's alert color without a theme.json.
 ALERT = bytes.fromhex("f38ba8")
-
-
-def pixel(comp, x, y):
-    return subprocess.run(["grim", "-g", f"{x},{y} 1x1", "-t", "ppm", "-"], env=comp.env(), capture_output=True).stdout[-3:]
 
 
 def colors(comp, output):
@@ -62,7 +58,6 @@ open(greetd_log, "w").close()
 greetd = subprocess.Popen([sys.executable, "tests/fake_greetd.py", f"{base}/greetd.sock", USER, PASSWORD, greetd_log])
 requests = lambda: open(greetd_log).read().splitlines()
 marker = f"{base}/binding"
-comp = None
 try:
     assert wait(lambda: "ready" in requests()), "the stand-in for greetd did not start"
     env = {"GREETD_SOCK": f"{base}/greetd.sock", "SPLICE_GREETER_USER": USER, "SPLICE_GREETER_SESSIONS": sessions,
@@ -133,10 +128,5 @@ try:
     assert comp.stop()
     print("unreachable greetd OK")
     print("OK")
-except BaseException:
-    if comp:
-        comp.process.kill()
-        print(open(comp.dir + "/log").read()[-4000:])
-    raise
 finally:
     greetd.terminate()

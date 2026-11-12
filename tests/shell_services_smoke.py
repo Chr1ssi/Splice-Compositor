@@ -65,7 +65,6 @@ def reported(comp, pattern):
     return re.search(pattern, open(comp.dir + "/log").read())
 
 
-comp = None
 try:
     spawn(session_bus, "session-bus")
     spawn(system_bus, "system-bus")
@@ -136,9 +135,6 @@ try:
     assert comp.stop()
     print("OK")
 except BaseException:
-    if comp:
-        comp.process.kill()
-        print(open(comp.dir + "/log").read()[-4000:])
     for name in ("pipewire", "wireplumber", "bluez", "mpris"):
         if os.path.exists(f"{work}/{name}.log"):
             print(f"--- {name}\n" + open(f"{work}/{name}.log").read()[-1500:])

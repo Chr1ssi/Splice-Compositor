@@ -19,24 +19,19 @@ def dialog_sizes(comp, *args):
 
 
 comp = Compositor()
-try:
-    early = dialog_sizes(comp)
-    print("parent before the first commit:", early)
-    sizes = [tuple(map(int, line.split()[1:])) for line in early if line.startswith("size")]
-    assert sizes and all(w < 600 for w, _ in sizes), sizes
+early = dialog_sizes(comp)
+print("parent before the first commit:", early)
+sizes = [tuple(map(int, line.split()[1:])) for line in early if line.startswith("size")]
+assert sizes and all(w < 600 for w, _ in sizes), sizes
 
-    late = dialog_sizes(comp, "late")
-    print("parent after placing:", late)
-    index = late.index("parented")
-    before = [tuple(map(int, l.split()[1:])) for l in late[:index] if l.startswith("size")]
-    after = [tuple(map(int, l.split()[1:])) for l in late[index:] if l.startswith("size")]
-    # Tiled first (beside its parent), floating once it is a dialog.
-    assert before and before[-1][0] >= 600, before
-    assert after and after[-1][0] < 600, after
-    print("xdg-foreign dialogs float OK")
-    assert comp.stop()
-except BaseException:
-    comp.process.kill()
-    print(open(comp.dir + "/log").read()[-3000:])
-    raise
+late = dialog_sizes(comp, "late")
+print("parent after placing:", late)
+index = late.index("parented")
+before = [tuple(map(int, l.split()[1:])) for l in late[:index] if l.startswith("size")]
+after = [tuple(map(int, l.split()[1:])) for l in late[index:] if l.startswith("size")]
+# Tiled first (beside its parent), floating once it is a dialog.
+assert before and before[-1][0] >= 600, before
+assert after and after[-1][0] < 600, after
+print("xdg-foreign dialogs float OK")
+assert comp.stop()
 print("OK")

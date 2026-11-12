@@ -22,71 +22,66 @@ os.makedirs(idle_dir, exist_ok=True)
 # on activity it writes `resume`.
 idle_client = f"swayidle -w timeout 2 'touch {idle_dir}/idle' resume 'touch {idle_dir}/resume' & "
 comp = Compositor(top="builtin_shell = true\n", windows=2, extra_args=idle_client)
-try:
-    bar = Bar(comp.sock)
-    bar.until(lambda s: s[0]["workspaces"].get(1))
-    time.sleep(3)
+bar = Bar(comp.sock)
+bar.until(lambda s: s[0]["workspaces"].get(1))
+time.sleep(3)
 
-    # --- idle notification (ext-idle-notify) ---
-    assert wait(lambda: os.path.exists(f"{idle_dir}/idle"), 8), "swayidle never saw the session go idle"
-    subprocess.run(["xdotool", "mousemove", "300", "300"], check=True)
-    subprocess.run(["xdotool", "mousemove", "310", "310"], check=True)
-    assert wait(lambda: os.path.exists(f"{idle_dir}/resume"), 5), "input did not end idleness"
-    print("idle notification OK")
+# --- idle notification (ext-idle-notify) ---
+assert wait(lambda: os.path.exists(f"{idle_dir}/idle"), 8), "swayidle never saw the session go idle"
+subprocess.run(["xdotool", "mousemove", "300", "300"], check=True)
+subprocess.run(["xdotool", "mousemove", "310", "310"], check=True)
+assert wait(lambda: os.path.exists(f"{idle_dir}/resume"), 5), "input did not end idleness"
+print("idle notification OK")
 
-    # --- idle inhibition (idle-inhibit) ---
-    env = comp.env()
-    # The client replaces its first inhibitor with a second one on the same surface and then exits
-    # without destroying the second.
-    client = subprocess.Popen(["./target/debug/splice-test-client", "idle-inhibit", "6"], env=env,
-                              stdout=subprocess.PIPE, text=True)
-    assert client.stdout.readline().strip() == "inhibiting", "the idle-inhibit client did not start"
-    if os.path.exists(f"{idle_dir}/idle"):
-        os.remove(f"{idle_dir}/idle")
-    assert not wait(lambda: os.path.exists(f"{idle_dir}/idle"), 4), "went idle despite a live inhibitor"
-    client.wait(10)
-    assert wait(lambda: os.path.exists(f"{idle_dir}/idle"), 6), "still inhibited after the client exited"
-    print("idle inhibition OK")
+# --- idle inhibition (idle-inhibit) ---
+env = comp.env()
+# The client replaces its first inhibitor with a second one on the same surface and then exits
+# without destroying the second.
+client = subprocess.Popen(["./target/debug/splice-test-client", "idle-inhibit", "6"], env=env,
+                          stdout=subprocess.PIPE, text=True)
+assert client.stdout.readline().strip() == "inhibiting", "the idle-inhibit client did not start"
+if os.path.exists(f"{idle_dir}/idle"):
+    os.remove(f"{idle_dir}/idle")
+assert not wait(lambda: os.path.exists(f"{idle_dir}/idle"), 4), "went idle despite a live inhibitor"
+client.wait(10)
+assert wait(lambda: os.path.exists(f"{idle_dir}/idle"), 6), "still inhibited after the client exited"
+print("idle inhibition OK")
 
-    # --- monitor power (wlr-output-power-management) ---
-    listing = subprocess.check_output(["wlopm"], env=env).decode()
-    assert "winit on" in listing, listing
-    subprocess.run(["wlopm", "--off", "winit"], env=env, check=True)
-    assert wait(lambda: "winit off" in subprocess.check_output(["wlopm"], env=env).decode())
-    subprocess.run(["wlopm", "--on", "winit"], env=env, check=True)
-    assert wait(lambda: "winit on" in subprocess.check_output(["wlopm"], env=env).decode())
-    print("output power OK")
+# --- monitor power (wlr-output-power-management) ---
+listing = subprocess.check_output(["wlopm"], env=env).decode()
+assert "winit on" in listing, listing
+subprocess.run(["wlopm", "--off", "winit"], env=env, check=True)
+assert wait(lambda: "winit off" in subprocess.check_output(["wlopm"], env=env).decode())
+subprocess.run(["wlopm", "--on", "winit"], env=env, check=True)
+assert wait(lambda: "winit on" in subprocess.check_output(["wlopm"], env=env).decode())
+print("output power OK")
 
-    # --- session lock (ext-session-lock, the built-in lock screen) ---
-    screenshot(f"{comp.dir}/before.png")
-    before = pixel(f"{comp.dir}/before.png", 300, 400)
-    result = subprocess.run(["./target/debug/splice-compositor", "--lock"], env=env, timeout=15)
-    assert result.returncode == 0, "--lock did not get a confirmation"
-    bar.until(lambda s: bar.locked, 5)
-    time.sleep(1)
-    screenshot(f"{comp.dir}/locked.png")
-    locked = pixel(f"{comp.dir}/locked.png", 300, 400)
-    print("pixel before lock:", before, "while locked:", locked)
-    assert before != locked, "windows are still visible behind the lock"
-    # Without a wallpaper the lock screen is its dimmed background color all around the card.
-    assert locked == pixel(f"{comp.dir}/locked.png", 100, 700), "the lock screen does not cover the windows"
-    # The locker redraws for a key press only when it gets its frame callback: the password field then shows a dot
-    # (bright text color) where it had a dim placeholder.
-    def bright_field_pixels(path):
-        raw = subprocess.check_output(["convert", path, "-crop", "280x40+480+580", "rgb:-"])
-        return sum(1 for i in range(0, len(raw), 3) if min(raw[i:i + 3]) > 0xB0)
-    screenshot(f"{comp.dir}/before-typing.png")
-    comp.key("a")
-    time.sleep(0.5)
+# --- session lock (ext-session-lock, the built-in lock screen) ---
+screenshot(f"{comp.dir}/before.png")
+before = pixel(f"{comp.dir}/before.png", 300, 400)
+result = subprocess.run(["./target/debug/splice-compositor", "--lock"], env=env, timeout=15)
+assert result.returncode == 0, "--lock did not get a confirmation"
+bar.until(lambda s: bar.locked, 5)
+time.sleep(1)
+screenshot(f"{comp.dir}/locked.png")
+locked = pixel(f"{comp.dir}/locked.png", 300, 400)
+print("pixel before lock:", before, "while locked:", locked)
+assert before != locked, "windows are still visible behind the lock"
+# Without a wallpaper the lock screen is its dimmed background color all around the card.
+assert locked == pixel(f"{comp.dir}/locked.png", 100, 700), "the lock screen does not cover the windows"
+# The locker redraws for a key press only when it gets its frame callback: the password field then shows a dot
+# (bright text color) where it had a dim placeholder.
+def bright_field_pixels(path):
+    raw = subprocess.check_output(["convert", path, "-crop", "280x40+480+580", "rgb:-"])
+    return sum(1 for i in range(0, len(raw), 3) if min(raw[i:i + 3]) > 0xB0)
+screenshot(f"{comp.dir}/before-typing.png")
+def typing_lit():
     screenshot(f"{comp.dir}/typed.png")
-    lit = bright_field_pixels(f"{comp.dir}/typed.png") - bright_field_pixels(f"{comp.dir}/before-typing.png")
-    print("field pixels lit by typing:", lit)
-    assert lit > 20, "the lock screen did not react to typing"
-    assert bar.send("workspace 1 1") == "v1 error invalid-command", "commands must be refused while locked"
-    assert comp.stop(), "socket not removed on exit"
-    print("session lock OK")
-    print("OK")
-except BaseException:
-    comp.process.kill()
-    print(open(comp.dir + "/log").read()[-3000:])
-    raise
+    return bright_field_pixels(f"{comp.dir}/typed.png") - bright_field_pixels(f"{comp.dir}/before-typing.png")
+comp.key("a")
+assert wait(lambda: typing_lit() > 20), "the lock screen did not react to typing"
+print("field pixels lit by typing:", typing_lit())
+assert bar.send("workspace 1 1") == "v1 error invalid-command", "commands must be refused while locked"
+assert comp.stop(), "socket not removed on exit"
+print("session lock OK")
+print("OK")

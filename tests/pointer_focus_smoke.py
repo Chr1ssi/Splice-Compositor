@@ -24,19 +24,14 @@ def hover(x, y):
 
 # --- A locked pointer is released when another workspace is shown.
 comp = Compositor(extra_args=f"{CLIENT} pointer 60 lock & ")
-try:
-    bar = Bar(comp.sock)
-    assert wait(lambda: "pointer client ready" in log(comp), 15), "the client did not start"
-    bar.until(lambda s: s[0]["workspaces"].get(1))
-    time.sleep(1)
-    hover(60, 60)
-    assert wait(lambda: "pointer locked" in log(comp), 5), "the pointer was not locked"
-    assert bar.send("new-workspace 1") == "v1 ok"
-    assert wait(lambda: "pointer unlocked" in log(comp) and "pointer leave" in log(comp), 5), \
-        "the hidden window kept the pointer and its lock"
-    assert comp.stop()
-    print("OK")
-except BaseException:
-    comp.process.kill()
-    print(log(comp)[-3000:])
-    raise
+bar = Bar(comp.sock)
+assert wait(lambda: "pointer client ready" in log(comp), 15), "the client did not start"
+bar.until(lambda s: s[0]["workspaces"].get(1))
+time.sleep(1)
+hover(60, 60)
+assert wait(lambda: "pointer locked" in log(comp), 5), "the pointer was not locked"
+assert bar.send("new-workspace 1") == "v1 ok"
+assert wait(lambda: "pointer unlocked" in log(comp) and "pointer leave" in log(comp), 5), \
+    "the hidden window kept the pointer and its lock"
+assert comp.stop()
+print("OK")

@@ -47,18 +47,13 @@ def list_globals(path):
 
 
 comp = Compositor()
-try:
-    assert wait(lambda: re.search(r'WAYLAND_DISPLAY="([^"]+)"', open(comp.dir + "/log").read()))
-    display = re.search(r'WAYLAND_DISPLAY="([^"]+)"', open(comp.dir + "/log").read()).group(1)
-    globals_ = list_globals(os.path.join(os.environ["XDG_RUNTIME_DIR"], display))
-    print(sorted(globals_))
-    missing = EXPECTED - set(globals_)
-    assert not missing, f"missing globals: {sorted(missing)}"
-    unexpected = HARDWARE_ONLY & set(globals_)
-    assert not unexpected, f"hardware-only globals advertised while nested: {sorted(unexpected)}"
-    assert comp.stop()
-    print("OK")
-except BaseException:
-    comp.process.kill()
-    print(open(comp.dir + "/log").read()[-3000:])
-    raise
+assert wait(lambda: re.search(r'WAYLAND_DISPLAY="([^"]+)"', open(comp.dir + "/log").read()))
+display = re.search(r'WAYLAND_DISPLAY="([^"]+)"', open(comp.dir + "/log").read()).group(1)
+globals_ = list_globals(os.path.join(os.environ["XDG_RUNTIME_DIR"], display))
+print(sorted(globals_))
+missing = EXPECTED - set(globals_)
+assert not missing, f"missing globals: {sorted(missing)}"
+unexpected = HARDWARE_ONLY & set(globals_)
+assert not unexpected, f"hardware-only globals advertised while nested: {sorted(unexpected)}"
+assert comp.stop()
+print("OK")

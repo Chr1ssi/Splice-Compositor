@@ -20,14 +20,9 @@ def roundtrip(comp, primary=False):
 
 for name, extra in (("focus-based", {"SPLICE_NO_DATA_CONTROL": "1"}), ("data-control", {})):
     comp = Compositor(extra_env=extra)
-    try:
-        time.sleep(2)
-        roundtrip(comp)
-        roundtrip(comp, primary=True)
-        assert comp.stop()
-        print(f"{name} clipboard OK")
-    except BaseException:
-        comp.process.kill()
-        print(open(comp.dir + "/log").read()[-3000:])
-        raise
+    time.sleep(2)
+    roundtrip(comp)
+    roundtrip(comp, primary=True)
+    assert comp.stop()
+    print(f"{name} clipboard OK")
 print("OK")

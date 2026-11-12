@@ -38,43 +38,39 @@ def surface_luminance(state):
     return 0.2126 * linear[0] + 0.7152 * linear[1] + 0.0722 * linear[2]
 
 
-comp = None
-try:
-    comp = Compositor(top=f'builtin_shell = true\nwallpaper_directory = "{images}"\n', extra_env=nowhere)
-    state = f"{comp.dir}/state/splice"
-    config = f"{comp.dir}/config.toml"
-    bar = Bar(comp.sock)
+comp = Compositor(top=f'builtin_shell = true\nwallpaper_directory = "{images}"\n', extra_env=nowhere)
+state = f"{comp.dir}/state/splice"
+config = f"{comp.dir}/config.toml"
+bar = Bar(comp.sock)
 
-    def rounded():
-        top, middle = bar_rows(comp)
-        return middle > 0 and top < middle - 6
 
-    def chamfered():
-        top, middle = bar_rows(comp)
-        return middle > 0 and top == middle
+def rounded():
+    top, middle = bar_rows(comp)
+    return middle > 0 and top < middle - 6
 
-    assert wait(rounded, 20), bar_rows(comp)
-    print("default style rounds the islands")
 
-    # Switch to cyberdeck: the islands are cut, and the theme is generated again with the stronger palette.
-    with open(config, "a") as f:
-        f.write('\n[appearance]\nstyle = "cyberdeck"\n')
-    assert bar.send("theme-reload") == "v1 ok"
-    assert wait(lambda: os.path.exists(f"{state}/theme.json") and surface_luminance(state) < 0.0065, 30), \
-        surface_luminance(state) if os.path.exists(f"{state}/theme.json") else "no theme"
-    assert wait(chamfered, 20), bar_rows(comp)
-    print("cyberdeck chamfers the islands and sinks the surfaces:", round(surface_luminance(state), 4))
+def chamfered():
+    top, middle = bar_rows(comp)
+    return middle > 0 and top == middle
 
-    # And back.
-    text = open(config).read().replace('style = "cyberdeck"', 'style = "default"')
-    open(config, "w").write(text)
-    assert bar.send("theme-reload") == "v1 ok"
-    assert wait(lambda: surface_luminance(state) > 0.0065, 30), surface_luminance(state)
-    assert wait(rounded, 20), bar_rows(comp)
-    assert comp.stop()
-    print("OK")
-except BaseException:
-    if comp:
-        comp.process.kill()
-        print(open(comp.dir + "/log").read()[-3000:])
-    raise
+
+assert wait(rounded, 20), bar_rows(comp)
+print("default style rounds the islands")
+
+# Switch to cyberdeck: the islands are cut, and the theme is generated again with the stronger palette.
+with open(config, "a") as f:
+    f.write('\n[appearance]\nstyle = "cyberdeck"\n')
+assert bar.send("theme-reload") == "v1 ok"
+assert wait(lambda: os.path.exists(f"{state}/theme.json") and surface_luminance(state) < 0.0065, 30), \
+    surface_luminance(state) if os.path.exists(f"{state}/theme.json") else "no theme"
+assert wait(chamfered, 20), bar_rows(comp)
+print("cyberdeck chamfers the islands and sinks the surfaces:", round(surface_luminance(state), 4))
+
+# And back.
+text = open(config).read().replace('style = "cyberdeck"', 'style = "default"')
+open(config, "w").write(text)
+assert bar.send("theme-reload") == "v1 ok"
+assert wait(lambda: surface_luminance(state) > 0.0065, 30), surface_luminance(state)
+assert wait(rounded, 20), bar_rows(comp)
+assert comp.stop()
+print("OK")

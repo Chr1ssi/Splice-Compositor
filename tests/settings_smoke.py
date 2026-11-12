@@ -67,7 +67,6 @@ try:
     xdo("mousemove", "--window", window, "852", "136", "click", "1")
     time.sleep(0.7)
     xdo("key", "q")
-    time.sleep(0.5)
     # The duplicate shows in the alert color (the click did reach "+ Taste"), not only in a file that stays as it was.
     def marked():
         picture = subprocess.run(["import", "-window", window, "png:-"], capture_output=True).stdout
