@@ -1,6 +1,6 @@
 //! The calendar panel's own parts in the built-in shell: the events of the month shown and the calendars come from
 //! the `splice-calendar` helper (khal) on threads of their own, the form creates events with it, and its fields take
-//! the keyboard. Every opening of the panel starts afresh on today, as the Quickshell panel's loader did; answers
+//! the keyboard. Every opening of the panel starts afresh on today; answers
 //! for an earlier opening are dropped.
 use smithay::{
     input::keyboard::{Keysym, keysyms},
@@ -205,8 +205,8 @@ impl State {
             CalendarTarget::OpenApp => {
                 let title = self.shell.language.tr("Kalender");
                 let command = ["foot", "--app-id", "splice-calendar", "--title", title, HELPER, "app"].map(str::to_owned);
-                self.spawn_command(&command, true);
-                // The app's window takes the keyboard, which closed the Quickshell panel.
+                self.spawn_command(&command);
+                // The app's window takes the keyboard, so the panel closes.
                 self.panel_close();
             }
         }

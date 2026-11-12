@@ -67,11 +67,11 @@ impl State {
         }
         tracing::debug!("action {action:?}");
         match action {
-            Action::Terminal => self.spawn_command(&self.config.terminal.clone(), false),
+            Action::Terminal => self.spawn_command(&self.config.terminal.clone()),
             Action::Launcher if self.builtin_launcher() => self.launcher_open(),
             Action::Launcher => {
                 if let Some(command) = self.config.launcher.clone() {
-                    self.spawn_command(&command, true);
+                    self.spawn_command(&command);
                 }
             }
             Action::Program(index) => {
@@ -83,7 +83,7 @@ impl State {
                     .and_then(|pattern| self.next_window_where(|m| m.app_id.as_deref().is_some_and(|id| splice_config::glob(pattern, id))));
                 match open {
                     Some(id) => self.show_window(id),
-                    None => self.spawn_command(&binding.command.clone(), false),
+                    None => self.spawn_command(&binding.command.clone()),
                 }
             }
             Action::ToggleSticky => self.toggle_sticky(),

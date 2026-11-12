@@ -1,4 +1,4 @@
-"""Helpers for the smoke tests: run the nested compositor and talk to its bar socket.
+"""Helpers for the smoke tests: run the nested compositor and talk to its control socket.
 
 Needs an X server ($DISPLAY, e.g. Xvfb :99) and a debug build of the workspace (`cargo build --workspace`:
 the compositor and splice-test-client). `tests/run-smoke` sets all of this up.
@@ -84,7 +84,7 @@ class Compositor:
         self.log = open(f"{self.dir}/log", "w")
         self.process = subprocess.Popen([DEBUG_BINARY, *(argv if argv is not None else [clients])], env=env, stdout=self.log,
                                         stderr=subprocess.STDOUT)
-        assert wait(lambda: os.path.exists(self.sock)), "bar socket missing"
+        assert wait(lambda: os.path.exists(self.sock)), "control socket missing"
         # The window clients start one after the other; tests count on all of them being there.
         assert wait(lambda: open(f"{self.dir}/log").read().count("new window") >= windows, 30), "the windows did not appear"
 
@@ -126,7 +126,6 @@ class Bar:
         self.scratchpad = (False, False)  # visible, occupied
         self.picking = None  # None, or the color under the pointer ("" until known) while the color picker is on
         self.replies = []
-        self.confirm_logouts = []
 
     def poll(self):
         try:
@@ -151,8 +150,6 @@ class Bar:
                 self.capturing = text.endswith("1")
             elif text.startswith("v1 config "):
                 self.config_error = None if text == "v1 config ok" else text.removeprefix("v1 config error ")
-            elif text.startswith("v1 confirm-logout "):
-                self.confirm_logouts.append(int(text.split()[2]))
             elif text.startswith("v1 ok") or text.startswith("v1 error"):
                 self.replies.append(text)
 

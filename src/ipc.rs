@@ -11,7 +11,7 @@ use std::{
 
 use smithay::reexports::calloop::{Interest, LoopHandle, Mode, PostAction, generic::Generic};
 use splice_config::Action;
-use splice_ipc::{Chosen, Command, INVALID, OK, confirm_logout, parse_command};
+use splice_ipc::{Chosen, Command, INVALID, OK, parse_command};
 
 use crate::State;
 
@@ -182,19 +182,14 @@ impl State {
 
     /// Whether the command was valid; valid ones have been carried out.
     fn run_ipc_command(&mut self, command: Command, client: u64) -> bool {
-        // Registering does nothing by itself; a bar that restarts behind the lock must not lose it. An idle
-        // inhibition (a video behind the lock) may begin there too.
-        if self.session_lock.is_active()
-            && !matches!(command, Command::Lock | Command::HandleLogout | Command::InhibitIdle | Command::CastFollow)
-        {
+        // Following the cast target does nothing by itself; a portal that starts behind the lock must not lose
+        // it. An idle inhibition (a video behind the lock) may begin there too.
+        if self.session_lock.is_active() && !matches!(command, Command::Lock | Command::InhibitIdle | Command::CastFollow) {
             return false;
         }
         match command {
             Command::ChooseSource(kinds) => return self.start_share_chooser(client, kinds),
             Command::Lock => self.run_action(Action::Lock),
-            // The bar sends this once the user confirmed; the exit binding would ask again.
-            Command::Logout => self.loop_signal.stop(),
-            Command::HandleLogout => self.logout_handler = Some(client),
             Command::CastFollow => {
                 self.cast_followers.insert(client);
                 self.cast_unsent.push(client);
@@ -204,7 +199,6 @@ impl State {
                 self.update_idle_inhibition();
             }
             Command::ThemeReload => self.run_action(Action::Reload),
-            Command::Scratchpad => self.run_action(Action::ToggleScratchpad),
             Command::NewWorkspace { output } => {
                 let Some(monitor) = self.monitor_for_output_id(output) else { return false };
                 self.new_workspace_on(monitor);
@@ -229,26 +223,13 @@ impl State {
         }
     }
 
-    /// The exit binding: the `handle-logout` client asks the user on the monitor under the
-    /// pointer. Without one (no bar, or it went away) the session ends at once, so the binding
-    /// never leaves the user stuck.
+    /// The exit binding: the shell asks the user first. Without the shell the session ends at once, so the
+    /// binding never leaves the user stuck.
     pub fn request_exit(&mut self) {
         if self.shell.enabled {
             return self.shell_confirm_logout();
         }
-        let monitor = self.pointer_monitor().unwrap_or(self.desktop.focused_monitor);
-        let output = self.outputs.get(monitor).map(|e| e.id);
-        let handler = self.logout_handler;
-        let asked = output.is_some_and(|output| {
-            self.ipc.as_mut().and_then(|ipc| ipc.clients.iter_mut().find(|c| Some(c.id) == handler && !c.broken)).is_some_and(|client| {
-                client.output.extend_from_slice(confirm_logout(output).as_bytes());
-                client.broken = !client.write_pending();
-                !client.broken
-            })
-        });
-        if !asked {
-            self.loop_signal.stop();
-        }
+        self.loop_signal.stop();
     }
 
     fn monitor_for_output_id(&self, id: u32) -> Option<usize> {

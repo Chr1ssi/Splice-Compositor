@@ -212,7 +212,7 @@ fn sync_greeter(wallpaper: &Path, state: &ThemeState) {
         return;
     };
     let sync = || -> Result<()> {
-        // theme.json for splice-shell's login screen, theme.css for a GTK greeter.
+        // theme.json for the login screen, theme.css for a GTK greeter.
         write_atomic(&directory.join("theme.json"), &(serde_json::to_string_pretty(state)? + "\n"))?;
         render(directory.join("theme.css"), GREETER, state)?;
         let temporary = directory.join("background.tmp");
@@ -229,7 +229,7 @@ fn notify_consumers(directory: &Path) {
     if let Some(socket) = std::env::var_os("SPLICE_SOCKET")
         && let Ok(mut stream) = UnixStream::connect(socket)
     {
-        let _ = stream.write_all(b"v1 theme-reload\n");
+        let _ = stream.write_all(splice_ipc::Command::ThemeReload.encode().as_bytes());
     }
     // Without a socket, `kitty @` talks to the controlling terminal and waits ten seconds for an
     // answer that never comes (the console of the greeter at session start); detached from it, the

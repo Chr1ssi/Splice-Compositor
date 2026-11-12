@@ -1,6 +1,6 @@
 //! The command center's own parts in the built-in shell: the night light (gammastep keeps the warm screen as long
 //! as it runs, the choice is kept across logins in `$XDG_STATE_HOME/splice/night-light`), the local IPv4 addresses
-//! (asked of `ip` every five seconds while the command center is open, as the Quickshell panel did) and copying one
+//! (asked of `ip` every five seconds while the command center is open) and copying one
 //! of them, what its clicks do, and the way to the settings app.
 use std::time::Duration;
 
@@ -233,7 +233,7 @@ impl State {
             }
             ControlTarget::DeviceRow(_) => {}
             ControlTarget::Settings => {
-                self.spawn_command(&[SETTINGS.to_owned()], false);
+                self.spawn_command(&[SETTINGS.to_owned()]);
                 // The app's window takes the keyboard, which closes the panel anyway.
                 self.panel_close();
             }

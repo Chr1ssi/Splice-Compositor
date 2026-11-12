@@ -1,4 +1,4 @@
-//! The `v1` control protocol of the compositor's bar socket. Lines of text over a
+//! The `v1` control protocol of the compositor's socket. Lines of text over a
 //! Unix socket (`$SPLICE_SOCKET`):
 //!
 //! * client → compositor: `v1 <command>\n`, answered by `v1 ok` or `v1 error invalid-command`
@@ -12,8 +12,6 @@
 //! * `v1 cast-follow`: the compositor sends `v1 cast-target ...` (see `CastTarget`) now and on every change
 //! * `v1 inhibit-idle` keeps the session from going idle until the sender's connection closes
 //!   (splice-portal, for apps that inhibit through the portal)
-//! * compositor → the client that sent `handle-logout`, when the exit binding is pressed:
-//!   `v1 confirm-logout <output id>` (it asks the user and answers with `logout`)
 //!
 //! An output is `id,x,y,width,height,active,left,right,number:occupied|number:occupied...`.
 //! Workspace number 0 is the gaming workspace; `left`/`right` tell whether tiled
@@ -105,17 +103,11 @@ pub enum Command {
     /// Ask the user what to share; answered by `v1 ok` and later `v1 chosen ...`.
     ChooseSource(SourceKinds),
     Lock,
-    /// End the session now.
-    Logout,
-    /// The sender confirms logouts: the exit binding asks it with `v1 confirm-logout <output>`
-    /// instead of ending the session (which it still does while no such client is connected).
-    HandleLogout,
     /// Keep the session from going idle while the sender stays connected.
     InhibitIdle,
     /// Follow the dynamic cast target (`v1 cast-target ...`) while connected.
     CastFollow,
     ThemeReload,
-    Scratchpad,
     NewWorkspace {
         output: u32,
     },
@@ -123,6 +115,28 @@ pub enum Command {
         output: u32,
         number: usize,
     },
+}
+
+impl Command {
+    /// The line a client sends; `parse_command` reads it back.
+    pub fn encode(&self) -> String {
+        match self {
+            Command::ChooseSource(kinds) => {
+                let kinds = match kinds {
+                    SourceKinds::Monitor => "monitor",
+                    SourceKinds::Window => "window",
+                    SourceKinds::Both => "both",
+                };
+                format!("v1 choose-source {kinds}\n")
+            }
+            Command::Lock => "v1 lock\n".into(),
+            Command::InhibitIdle => "v1 inhibit-idle\n".into(),
+            Command::CastFollow => "v1 cast-follow\n".into(),
+            Command::ThemeReload => "v1 theme-reload\n".into(),
+            Command::NewWorkspace { output } => format!("v1 new-workspace {output}\n"),
+            Command::Workspace { output, number } => format!("v1 workspace {output} {number}\n"),
+        }
+    }
 }
 
 /// Parse the syntax of a command line; whether the output or workspace exists is up to the caller.
@@ -136,21 +150,13 @@ pub fn parse_command(line: &str) -> Option<Command> {
             "both" => SourceKinds::Both,
             _ => return None,
         })),
-        ["v1", "logout"] => Some(Command::Logout),
-        ["v1", "handle-logout"] => Some(Command::HandleLogout),
         ["v1", "inhibit-idle"] => Some(Command::InhibitIdle),
         ["v1", "cast-follow"] => Some(Command::CastFollow),
         ["v1", "theme-reload"] => Some(Command::ThemeReload),
-        ["v1", "scratchpad"] => Some(Command::Scratchpad),
         ["v1", "new-workspace", output] => Some(Command::NewWorkspace { output: output.parse().ok()? }),
         ["v1", "workspace", output, number] => Some(Command::Workspace { output: output.parse().ok()?, number: number.parse().ok()? }),
         _ => None,
     }
-}
-
-/// Ask the `handle-logout` client to confirm a logout on the output with this id.
-pub fn confirm_logout(output: u32) -> String {
-    format!("v1 confirm-logout {output}\n")
 }
 
 pub const OK: &str = "v1 ok\n";
@@ -307,25 +313,34 @@ mod tests {
     #[test]
     fn commands_parse() {
         assert_eq!(parse_command("v1 lock\n"), Some(Command::Lock));
-        assert_eq!(parse_command("v1 logout"), Some(Command::Logout));
-        assert_eq!(parse_command("v1 handle-logout\n"), Some(Command::HandleLogout));
         assert_eq!(parse_command("v1 inhibit-idle\n"), Some(Command::InhibitIdle));
         assert_eq!(parse_command("v1 cast-follow"), Some(Command::CastFollow));
         for target in [CastTarget::Nothing, CastTarget::Monitor("DP-3".into()), CastTarget::Window("abc".into())] {
             assert_eq!(CastTarget::parse(&target.encode()), Some(target));
         }
         assert_eq!(Chosen::parse(&Chosen::Dynamic.encode()), Some(Chosen::Dynamic));
-        assert_eq!(confirm_logout(7), "v1 confirm-logout 7\n");
         assert_eq!(parse_command("v1 theme-reload"), Some(Command::ThemeReload));
         assert_eq!(parse_command("v1 choose-source both"), Some(Command::ChooseSource(SourceKinds::Both)));
         assert_eq!(parse_command("v1 choose-source tab"), None);
         for chosen in [Chosen::Monitor("DP-3".into()), Chosen::Window("abc123".into()), Chosen::Nothing] {
             assert_eq!(Chosen::parse(&chosen.encode()), Some(chosen));
         }
-        assert_eq!(parse_command("v1 scratchpad"), Some(Command::Scratchpad));
         assert_eq!(parse_command("v1 new-workspace 7"), Some(Command::NewWorkspace { output: 7 }));
         assert_eq!(parse_command("v1  workspace 7 3"), Some(Command::Workspace { output: 7, number: 3 }));
-        for bad in ["", "lock", "v2 lock", "v1 workspace 7", "v1 workspace x 3", "v1 workspace 7 -1", "v1 lock now"] {
+        for command in [
+            Command::ChooseSource(SourceKinds::Window),
+            Command::Lock,
+            Command::InhibitIdle,
+            Command::CastFollow,
+            Command::ThemeReload,
+            Command::NewWorkspace { output: 7 },
+            Command::Workspace { output: 7, number: 3 },
+        ] {
+            assert_eq!(parse_command(&command.encode()), Some(command));
+        }
+        for bad in
+            ["", "lock", "v2 lock", "v1 workspace 7", "v1 workspace x 3", "v1 workspace 7 -1", "v1 lock now", "v1 logout", "v1 scratchpad"]
+        {
             assert_eq!(parse_command(bad), None, "accepted {bad:?}");
         }
     }

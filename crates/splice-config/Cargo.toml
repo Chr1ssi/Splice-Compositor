@@ -6,6 +6,7 @@ license = "MIT"
 description = "TOML configuration for the Splice compositor"
 
 [dependencies]
+splice-ipc = { path = "../splice-ipc" }
 splice-layout = { path = "../splice-layout" }
 serde = { version = "1", features = ["derive"] }
 toml = "0.9"

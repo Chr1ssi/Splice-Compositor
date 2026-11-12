@@ -1,4 +1,4 @@
-"""Smoke test of the bar socket against the nested compositor.
+"""Smoke test of the control socket against the nested compositor.
 
 Run from the repository root with $DISPLAY set (e.g. Xvfb :99), after `cargo build`:
     PYTHONPATH=tests python3 tests/ipc_smoke.py
@@ -23,7 +23,6 @@ try:
     bar.until(lambda s: s[0]["active"] == 1 and set(s[0]["workspaces"]) == {1})
     for bad in ["workspace 9 1", "workspace 1 7", "frobnicate"]:
         assert bar.send(bad) == "v1 error invalid-command", bad
-    assert bar.send("scratchpad") == "v1 ok"  # empty scratchpad: valid, no change
 
     # A one-shot sender that closes right after writing still gets its command carried out.
     one_shot = socket.socket(socket.AF_UNIX)

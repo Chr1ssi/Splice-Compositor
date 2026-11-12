@@ -163,7 +163,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 state.spawn_greeter(cmd);
             }
         }
-        Some(cmd) => state.spawn_command(&["sh".into(), "-c".into(), cmd.into()], false),
+        Some(cmd) => state.spawn_command(&["sh".into(), "-c".into(), cmd.into()]),
         None => {}
     }
 

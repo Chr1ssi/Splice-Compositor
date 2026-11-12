@@ -555,31 +555,6 @@ impl Config {
         Ok(bindings)
     }
 
-    /// Environment telling the launcher which terminal to start.
-    pub fn terminal_env(&self) -> Vec<(String, String)> {
-        let mut env = vec![("SPLICE_TERMINAL_COUNT".to_owned(), self.terminal.len().to_string())];
-        env.extend(self.terminal.iter().enumerate().map(|(i, arg)| (format!("SPLICE_TERMINAL_{i}"), arg.clone())));
-        env
-    }
-
-    /// Environment describing the theme for helper programs (launcher, shell).
-    pub fn theme_env(&self) -> Vec<(String, String)> {
-        let a = &self.appearance;
-        let state = theme_state_path().map(|p| ("SPLICE_THEME_STATE".to_owned(), p.to_string_lossy().into_owned()));
-        [
-            ("BACKGROUND", a.background),
-            ("SURFACE", a.surface),
-            ("TEXT", a.text),
-            ("MUTED", a.muted_text),
-            ("ACCENT", a.active_border),
-            ("BORDER", a.inactive_border),
-        ]
-        .into_iter()
-        .map(|(name, color)| (format!("SPLICE_COLOR_{name}"), color.css()))
-        .chain(state)
-        .collect()
-    }
-
     /// Colors generated from the wallpaper (`splice-theme`) replace the configured ones.
     pub fn apply_theme_state(&mut self) {
         if let Some(path) = theme_state_path()
@@ -753,11 +728,5 @@ mod tests {
         assert_eq!(config.outputs[2].transform, OutputTransform::Rotate270);
         assert_eq!(config.outputs[2].scale, 1.0);
         assert!(!config.outputs[3].enable);
-    }
-
-    #[test]
-    fn theme_env_exposes_css_colors() {
-        let env = Config::default().theme_env();
-        assert!(env.contains(&("SPLICE_COLOR_ACCENT".into(), "#89b4fa".into())));
     }
 }

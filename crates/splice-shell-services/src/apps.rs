@@ -1,6 +1,5 @@
-//! Desktop entries as Quickshell's `DesktopEntries` reads them: the applications of the XDG `applications`
-//! directories that the launcher lists. The parsing follows Quickshell's `desktopentry.cpp` closely, quirks included,
-//! so an application gets the same name, command and icon as there.
+//! Desktop entries: the applications of the XDG `applications` directories that the launcher lists. The parsing
+//! has a few quirks, which are noted where they occur.
 use std::{
     collections::{HashMap, HashSet},
     path::{Path, PathBuf},
@@ -45,7 +44,7 @@ pub struct Locale {
 }
 
 impl Locale {
-    /// Splits `text` as Quickshell does: the modifier is what follows `@`, the codeset after `.` is dropped and the
+    /// Splits `text`: the modifier is what follows `@`, the codeset after `.` is dropped and the
     /// territory is what follows `_`.
     pub fn parse(text: &str) -> Locale {
         let territory_idx = text.find('_');
@@ -57,14 +56,14 @@ impl Locale {
             modifier = &text[idx + 1..];
             parse_end = idx;
         }
-        // A codeset cuts the language even when it comes after the modifier, as in Quickshell ("de@x.y" is "de@x").
+        // A codeset cuts the language even when it comes after the modifier ("de@x.y" is "de@x").
         if let Some(idx) = codeset_idx {
             parse_end = idx;
         }
         let mut territory = "";
         if let Some(idx) = territory_idx {
-            // Quickshell slices with a negative length when the territory starts after the codeset or modifier; there
-            // it is empty.
+            // The territory is empty when it starts after the codeset or modifier (the slice would have a negative
+            // length).
             if idx < parse_end {
                 territory = &text[idx + 1..parse_end];
             }
@@ -73,7 +72,7 @@ impl Locale {
         Locale { language: text[..parse_end].to_owned(), territory: territory.to_owned(), modifier: modifier.to_owned() }
     }
 
-    /// Whether there is a language to match with (Quickshell's `isValid`).
+    /// Whether there is a language to match with.
     fn is_valid(&self) -> bool {
         !self.language.is_empty()
     }
@@ -100,7 +99,7 @@ impl Locale {
         score
     }
 
-    /// The locale of the messages: `LC_MESSAGES`, else `LANG` (not `LC_ALL`, as in Quickshell).
+    /// The locale of the messages: `LC_MESSAGES`, else `LANG` (not `LC_ALL`).
     pub fn system() -> Locale {
         let text = ["LC_MESSAGES", "LANG"]
             .into_iter()
@@ -111,7 +110,7 @@ impl Locale {
     }
 }
 
-/// `Exec` split into arguments as Quickshell's `parseExecString` does it: double or single quotes keep a word
+/// `Exec` split into arguments: double or single quotes keep a word
 /// together, a backslash escapes inside them, field codes such as `%U` are dropped and `%%` stays a percent sign.
 pub fn parse_exec(exec: &str) -> Vec<String> {
     let mut arguments = Vec::new();
@@ -141,7 +140,7 @@ pub fn parse_exec(exec: &str) -> Vec<String> {
                     't' => '\t',
                     'r' => '\r',
                     '\\' => '\\',
-                    // Quickshell warns about other escapes and keeps the character.
+                    // Other escapes keep the character.
                     _ => c,
                 });
                 escape = 0;
@@ -196,7 +195,7 @@ pub fn parse_entry(id: &str, text: &str, system: &Locale) -> Entry {
     let mut group = String::new();
     let mut values = Values::new();
     // Only `\n` splits lines, so a `\r` of a CRLF file stays at the end of the line. Then `[Desktop Entry]\r` is not a
-    // group header, which is what Quickshell does too.
+    // group header.
     for line in text.split('\n').filter(|line| !line.is_empty()) {
         if line.starts_with('#') {
             continue;
@@ -233,9 +232,8 @@ pub fn parse_entry(id: &str, text: &str, system: &Locale) -> Entry {
     entry
 }
 
-/// Applies the values of a finished group the way Quickshell's `finishCategory` does. Only `[Desktop Entry]` with
-/// `Type=Application` counts. Quickshell returns early for the other `[Desktop Entry]` groups without clearing the
-/// values, so they carry over into the next group; that is kept.
+/// Applies the values of a finished group. Only `[Desktop Entry]` with `Type=Application` counts. For a
+/// `[Desktop Entry]` of another type it returns early without clearing the values, so they carry over into the next group; that is kept.
 fn finish_group(entry: &mut Entry, group: &str, values: &mut Values) {
     if group == "Desktop Entry" {
         let is_application = values.get("Type").is_some_and(|(_, kind)| kind == "Application");
@@ -271,7 +269,7 @@ pub fn desktop_dirs() -> Vec<PathBuf> {
 /// `desktop_dirs` from the values of `$XDG_DATA_HOME`, `$HOME` and `$XDG_DATA_DIRS` (`None` when unset), without
 /// reading the environment.
 fn desktop_dirs_from(data_home: Option<String>, home: Option<String>, data_dirs: Option<String>) -> Vec<PathBuf> {
-    // Quickshell takes `$HOME` as given when it is set at all, so an empty one yields `/.local/share`.
+    // `$HOME` is taken as given when it is set at all, so an empty one yields `/.local/share`.
     let data_home = data_home.filter(|d| !d.is_empty()).or_else(|| home.map(|h| format!("{h}/.local/share")));
     let data_dirs = data_dirs.filter(|d| !d.is_empty()).unwrap_or_else(|| "/usr/local/share:/usr/share".to_owned());
     data_home
@@ -284,7 +282,7 @@ fn desktop_dirs_from(data_home: Option<String>, home: Option<String>, data_dirs:
 /// The applications of `dirs`, given most important first, sorted by id. A directory is read recursively; an id
 /// of a file in a subdirectory is prefixed with the subdirectory names joined by `-`.
 ///
-/// As Quickshell does, the directories are read least important first, and each entry then replaces the one of the
+/// The directories are read least important first, and each entry then replaces the one of the
 /// same id before it. A hidden entry removes that one and is not listed, and an entry without a name is ignored
 /// (it neither replaces nor removes anything).
 pub fn scan(dirs: &[PathBuf], system: &Locale) -> Vec<Application> {
@@ -311,7 +309,7 @@ pub fn scan(dirs: &[PathBuf], system: &Locale) -> Vec<Application> {
 }
 
 /// The entries of `dir` and its subdirectories, appended to `results`. Hidden files and directories (names starting
-/// with a dot) are left out, as Quickshell's directory listing leaves them out.
+/// with a dot) are left out.
 fn scan_directory(dir: &Path, prefix: &str, system: &Locale, results: &mut Vec<Entry>) {
     let Ok(read) = std::fs::read_dir(dir) else {
         return;
@@ -331,7 +329,7 @@ fn scan_directory(dir: &Path, prefix: &str, system: &Locale, results: &mut Vec<E
                 continue;
             };
             let id = if prefix.is_empty() { base.to_owned() } else { format!("{prefix}-{base}") };
-            // Quickshell decodes the file as UTF-8 and replaces what is not, which `from_utf8_lossy` does too.
+            // The file is decoded as UTF-8, replacing what is not (`from_utf8_lossy`).
             let Ok(bytes) = std::fs::read(&path) else {
                 continue;
             };
@@ -340,21 +338,9 @@ fn scan_directory(dir: &Path, prefix: &str, system: &Locale, results: &mut Vec<E
     }
 }
 
-/// The icon the launcher shows for `app`: for two applications a fixed one, else the entry's icon, else a generic
-/// executable. The check is on the lowercased id and command, so it also catches the other spellings.
+/// The icon the launcher shows for `app`: the entry's icon, else a generic executable.
 pub fn launcher_icon(app: &Application) -> String {
-    let id = app.id.to_lowercase();
-    let command = app.command.join(" ").to_lowercase();
-    let mentions = |text: &str| id.contains(text) || command.contains(text);
-    if mentions("nemo") {
-        "nemo".to_owned()
-    } else if mentions("nm-connection-editor") {
-        "nm-device-wired".to_owned()
-    } else if !app.icon.is_empty() {
-        app.icon.clone()
-    } else {
-        "application-x-executable".to_owned()
-    }
+    if app.icon.is_empty() { "application-x-executable".to_owned() } else { app.icon.clone() }
 }
 
 #[cfg(test)]
@@ -375,7 +361,7 @@ mod tests {
     }
 
     #[test]
-    fn locale_parts_split_like_quickshell() {
+    fn locale_parts_split_into_language_territory_and_modifier() {
         assert_eq!(Locale::parse("de_DE.UTF-8@euro"), Locale { language: "de".into(), territory: "DE".into(), modifier: "euro".into() });
         assert_eq!(Locale::parse("sr@latin"), Locale { language: "sr".into(), territory: String::new(), modifier: "latin".into() });
         assert_eq!(Locale::parse(""), Locale::default());
@@ -397,7 +383,7 @@ mod tests {
     }
 
     #[test]
-    fn exec_strings_split_like_quickshell() {
+    fn exec_strings_split_into_arguments() {
         // Quoted words stay one argument and the field code `%U` goes.
         assert_eq!(parse_exec(r#"foo "two words" %U"#), ["foo", "two words"]);
         // `%%` is a percent sign, a field code is not an argument of its own.
@@ -431,7 +417,7 @@ mod tests {
     }
 
     #[test]
-    fn scan_lets_the_data_home_win_and_masks_and_hides_as_quickshell() -> std::io::Result<()> {
+    fn scan_lets_the_data_home_win_and_masks_and_hides() -> std::io::Result<()> {
         let root = std::env::temp_dir().join(format!("splice-apps-scan-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&root);
         let (home, sys) = (root.join("home/applications"), root.join("sys/applications"));
@@ -460,7 +446,7 @@ mod tests {
     fn desktop_dirs_follow_xdg() {
         let defaults = ["/home/u/.local/share/applications", "/usr/local/share/applications", "/usr/share/applications"];
         assert_eq!(desktop_dirs_from(None, Some("/home/u".into()), None), paths(&defaults));
-        // Empty counts as unset, and an empty `$HOME` that is set gives `/.local/share`, as in Quickshell.
+        // Empty counts as unset, and an empty `$HOME` that is set gives `/.local/share`.
         assert_eq!(desktop_dirs_from(Some(String::new()), Some("/home/u".into()), Some(String::new())), paths(&defaults));
         assert_eq!(
             desktop_dirs_from(None, Some(String::new()), None),
@@ -474,17 +460,9 @@ mod tests {
     }
 
     #[test]
-    fn launcher_icons_override_a_few_applications() {
-        let app = |id: &str, command: &[&str], icon: &str| Application {
-            id: id.into(),
-            command: command.iter().map(|c| c.to_string()).collect(),
-            icon: icon.into(),
-            ..Application::default()
-        };
-        assert_eq!(launcher_icon(&app("Nemo", &["nemo"], "folder")), "nemo");
-        assert_eq!(launcher_icon(&app("org.gnome.Files", &["/usr/bin/NEMO", "--new-window"], "")), "nemo");
-        assert_eq!(launcher_icon(&app("nm-connection-editor", &[], "")), "nm-device-wired");
-        assert_eq!(launcher_icon(&app("firefox", &["firefox"], "firefox-icon")), "firefox-icon");
-        assert_eq!(launcher_icon(&app("tool", &["tool"], "")), "application-x-executable");
+    fn launcher_icons_fall_back_to_a_generic_one() {
+        let app = |icon: &str| Application { id: "tool".into(), icon: icon.into(), ..Application::default() };
+        assert_eq!(launcher_icon(&app("firefox-icon")), "firefox-icon");
+        assert_eq!(launcher_icon(&app("")), "application-x-executable");
     }
 }

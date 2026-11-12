@@ -3,7 +3,7 @@ name = "splice-ipc"
 version = "0.1.0"
 edition = "2024"
 license = "MIT"
-description = "Line protocol between the Splice compositor and its bar (splice-shell)"
+description = "Line protocol of the Splice compositor's control socket (portal, lock, settings, tests)"
 
 [dependencies]
 splice-layout = { path = "../splice-layout" }

@@ -1,7 +1,7 @@
-//! The launcher of the built-in shell (`shell.qml`), for the launcher binding while `launcher` is splice's own: the
+//! The launcher of the built-in shell, for the launcher binding while `launcher` is splice's own: the
 //! applications come from the desktop entries, read by `splice-shell-services` (at its start and at every opening, so
-//! new ones show up), their icons after them. Open, it holds the keyboard; clicks beside it go to the windows, as
-//! they went past the Quickshell window. Starting an application, Escape or the binding of a lock closes it.
+//! new ones show up), their icons after them. Open, it holds the keyboard; clicks beside it go to the windows.
+//! Starting an application, Escape or the binding of a lock closes it.
 use std::collections::HashMap;
 
 use smithay::{
@@ -49,12 +49,12 @@ impl State {
         self.shell.enabled && self.config.launcher.is_none()
     }
 
-    /// Open the launcher on the monitor under the pointer; an open one stays as it is (as `--no-duplicate` did).
+    /// Open the launcher on the monitor under the pointer; an open one stays as it is.
     pub fn launcher_open(&mut self) {
         if self.shell.launcher.is_some() {
             return;
         }
-        // The monitor under the pointer (`SPLICE_LAUNCHER_X`/`_Y`), else the first.
+        // The monitor under the pointer, else the first.
         let under = self.space.output_under(self.pointer_location).next().cloned();
         let Some(output) = under.or_else(|| self.outputs.first().map(|e| e.output.clone())) else { return };
         // The panel, the tray menu and the wallpaper picker lost the keyboard to it, which closed their windows.
@@ -144,7 +144,7 @@ impl State {
             app.command.clone()
         };
         let directory = Some(app.working_directory.as_str()).filter(|d| !d.is_empty()).map(std::path::PathBuf::from);
-        self.spawn_program(&command, true, directory.as_deref());
+        self.spawn_program(&command, directory.as_deref());
         self.launcher_close();
     }
 

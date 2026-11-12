@@ -87,7 +87,7 @@ pub fn reload_compositor() -> bool {
         .map(PathBuf::from)
         .or_else(|| std::env::var_os("XDG_RUNTIME_DIR").map(|dir| PathBuf::from(dir).join("splice.sock")));
     let Some(socket) = socket else { return false };
-    UnixStream::connect(socket).and_then(|mut stream| stream.write_all(b"v1 theme-reload\n")).is_ok()
+    UnixStream::connect(socket).and_then(|mut stream| stream.write_all(splice_ipc::Command::ThemeReload.encode().as_bytes())).is_ok()
 }
 
 #[cfg(test)]

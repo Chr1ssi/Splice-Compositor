@@ -137,8 +137,6 @@ pub struct State {
     pub ipc: Option<crate::ipc::Ipc>,
     /// The desktop changed since the last broadcast to bar clients.
     pub ipc_dirty: bool,
-    /// The bar client that confirms logouts (`handle-logout`), if one registered.
-    pub logout_handler: Option<u64>,
     /// What dynamic screen casts show, and the bar-socket clients (the portal's streams) that follow it.
     pub cast_target: splice_ipc::CastTarget,
     pub cast_followers: std::collections::HashSet<u64>,
@@ -352,7 +350,6 @@ impl State {
             dmabuf_global: None,
             ipc: None,
             ipc_dirty: false,
-            logout_handler: None,
             ipc_idle_inhibitors: Default::default(),
             config_error: keyboard_error,
             floating_memory: crate::floating_memory::load(),
@@ -445,12 +442,12 @@ impl State {
     }
 
     /// Start a program without a shell; the child is reaped in the background.
-    pub fn spawn_command(&self, command: &[String], with_theme: bool) {
-        self.spawn_program(command, with_theme, None);
+    pub fn spawn_command(&self, command: &[String]) {
+        self.spawn_program(command, None);
     }
 
     /// `spawn_command` in `directory` (else the compositor's own).
-    pub fn spawn_program(&self, command: &[String], with_theme: bool, directory: Option<&std::path::Path>) {
+    pub fn spawn_program(&self, command: &[String], directory: Option<&std::path::Path>) {
         let Some((program, args)) = command.split_first() else { return };
         let mut cmd = std::process::Command::new(program);
         cmd.args(args);
@@ -461,19 +458,13 @@ impl State {
         if let Some(display) = self.x11_display_env() {
             cmd.env("DISPLAY", display);
         }
-        if with_theme {
-            cmd.envs(self.config.theme_env());
-            cmd.envs(self.config.terminal_env());
-            cmd.env("SPLICE_LAUNCHER_X", (self.pointer_location.x as i32).to_string())
-                .env("SPLICE_LAUNCHER_Y", (self.pointer_location.y as i32).to_string());
-        }
         Self::spawn_reaped(cmd, &format!("{program:?}"));
     }
 
     /// Run the login screen (`--greeter`) and stop when it ends, whether it started a session or failed.
     pub fn spawn_greeter(&mut self, command: &str) {
         let mut cmd = std::process::Command::new("sh");
-        cmd.args(["-c", command]).env("WAYLAND_DISPLAY", &self.socket_name).envs(self.config.theme_env());
+        cmd.args(["-c", command]).env("WAYLAND_DISPLAY", &self.socket_name);
         if let Some(primary) = self.primary_output_name() {
             cmd.env("SPLICE_PRIMARY_OUTPUT", primary);
         }

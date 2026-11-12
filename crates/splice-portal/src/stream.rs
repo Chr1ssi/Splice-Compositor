@@ -662,7 +662,7 @@ fn setup_wayland(source: &Source, cursor: bool) -> Result<WaylandParts, String> 
 fn follow_targets() -> Result<UnixStream, String> {
     let path = crate::chooser::socket_path().ok_or("no SPLICE_SOCKET and no XDG_RUNTIME_DIR")?;
     let mut connection = UnixStream::connect(&path).map_err(|e| format!("cannot reach the compositor at {}: {e}", path.display()))?;
-    connection.write_all(b"v1 cast-follow\n").map_err(|e| e.to_string())?;
+    connection.write_all(splice_ipc::Command::CastFollow.encode().as_bytes()).map_err(|e| e.to_string())?;
     connection.set_nonblocking(true).map_err(|e| e.to_string())?;
     Ok(connection)
 }

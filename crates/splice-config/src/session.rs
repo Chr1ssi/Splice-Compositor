@@ -17,7 +17,7 @@ pub fn lock_and_wait() -> Result<()> {
     };
     let mut socket = UnixStream::connect(path)?;
     socket.set_write_timeout(Some(Duration::from_secs(2)))?;
-    socket.write_all(b"v1 lock\n")?;
+    socket.write_all(splice_ipc::Command::Lock.encode().as_bytes())?;
     let mut reader = BufReader::new(socket);
     let deadline = Instant::now() + Duration::from_secs(8);
     loop {

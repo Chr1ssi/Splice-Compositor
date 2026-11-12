@@ -5,7 +5,7 @@ use std::{
     path::PathBuf,
 };
 
-use splice_ipc::{Chosen, SourceKinds};
+use splice_ipc::{Chosen, Command, SourceKinds};
 
 pub fn socket_path() -> Option<PathBuf> {
     std::env::var_os("SPLICE_SOCKET")
@@ -18,12 +18,7 @@ pub fn socket_path() -> Option<PathBuf> {
 pub fn choose(kinds: SourceKinds) -> Result<Chosen, String> {
     let path = socket_path().ok_or("no SPLICE_SOCKET and no XDG_RUNTIME_DIR")?;
     let mut stream = UnixStream::connect(&path).map_err(|e| format!("cannot reach the compositor at {}: {e}", path.display()))?;
-    let word = match kinds {
-        SourceKinds::Monitor => "monitor",
-        SourceKinds::Window => "window",
-        SourceKinds::Both => "both",
-    };
-    stream.write_all(format!("v1 choose-source {word}\n").as_bytes()).map_err(|e| e.to_string())?;
+    stream.write_all(Command::ChooseSource(kinds).encode().as_bytes()).map_err(|e| e.to_string())?;
     let mut lines = BufReader::new(stream).lines();
     let mut accepted = false;
     for line in &mut lines {

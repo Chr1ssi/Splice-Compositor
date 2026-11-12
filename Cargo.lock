@@ -3784,6 +3784,7 @@ version = "0.1.0"
 dependencies = [
  "serde",
  "serde_json",
+ "splice-ipc",
  "splice-layout",
  "toml 0.9.12+spec-1.1.0",
  "xkbcommon",
@@ -3823,6 +3824,7 @@ dependencies = [
  "png 0.17.16",
  "serde_json",
  "splice-config",
+ "splice-ipc",
  "toml_edit",
  "xkbcommon",
 ]
@@ -3871,6 +3873,7 @@ dependencies = [
  "serde",
  "serde_json",
  "splice-config",
+ "splice-ipc",
 ]
 
 [[package]]
