@@ -1,6 +1,6 @@
 [package]
 name = "splice-settings"
-version = "0.1.0"
+version.workspace = true
 edition = "2024"
 license = "MIT"
 description = "Graphical settings and keybinding editor for the Splice compositor"

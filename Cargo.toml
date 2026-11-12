@@ -1,6 +1,6 @@
 [package]
 name = "splice-compositor"
-version = "0.1.0"
+version.workspace = true
 edition = "2024"
 license = "MIT"
 description = "Smithay-based Wayland compositor for Splice"
@@ -12,6 +12,10 @@ smithay = { path = "vendor/smithay" }
 [workspace]
 members = [".", "crates/*"]
 exclude = ["vendor/smithay"]
+
+# The one version of all crates and of the Nix packages (nix/package.nix, nix/settings.nix).
+[workspace.package]
+version = "0.1.0"
 
 [dependencies]
 splice-layout = { path = "crates/splice-layout" }

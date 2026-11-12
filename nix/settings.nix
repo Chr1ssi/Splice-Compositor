@@ -26,7 +26,7 @@ let
 in
 rustPlatform.buildRustPackage {
   pname = "splice-settings";
-  version = "0.1.0";
+  version = (lib.importTOML ../Cargo.toml).workspace.package.version;
 
   # Only what cargo reads and the desktop entry, so that changes to the tests, docs or flake inputs
   # do not rebuild it.

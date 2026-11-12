@@ -1,6 +1,6 @@
 [package]
 name = "splice-ui"
-version = "0.1.0"
+version.workspace = true
 edition = "2024"
 license = "MIT"
 description = "Drawing of Splice's built-in shell (bar, power menu, notices): text, shapes, theme and texts"

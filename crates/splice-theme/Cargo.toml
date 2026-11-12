@@ -1,6 +1,6 @@
 [package]
 name = "splice-theme"
-version = "0.1.0"
+version.workspace = true
 edition = "2024"
 license = "MIT"
 description = "Wallpaper helpers and wallpaper-derived theme generation for Splice (kitty, foot, GTK, nvim, Vesktop, greeter)"

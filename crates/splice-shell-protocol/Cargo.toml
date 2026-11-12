@@ -1,6 +1,6 @@
 [package]
 name = "splice-shell-protocol"
-version = "0.1.0"
+version.workspace = true
 edition = "2024"
 license = "MIT"
 description = "Messages between the Splice compositor and its shell services process (splice-shell-services)"

@@ -63,7 +63,7 @@ let
   # rebuild the compositor.
   unwrapped = rustPlatform.buildRustPackage {
     pname = "splice-unwrapped";
-    version = "0.1.0";
+    version = (lib.importTOML ../Cargo.toml).workspace.package.version;
 
     src = lib.fileset.toSource {
       root = ../.;
@@ -114,7 +114,7 @@ in
 # the Rust build, so that the scripts can change without compiling Rust again.
 stdenvNoCC.mkDerivation {
   pname = "splice";
-  version = "0.1.0";
+  version = (lib.importTOML ../Cargo.toml).workspace.package.version;
 
   src = lib.fileset.toSource {
     root = ../.;
