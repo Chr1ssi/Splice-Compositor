@@ -150,7 +150,13 @@ pub fn scene(model: &TrayMenuModel, theme: &Theme, measure: &mut impl Measure) -
         let glyph = symbolic_glyph(&entry.icon_name, &crate::markup::plain(&entry.label));
         let has_icon = glyph.is_some() || entry.picture.is_some();
         if let Some(glyph) = glyph {
-            nodes.push(Node::Label { rect: row(26.0, 18.0), text: glyph.into(), style: TextStyle::new(15.0), color: theme.text, align: Align::Center });
+            nodes.push(Node::Label {
+                rect: row(26.0, 18.0),
+                text: glyph.into(),
+                style: TextStyle::new(15.0),
+                color: theme.text,
+                align: Align::Center,
+            });
         } else if let Some(picture) = &entry.picture {
             nodes.push(Node::Image { rect: Rect::new(rect.x + 8.0 + 26.0, rect.y + 8.0, 18.0, 18.0), picture: picture.clone() });
         }
@@ -161,7 +167,8 @@ pub fn scene(model: &TrayMenuModel, theme: &Theme, measure: &mut impl Measure) -
         nodes.push(Node::RichText { rect: label, spans: entry.label.clone(), style, color: theme.text, max_lines: 1 });
         if entry.submenu {
             let arrow = row(label_x + label_width + 8.0, 18.0);
-            nodes.push(Node::Label { rect: arrow, text: "›".into(), style: TextStyle::new(18.0), color: theme.muted, align: Align::Left });
+            nodes
+                .push(Node::Label { rect: arrow, text: "›".into(), style: TextStyle::new(18.0), color: theme.muted, align: Align::Left });
         }
         // A disabled entry is faded, as QML's `opacity: 0.45`.
         let fade = if entry.enabled { 1.0 } else { 0.45 };
@@ -222,7 +229,14 @@ mod tests {
         assert_eq!(first, Rect::new(12.0, 12.0 + 20.0 + 4.0, 296.0, 34.0));
         assert!(scene.target_rect(&MenuTarget::Entry(2)).is_none(), "disabled entries do not react");
         assert_eq!(scene.target_rect(&MenuTarget::Entry(3)).unwrap().y, first.y + 34.0 + 2.0 + 9.0 + 2.0 + 34.0 + 2.0);
-        let texts: Vec<_> = scene.nodes.iter().filter_map(|n| match n { Node::Label { text, .. } => Some(text.as_str()), _ => None }).collect();
+        let texts: Vec<_> = scene
+            .nodes
+            .iter()
+            .filter_map(|n| match n {
+                Node::Label { text, .. } => Some(text.as_str()),
+                _ => None,
+            })
+            .collect();
         assert!(texts.contains(&"✓") && texts.contains(&"›"), "{texts:?}");
         assert!(scene.target_rect(&MenuTarget::Back).is_none());
     }

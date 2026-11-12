@@ -29,10 +29,19 @@ impl Page {
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum Kind {
     Bool,
-    Int { min: i64, max: i64 },
-    Float { min: f64, max: f64 },
+    Int {
+        min: i64,
+        max: i64,
+    },
+    Float {
+        min: f64,
+        max: f64,
+    },
     /// One of these words; an unset value (the compositor's own default) is offered as well when `optional`.
-    Choice { options: &'static [&'static str], optional: bool },
+    Choice {
+        options: &'static [&'static str],
+        optional: bool,
+    },
     Text,
     Color,
     /// One entry per line.
@@ -68,23 +77,93 @@ use Page::*;
 pub static SETTINGS: &[Setting] = &[
     // Windows
     s("float_dialogs", "Dialoge schweben", "Dialogfenster erscheinen als schwebende Fenster statt in den Spalten.", Windows, Bool, "true"),
-    s("game_app_id_prefixes", "Spiele erkennen (app_id-Anfang)", "Ein Fenster, dessen app_id so beginnt, gilt im Vollbild als Spiel (VRR, keine Effekte). Eine Angabe pro Zeile.", Windows, List, "[]"),
+    s(
+        "game_app_id_prefixes",
+        "Spiele erkennen (app_id-Anfang)",
+        "Ein Fenster, dessen app_id so beginnt, gilt im Vollbild als Spiel (VRR, keine Effekte). Eine Angabe pro Zeile.",
+        Windows,
+        List,
+        "[]",
+    ),
     s("appearance.gaps_inner", "Abstand zwischen Fenstern", "Pixel.", Windows, Int { min: 0, max: 128 }, "8"),
     s("appearance.gaps_outer", "Abstand zum Rand", "Pixel.", Windows, Int { min: 0, max: 128 }, "8"),
     s("appearance.border_width", "Rahmenbreite", "Pixel.", Windows, Int { min: 0, max: 32 }, "2"),
-    restart(s("xwayland", "Xwayland", "X11-Programme (Steam, ältere Spiele) unterstützen. Xwayland startet mit dem ersten X11-Programm.", Windows, Bool, "true")),
+    restart(s(
+        "xwayland",
+        "Xwayland",
+        "X11-Programme (Steam, ältere Spiele) unterstützen. Xwayland startet mit dem ersten X11-Programm.",
+        Windows,
+        Bool,
+        "true",
+    )),
     // Effects
-    s("appearance.style", "Stil der Shell", "„cyberdeck“: Fasen, Linien und kräftige Farben aus dem Wallpaper. Erzeugt das Farbschema neu.", Effects, Choice { options: &["default", "cyberdeck"], optional: false }, "default"),
-    s("effects.corner_radius", "Abgerundete Ecken", "Radius in Pixeln; 0 = eckig. Nie bei Vollbild.", Effects, Int { min: 0, max: 64 }, "0"),
-    s("effects.window_opacity", "Deckkraft aller Fenster", "1.0 = undurchsichtig. Videofenster bleiben undurchsichtig; eine Regel mit opacity ersetzt den Wert.", Effects, Float { min: 0.1, max: 1.0 }, "1.0"),
+    s(
+        "appearance.style",
+        "Stil der Shell",
+        "„cyberdeck“: Fasen, Linien und kräftige Farben aus dem Wallpaper. Erzeugt das Farbschema neu.",
+        Effects,
+        Choice { options: &["default", "cyberdeck"], optional: false },
+        "default",
+    ),
+    s(
+        "effects.corner_radius",
+        "Abgerundete Ecken",
+        "Radius in Pixeln; 0 = eckig. Nie bei Vollbild.",
+        Effects,
+        Int { min: 0, max: 64 },
+        "0",
+    ),
+    s(
+        "effects.window_opacity",
+        "Deckkraft aller Fenster",
+        "1.0 = undurchsichtig. Videofenster bleiben undurchsichtig; eine Regel mit opacity ersetzt den Wert.",
+        Effects,
+        Float { min: 0.1, max: 1.0 },
+        "1.0",
+    ),
     s("effects.inactive_opacity", "Deckkraft ohne Fokus", "1.0 = undurchsichtig.", Effects, Float { min: 0.1, max: 1.0 }, "1.0"),
-    s("effects.animation_ms", "Animationsdauer (ms)", "Fenster gleiten an ihren Platz und blenden ein; 0 = keine Animationen.", Effects, Int { min: 0, max: 1000 }, "0"),
+    s(
+        "effects.animation_ms",
+        "Animationsdauer (ms)",
+        "Fenster gleiten an ihren Platz und blenden ein; 0 = keine Animationen.",
+        Effects,
+        Int { min: 0, max: 1000 },
+        "0",
+    ),
     s("effects.shadow", "Schatten", "Ausdehnung in Pixeln; 0 = kein Schatten.", Effects, Int { min: 0, max: 64 }, "0"),
-    s("effects.blur", "Unschärfe hinter durchsichtigen Fenstern", "1 (leicht) bis 16 (stark); 0 = aus. Zeigt das Wallpaper unscharf.", Effects, Int { min: 0, max: 16 }, "0"),
-    s("render.late_scheduling", "Späte Frame-Planung", "Frames erst kurz vor dem Vblank rendern (weniger Latenz). Aus bei VRR.", Effects, Bool, "false"),
-    s("render.margin_ms", "Reserve vor dem Vblank (ms)", "Zusätzlich zur gemessenen Renderzeit.", Effects, Float { min: 0.0, max: 16.0 }, "2.0"),
+    s(
+        "effects.blur",
+        "Unschärfe hinter durchsichtigen Fenstern",
+        "1 (leicht) bis 16 (stark); 0 = aus. Zeigt das Wallpaper unscharf.",
+        Effects,
+        Int { min: 0, max: 16 },
+        "0",
+    ),
+    s(
+        "render.late_scheduling",
+        "Späte Frame-Planung",
+        "Frames erst kurz vor dem Vblank rendern (weniger Latenz). Aus bei VRR.",
+        Effects,
+        Bool,
+        "false",
+    ),
+    s(
+        "render.margin_ms",
+        "Reserve vor dem Vblank (ms)",
+        "Zusätzlich zur gemessenen Renderzeit.",
+        Effects,
+        Float { min: 0.0, max: 16.0 },
+        "2.0",
+    ),
     // Input
-    s("input.accel_profile", "Mausbeschleunigung", "„flat“ ist roh und ideal für Spiele.", Input, Choice { options: &["flat", "adaptive"], optional: true }, ""),
+    s(
+        "input.accel_profile",
+        "Mausbeschleunigung",
+        "„flat“ ist roh und ideal für Spiele.",
+        Input,
+        Choice { options: &["flat", "adaptive"], optional: true },
+        "",
+    ),
     s("input.accel_speed", "Mausgeschwindigkeit", "-1.0 (langsam) bis 1.0 (schnell).", Input, Float { min: -1.0, max: 1.0 }, ""),
     s("input.natural_scroll", "Natürliches Scrollen", "", Input, Bool, ""),
     s("input.tap", "Tippen zum Klicken (Touchpad)", "", Input, Bool, "true"),
@@ -106,10 +185,31 @@ pub static SETTINGS: &[Setting] = &[
     s("terminal", "Terminal", "Programm und Argumente, eine Angabe pro Zeile.", General, List, "[\"foot\"]"),
     s("wallpaper_directory", "Wallpaper-Ordner", "Absoluter Pfad.", General, Text, ""),
     s("screenshot_directory", "Screenshot-Ordner", "Absoluter Pfad.", General, Text, ""),
-    restart(s("builtin_shell", "Eingebaute Shell", "Bar, Launcher, Picker, Sperrbildschirm und Hinweise zeichnet splice selbst; aus nur für Tests ohne Shell.", General, Bool, "true")),
-    restart(s("workspace_outputs", "Monitor-Reihenfolge", "Monitore in Workspace-Reihenfolge, eine Angabe pro Zeile.", General, List, "[]")),
+    restart(s(
+        "builtin_shell",
+        "Eingebaute Shell",
+        "Bar, Launcher, Picker, Sperrbildschirm und Hinweise zeichnet splice selbst; aus nur für Tests ohne Shell.",
+        General,
+        Bool,
+        "true",
+    )),
+    restart(s(
+        "workspace_outputs",
+        "Monitor-Reihenfolge",
+        "Monitore in Workspace-Reihenfolge, eine Angabe pro Zeile.",
+        General,
+        List,
+        "[]",
+    )),
     restart(s("idle.lock_after_seconds", "Sperren nach (s)", "0 = nie.", General, Int { min: 0, max: 86400 }, "300")),
-    restart(s("idle.monitor_off_after_seconds", "Monitore aus nach (s)", "0 = nie; muss später als das Sperren sein.", General, Int { min: 0, max: 86400 }, "600")),
+    restart(s(
+        "idle.monitor_off_after_seconds",
+        "Monitore aus nach (s)",
+        "0 = nie; muss später als das Sperren sein.",
+        General,
+        Int { min: 0, max: 86400 },
+        "600",
+    )),
     restart(s("vrr.enabled", "VRR (adaptive Sync)", "Nur bei einem Vollbild-Spiel auf dem gewählten Monitor.", General, Bool, "false")),
     restart(s("vrr.output", "VRR-Monitor", "Name des Monitors, z. B. DP-3.", General, Text, "\"\"")),
 ];
@@ -326,7 +426,8 @@ mod tests {
                 Float { max, .. } => (max + 1.0).into(),
                 _ => unreachable!(),
             };
-            if setting.path.starts_with("idle.") || setting.path.starts_with("appearance.gaps") || setting.path == "appearance.border_width" {
+            if setting.path.starts_with("idle.") || setting.path.starts_with("appearance.gaps") || setting.path == "appearance.border_width"
+            {
                 continue;
             }
             let mut doc = Document::parse("").unwrap();

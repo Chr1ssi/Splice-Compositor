@@ -57,11 +57,7 @@ impl Analysis {
         let accents = accents(&colorful);
         let neutral = neutral(&clusters);
         let terminal = terminal(&colorful).map(|(hue, chroma)| [hue, chroma]);
-        Self {
-            accents: accents.map(|hct| [hct.get_hue(), hct.get_chroma(), hct.get_tone()]),
-            neutral: [neutral.0, neutral.1],
-            terminal,
-        }
+        Self { accents: accents.map(|hct| [hct.get_hue(), hct.get_chroma(), hct.get_tone()]), neutral: [neutral.0, neutral.1], terminal }
     }
 
     /// The primary color as found in the image.
@@ -145,15 +141,12 @@ fn neutral(clusters: &[(Hct, f64)]) -> (f64, f64) {
 /// the closest image color and takes the image's mean chroma.
 fn terminal(colorful: &[(Hct, f64)]) -> [(f64, f64); 6] {
     let area = colorful.iter().map(|&(_, share)| share).sum::<f64>();
-    let mean_chroma = if area > 0.0 {
-        colorful.iter().map(|&(hct, share)| hct.get_chroma() * share).sum::<f64>() / area
-    } else {
-        20.0
-    };
+    let mean_chroma = if area > 0.0 { colorful.iter().map(|&(hct, share)| hct.get_chroma() * share).sum::<f64>() / area } else { 20.0 };
     let candidates: Vec<Hct> = colorful.iter().map(|&(hct, _)| hct).filter(|hct| hct.get_chroma() >= 16.0).collect();
     ANSI_ROLES.map(|(role, window)| {
         let distance = |hct: &&Hct| difference_degrees(hct.get_hue(), role);
-        if let Some(near) = candidates.iter().filter(|hct| distance(hct) <= window).max_by(|a, b| a.get_chroma().total_cmp(&b.get_chroma())) {
+        if let Some(near) = candidates.iter().filter(|hct| distance(hct) <= window).max_by(|a, b| a.get_chroma().total_cmp(&b.get_chroma()))
+        {
             return (near.get_hue(), (near.get_chroma() * 1.2).clamp(36.0, 80.0));
         }
         let hue = candidates.iter().min_by(|a, b| distance(a).total_cmp(&distance(b))).map_or(role, |closest| {
@@ -319,7 +312,12 @@ mod tests {
     /// spot, a grey photo, and a single pink.
     fn samples() -> Vec<Analysis> {
         vec![
-            Analysis::of_histogram([(hct(187.0, 17.0, 63.0), 40), (hct(9.0, 45.0, 54.0), 8), (hct(333.0, 16.0, 30.0), 20), (hct(0.0, 2.0, 50.0), 32)]),
+            Analysis::of_histogram([
+                (hct(187.0, 17.0, 63.0), 40),
+                (hct(9.0, 45.0, 54.0), 8),
+                (hct(333.0, 16.0, 30.0), 20),
+                (hct(0.0, 2.0, 50.0), 32),
+            ]),
             Analysis::of_histogram([(hct(269.0, 33.0, 15.0), 62), (hct(240.0, 35.0, 22.0), 33), (hct(16.0, 64.0, 49.0), 3)]),
             Analysis::of_histogram([(hct(0.0, 0.0, 30.0), 50), (hct(0.0, 0.0, 80.0), 50)]),
             Analysis::of_histogram([(hct(350.0, 33.0, 55.0), 100)]),
@@ -334,7 +332,10 @@ mod tests {
         for accent in ["primary", "secondary", "tertiary", "error"] {
             assert!(ratio(colors[accent], surface) >= 4.5, "{accent} {analysis:?}");
             assert!(ratio(colors[accent], colors[&*format!("on_{accent}")]) >= 4.5, "on_{accent} {analysis:?}");
-            assert!(ratio(colors[&*format!("on_{accent}_container")], colors[&*format!("{accent}_container")]) >= 4.5, "{accent} container {analysis:?}");
+            assert!(
+                ratio(colors[&*format!("on_{accent}_container")], colors[&*format!("{accent}_container")]) >= 4.5,
+                "{accent} container {analysis:?}"
+            );
         }
         for [normal, bright] in ANSI_NAMES {
             assert!(ratio(colors[normal], colors["terminal_background"]) >= 4.5, "{normal} {analysis:?}");
@@ -359,7 +360,9 @@ mod tests {
             assert!(tone(&neon, "surface") < tone(&normal, "surface"), "{analysis:?}");
             assert!(tone(&neon, "surface_container_high") < tone(&normal, "surface_container_high"), "{analysis:?}");
             // Per accent the gamut decides (a red can hold less chroma at tone 66 than at 64), so compare the sum.
-            let total = |colors: &HashMap<&'static str, Argb>| ["primary", "secondary", "tertiary"].map(|accent| chroma(colors, accent)).iter().sum::<f64>();
+            let total = |colors: &HashMap<&'static str, Argb>| {
+                ["primary", "secondary", "tertiary"].map(|accent| chroma(colors, accent)).iter().sum::<f64>()
+            };
             assert!(total(&neon) >= total(&normal), "{analysis:?}");
             assert_eq!(neon["error"], normal["error"], "{analysis:?}");
             assert_eq!(neon.len(), normal.len());

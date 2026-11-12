@@ -1,5 +1,5 @@
-use splice_layout::MAX_NUMBER;
 use serde::Deserialize;
+use splice_layout::MAX_NUMBER;
 
 /// All supplied selectors must match. Strings match case-sensitively, as a whole; `*` stands for
 /// any run of characters (`steam_app_*`, `*Bitwarden*`).
@@ -80,9 +80,7 @@ impl Rule {
         let text = |pattern: &Option<String>, value: Option<&str>| {
             pattern.as_deref().is_none_or(|pattern| value.is_some_and(|value| glob(pattern, value)))
         };
-        text(&self.app_id, window.app_id)
-            && text(&self.title, window.title)
-            && self.dialog.is_none_or(|expected| window.dialog == expected)
+        text(&self.app_id, window.app_id) && text(&self.title, window.title) && self.dialog.is_none_or(|expected| window.dialog == expected)
     }
 }
 
@@ -156,10 +154,7 @@ mod tests {
 
     #[test]
     fn matching_is_exact_and_all_selectors_are_required() {
-        let config = Config::parse(
-            "[[rules]]\napp_id = 'test.App'\ndialog = true\nworkspace = 3\nfloating = false",
-        )
-        .unwrap();
+        let config = Config::parse("[[rules]]\napp_id = 'test.App'\ndialog = true\nworkspace = 3\nfloating = false").unwrap();
         assert_eq!(
             resolve(&config.rules, app(Some("test.App"), true), true),
             Placement { workspace: Some(3), floating: false, ..Placement::default() }

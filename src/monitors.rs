@@ -1,5 +1,4 @@
 //! Outputs as monitors: hotplug, pointer/monitor focus and the workspace commands that span monitors.
-use splice_layout::{Direction, GAMING, Rect};
 use smithay::{
     backend::renderer::element::{
         Kind,
@@ -10,6 +9,7 @@ use smithay::{
     output::Output,
     utils::{Logical, Physical, Point, Rectangle},
 };
+use splice_layout::{Direction, GAMING, Rect};
 
 use crate::{State, desktop::WindowId, render::OutputElement};
 
@@ -68,13 +68,8 @@ impl State {
     /// Add an output. Without a position it goes to the right of the existing ones.
     pub fn add_output(&mut self, output: Output, position: Option<Point<i32, Logical>>) -> usize {
         let position = position.unwrap_or_else(|| {
-            let right = self
-                .outputs
-                .iter()
-                .filter_map(|e| self.space.output_geometry(&e.output))
-                .map(|g| g.loc.x + g.size.w)
-                .max()
-                .unwrap_or(0);
+            let right =
+                self.outputs.iter().filter_map(|e| self.space.output_geometry(&e.output)).map(|g| g.loc.x + g.size.w).max().unwrap_or(0);
             (right, 0).into()
         });
         self.space.map_output(&output, position);
@@ -142,9 +137,7 @@ impl State {
 
     /// Monitor under the pointer.
     pub fn pointer_monitor(&self) -> Option<usize> {
-        self.desktop
-            .desk
-            .monitor_at(self.pointer_location.x.floor() as i32, self.pointer_location.y.floor() as i32)
+        self.desktop.desk.monitor_at(self.pointer_location.x.floor() as i32, self.pointer_location.y.floor() as i32)
     }
 
     /// Name of the monitor with workspace 1 (the first of `workspace_outputs`): where the login and lock
@@ -296,7 +289,9 @@ impl State {
         let Some((source, _)) = self.desktop.desk.locate(&id) else { return };
         self.end_drag();
         if let Some(target) = self.desktop.desk.move_window(&id, number) {
-            if target != source && let Some(m) = self.desktop.get_mut(id) {
+            if target != source
+                && let Some(m) = self.desktop.get_mut(id)
+            {
                 // Floating coordinates belong to the source monitor; recenter on the target.
                 m.floating_rect = None;
             }
@@ -432,9 +427,7 @@ impl State {
             if !area.to_f64().contains(point) {
                 return None;
             }
-            window
-                .is_in_input_region(&(point - render_location.to_f64()))
-                .then(|| (window.clone(), render_location))
+            window.is_in_input_region(&(point - render_location.to_f64())).then(|| (window.clone(), render_location))
         })
     }
 }

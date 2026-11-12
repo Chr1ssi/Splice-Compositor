@@ -111,7 +111,8 @@ impl State {
             .map(|blank| {
                 let color = [0.0, 0.0, 0.0, 1.0];
                 // A stable id: a capture's damage tracking sees the area change only when it moves.
-                let element = SolidColorRenderElement::new(blank.id.clone(), blank.area, CommitCounter::default(), color, Kind::Unspecified);
+                let element =
+                    SolidColorRenderElement::new(blank.id.clone(), blank.area, CommitCounter::default(), color, Kind::Unspecified);
                 CropRenderElement::from_element(element, scale, full).map(OutputElement::from)
             })
             .collect()
@@ -146,8 +147,7 @@ impl State {
     }
 
     fn draw_output(&mut self, renderer: &mut GlesRenderer, output: &Output, blanks: &mut Vec<Blank>) -> Vec<OutputElement> {
-        let mut elements: Vec<OutputElement> =
-            self.cursor_elements(renderer, output).into_iter().map(OutputElement::from).collect();
+        let mut elements: Vec<OutputElement> = self.cursor_elements(renderer, output).into_iter().map(OutputElement::from).collect();
         elements.extend(self.magnifier_elements(output).into_iter().map(OutputElement::from));
         elements.extend(self.overlay_elements(output).into_iter().map(OutputElement::from));
         self.wallpaper_prepare(renderer);
@@ -161,14 +161,7 @@ impl State {
             // A locked session shows the locker's surface (or plain black) and nothing else.
             if let Some(surface) = self.lock_surface_for(output) {
                 let scale = output.current_scale().fractional_scale();
-                elements.extend(render_elements_from_surface_tree(
-                    renderer,
-                    surface.wl_surface(),
-                    (0, 0),
-                    scale,
-                    1.0,
-                    Kind::Unspecified,
-                ));
+                elements.extend(render_elements_from_surface_tree(renderer, surface.wl_surface(), (0, 0), scale, 1.0, Kind::Unspecified));
             }
             return elements;
         }

@@ -2,7 +2,8 @@
 //! wallpaper's generated colors in `theme.json` where there are some, as in the shell), the system's sans-serif font,
 //! and rounded cards that group the settings.
 use eframe::egui::{
-    self, Color32, CornerRadius, FontData, FontDefinitions, FontFamily, FontId, Margin, Response, RichText, Sense, Stroke, TextStyle, Ui, Vec2,
+    self, Color32, CornerRadius, FontData, FontDefinitions, FontFamily, FontId, Margin, Response, RichText, Sense, Stroke, TextStyle, Ui,
+    Vec2,
 };
 use splice_config::Config;
 

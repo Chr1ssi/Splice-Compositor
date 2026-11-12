@@ -9,34 +9,40 @@
 //! layer and the bar behind fullscreen windows and the clients' `Top` layer, as their Quickshell windows did.
 use std::time::{Duration, Instant};
 
+use smithay::{
+    backend::{
+        allocator::Fourcc,
+        renderer::{
+            element::{
+                Kind,
+                memory::{MemoryRenderBuffer, MemoryRenderBufferRenderElement},
+            },
+            gles::GlesRenderer,
+        },
+    },
+    input::keyboard::{Keycode, Keysym, keysyms},
+    output::Output,
+    reexports::calloop::{
+        channel,
+        timer::{TimeoutAction, Timer},
+    },
+    utils::{Logical, Physical, Point, Rectangle, Size, Transform},
+};
 use splice_config::Action;
 use splice_ui::{
     Scene, Theme,
+    audio::AudioTarget,
     bar::{self, BarModel, BarTarget, Workspace},
     clock::{self, LocalTime},
     i18n::Language,
     launcher::LauncherTarget,
     notices::{self, NoticeTarget, NoticesModel},
     notifications::CardTarget,
-    audio::AudioTarget,
     panel::PanelTarget,
-    tray_menu::MenuTarget,
     power::{self, PowerAction, PowerModel, PowerTarget},
     text::Fonts,
     theme::{BAR_HEIGHT, Palette},
-};
-use smithay::{
-    backend::{
-        allocator::Fourcc,
-        renderer::{
-            element::{Kind, memory::{MemoryRenderBuffer, MemoryRenderBufferRenderElement}},
-            gles::GlesRenderer,
-        },
-    },
-    input::keyboard::{Keycode, Keysym, keysyms},
-    output::Output,
-    reexports::calloop::{channel, timer::{TimeoutAction, Timer}},
-    utils::{Logical, Physical, Point, Rectangle, Size, Transform},
+    tray_menu::MenuTarget,
 };
 
 use crate::{State, render::OutputElement};
@@ -438,12 +444,8 @@ impl State {
     fn bar_model(&self, monitor: usize, output: &Output) -> Option<BarModel> {
         let geo = self.space.output_geometry(output)?;
         let desk = self.desktop.desk.monitors.get(monitor)?;
-        let workspaces = desk
-            .workspaces
-            .entries
-            .iter()
-            .map(|w| Workspace { number: w.number as u32, occupied: !w.windows.is_empty() })
-            .collect();
+        let workspaces =
+            desk.workspaces.entries.iter().map(|w| Workspace { number: w.number as u32, occupied: !w.windows.is_empty() }).collect();
         let hover = match self.shell.hover {
             Some(ShellHit::Bar(m, target)) if m == monitor => Some(target),
             _ => None,
@@ -534,11 +536,8 @@ impl State {
         let Some(menu) = self.shell.power.as_ref().filter(|m| &m.output == output) else { return Vec::new() };
         let Some(geo) = self.space.output_geometry(output) else { return Vec::new() };
         let scale = output.current_scale().fractional_scale();
-        let card = menu
-            .painted
-            .as_ref()
-            .zip(self.power_card_origin(menu))
-            .and_then(|(painted, origin)| element(renderer, painted, origin, scale));
+        let card =
+            menu.painted.as_ref().zip(self.power_card_origin(menu)).and_then(|(painted, origin)| element(renderer, painted, origin, scale));
         let backdrop = stretched(renderer, &menu.backdrop, (1, 1), (0.0, 0.0), geo.size, scale);
         card.into_iter().chain(backdrop).collect()
     }
@@ -559,7 +558,12 @@ impl State {
     /// The wallpaper picker, the launcher, the open panel or the notices at the pointer (they lie behind the
     /// clients' `Overlay` layer).
     pub fn shell_notices_at_pointer(&self) -> Option<ShellHit> {
-        if let Some(hit) = self.wallpaper_picker_at_pointer().or_else(|| self.launcher_at_pointer()).or_else(|| self.panel_at_pointer()).or_else(|| self.tray_menu_at_pointer()) {
+        if let Some(hit) = self
+            .wallpaper_picker_at_pointer()
+            .or_else(|| self.launcher_at_pointer())
+            .or_else(|| self.panel_at_pointer())
+            .or_else(|| self.tray_menu_at_pointer())
+        {
             return Some(hit);
         }
         let (output, _, painted) = self.shell.notices.as_ref()?;
@@ -571,9 +575,10 @@ impl State {
 
     /// The bar at the pointer (it lies behind fullscreen windows and the clients' `Top` layer).
     pub fn shell_bar_at_pointer(&self) -> Option<ShellHit> {
-        let monitor = self.outputs.iter().position(|e| {
-            self.space.output_geometry(&e.output).is_some_and(|geo| geo.to_f64().contains(self.pointer_location))
-        })?;
+        let monitor = self
+            .outputs
+            .iter()
+            .position(|e| self.space.output_geometry(&e.output).is_some_and(|geo| geo.to_f64().contains(self.pointer_location)))?;
         let output = &self.outputs[monitor].output;
         let geo = self.space.output_geometry(output)?;
         let painted = self.shell.bars.iter().find(|b| &b.output == output)?.painted.as_ref()?;
@@ -724,7 +729,12 @@ impl State {
 
     /// Whether the shell holds the keyboard (the power menu is open, or the notification center was clicked).
     pub fn shell_takes_keyboard(&self) -> bool {
-        self.session_lock.is_own() || self.shell.power.is_some() || self.wallpaper_picker_takes_keyboard() || self.launcher_takes_keyboard() || self.panel_takes_keyboard() || self.tray_menu_takes_keyboard()
+        self.session_lock.is_own()
+            || self.shell.power.is_some()
+            || self.wallpaper_picker_takes_keyboard()
+            || self.launcher_takes_keyboard()
+            || self.panel_takes_keyboard()
+            || self.tray_menu_takes_keyboard()
     }
 
     /// A key pressed for the shell (`shell_key`), repeated while it is held if the keymap repeats it, at the

@@ -5,7 +5,6 @@
 //! application name.
 use std::{cell::RefCell, rc::Rc, sync::mpsc::Sender};
 
-use splice_shell_protocol::{Audio, AudioNode, NodeKind};
 use pipewire as pw;
 use pw::{
     metadata::{Metadata, MetadataListener},
@@ -16,6 +15,7 @@ use pw::{
     },
     types::ObjectType,
 };
+use splice_shell_protocol::{Audio, AudioNode, NodeKind};
 
 use crate::{RETRY, Update};
 

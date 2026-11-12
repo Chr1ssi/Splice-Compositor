@@ -50,11 +50,7 @@ pub fn from_raw(raw: &Raw) -> Option<Image> {
 pub fn from_argb_pixmaps(pixmaps: &[(i32, i32, Vec<u8>)], size: u32) -> Option<Image> {
     let size = size as i32;
     let fits = |(w, h, _): &&(i32, i32, Vec<u8>)| *w >= size && *h >= size;
-    let chosen = pixmaps
-        .iter()
-        .filter(fits)
-        .min_by_key(|(w, h, _)| w * h)
-        .or_else(|| pixmaps.iter().max_by_key(|(w, h, _)| w * h))?;
+    let chosen = pixmaps.iter().filter(fits).min_by_key(|(w, h, _)| w * h).or_else(|| pixmaps.iter().max_by_key(|(w, h, _)| w * h))?;
     let (width, height, data) = chosen;
     let (width, height) = (u32::try_from(*width).ok()?, u32::try_from(*height).ok()?);
     if width == 0 || height == 0 || data.len() < width as usize * height as usize * 4 {
@@ -282,7 +278,13 @@ pub fn find_icon_in(name: &str, extra: &[PathBuf]) -> Option<PathBuf> {
                         continue;
                     }
                     // Scalable first, then the size nearest 64; larger ones count half as far off.
-                    let distance = if dir.scalable || extension == "svg" { 0 } else if dir.size >= 64 { dir.size - 64 } else { 2 * (64 - dir.size) };
+                    let distance = if dir.scalable || extension == "svg" {
+                        0
+                    } else if dir.size >= 64 {
+                        dir.size - 64
+                    } else {
+                        2 * (64 - dir.size)
+                    };
                     if best.as_ref().is_none_or(|(d, _)| distance < *d) {
                         best = Some((distance, file));
                     }
@@ -352,7 +354,11 @@ mod tests {
         std::fs::create_dir_all(theme.join("scalable/apps")).unwrap();
         std::fs::create_dir_all(hicolor.join("48x48/apps")).unwrap();
         std::fs::create_dir_all(hicolor.join("128x128/apps")).unwrap();
-        std::fs::write(theme.join("index.theme"), "[Icon Theme]\nInherits=hicolor\nDirectories=scalable/apps\n[scalable/apps]\nSize=48\nType=Scalable\n").unwrap();
+        std::fs::write(
+            theme.join("index.theme"),
+            "[Icon Theme]\nInherits=hicolor\nDirectories=scalable/apps\n[scalable/apps]\nSize=48\nType=Scalable\n",
+        )
+        .unwrap();
         std::fs::write(
             hicolor.join("index.theme"),
             "[Icon Theme]\nDirectories=48x48/apps,128x128/apps\n[48x48/apps]\nSize=48\n[128x128/apps]\nSize=128\n",

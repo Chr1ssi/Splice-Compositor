@@ -2,15 +2,15 @@
 //! the `splice-calendar` helper (khal) on threads of their own, the form creates events with it, and its fields take
 //! the keyboard. Every opening of the panel starts afresh on today, as the Quickshell panel's loader did; answers
 //! for an earlier opening are dropped.
+use smithay::{
+    input::keyboard::{Keysym, keysyms},
+    reexports::calloop::channel,
+};
 use splice_ui::{
     bar::Panel,
     calendar::{self, CalendarError, CalendarModel, CalendarTarget, Date, EventView, Field, Form},
     clock::LocalTime,
     panel::PanelTarget,
-};
-use smithay::{
-    input::keyboard::{Keysym, keysyms},
-    reexports::calloop::channel,
 };
 
 use crate::State;
@@ -122,7 +122,8 @@ impl State {
             match outcome {
                 Some((success, text)) => {
                     let events = calendar::parse_events(&text);
-                    view.error = if !success { Some(CalendarError::NotSetUp) } else { events.is_none().then_some(CalendarError::Unreadable) };
+                    view.error =
+                        if !success { Some(CalendarError::NotSetUp) } else { events.is_none().then_some(CalendarError::Unreadable) };
                     view.events = events.unwrap_or_default();
                 }
                 // Without the helper the calendar is not set up either.

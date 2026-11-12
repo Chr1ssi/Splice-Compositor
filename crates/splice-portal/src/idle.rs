@@ -8,7 +8,10 @@ use std::{
     sync::{Arc, Mutex},
 };
 
-use zbus::{ObjectServer, interface, zvariant::{ObjectPath, OwnedValue}};
+use zbus::{
+    ObjectServer, interface,
+    zvariant::{ObjectPath, OwnedValue},
+};
 
 /// `Inhibit` flag: keep the session from going idle (the others, logout, user switch and suspend, splice
 /// does not offer).

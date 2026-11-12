@@ -62,14 +62,22 @@ pub fn scene(model: &NoticesModel, theme: &Theme, measure: &mut impl Measure) ->
     if model.choosing {
         let title = TextStyle::new(15.0).bold(true);
         let body = TextStyle::new(13.0);
-        let text = tr("Fenster anklicken · Kachel daneben oder Enter: ganzer Monitor · D: dynamisch, mit den Cast-Tasten umschaltbar · Esc: abbrechen");
+        let text = tr(
+            "Fenster anklicken · Kachel daneben oder Enter: ganzer Monitor · D: dynamisch, mit den Cast-Tasten umschaltbar · Esc: abbrechen",
+        );
         let title_h = measure.line_height(title);
         let body_h = measure.paragraph_height(text, body, inner);
         let height = title_h + 4.0 + body_h + 2.0 * PADDING;
         let nodes = vec![
             Node::Rect { rect: Rect::new(0.0, 0.0, width, height), radius: RADIUS, fill: theme.glass(), border: Some((2.0, theme.alert)) },
             label(PADDING, PADDING, inner, title_h, format!("󰑊 {}", tr("Was soll geteilt werden?")), title, theme.text),
-            Node::Paragraph { rect: Rect::new(PADDING, PADDING + title_h + 4.0, inner, body_h), text: text.into(), style: body, color: theme.text, align: Align::Left },
+            Node::Paragraph {
+                rect: Rect::new(PADDING, PADDING + title_h + 4.0, inner, body_h),
+                text: text.into(),
+                style: body,
+                color: theme.text,
+                align: Align::Left,
+            },
         ];
         cards.push(Card { height, nodes, targets: Vec::new() });
     }
@@ -87,10 +95,21 @@ pub fn scene(model: &NoticesModel, theme: &Theme, measure: &mut impl Measure) ->
         let top = (height - (title_h + 4.0 + body_h)) / 2.0;
         let heading = format!("󰈊 {}", picked.as_deref().filter(|c| !c.is_empty()).unwrap_or(tr("Farbpipette")));
         let nodes = vec![
-            Node::Rect { rect: Rect::new(0.0, 0.0, width, height), radius: RADIUS, fill: theme.glass(), border: Some((1.0, theme.glass_border())) },
+            Node::Rect {
+                rect: Rect::new(0.0, 0.0, width, height),
+                radius: RADIUS,
+                fill: theme.glass(),
+                border: Some((1.0, theme.glass_border())),
+            },
             Node::Rect { rect: swatch, radius: 12.0, fill: swatch_color, border: Some((1.0, theme.border)) },
             label(left, top, column, title_h, heading, title, theme.text),
-            Node::Paragraph { rect: Rect::new(left, top + title_h + 4.0, column, body_h), text: text.into(), style: body, color: theme.muted, align: Align::Left },
+            Node::Paragraph {
+                rect: Rect::new(left, top + title_h + 4.0, column, body_h),
+                text: text.into(),
+                style: body,
+                color: theme.muted,
+                align: Align::Left,
+            },
         ];
         cards.push(Card { height, nodes, targets: Vec::new() });
     }
@@ -106,13 +125,27 @@ pub fn scene(model: &NoticesModel, theme: &Theme, measure: &mut impl Measure) ->
         let close = Rect::new(width - PADDING - 24.0, PADDING, 24.0, crate::bar::BUTTON_HEIGHT);
         let mut nodes = vec![
             Node::Rect { rect: Rect::new(0.0, 0.0, width, height), radius: RADIUS, fill: theme.glass(), border: Some((2.0, theme.accent)) },
-            label(PADDING, PADDING, inner - close.w - 8.0, measure.line_height(title), tr("Konfiguration fehlerhaft").into(), title, theme.text),
+            label(
+                PADDING,
+                PADDING,
+                inner - close.w - 8.0,
+                measure.line_height(title),
+                tr("Konfiguration fehlerhaft").into(),
+                title,
+                theme.text,
+            ),
         ];
         let mut button: Scene<NoticeTarget> = Scene::new(width, height);
         button_shape(&mut button, theme, close, "×", false, false, false, model.hover == Some(NoticeTarget::DismissConfigError));
         nodes.extend(button.nodes);
         let body_top = PADDING + row_h + 4.0;
-        nodes.push(Node::Paragraph { rect: Rect::new(PADDING, body_top, inner, body_h), text: error.clone(), style: body, color: theme.text, align: Align::Left });
+        nodes.push(Node::Paragraph {
+            rect: Rect::new(PADDING, body_top, inner, body_h),
+            text: error.clone(),
+            style: body,
+            color: theme.text,
+            align: Align::Left,
+        });
         let note_rect = Rect::new(PADDING, body_top + body_h + 4.0, inner, note_h);
         nodes.push(Node::Paragraph { rect: note_rect, text: note_text.into(), style: note, color: theme.muted, align: Align::Left });
         cards.push(Card { height, nodes, targets: vec![(close, NoticeTarget::DismissConfigError)] });
@@ -188,7 +221,10 @@ mod tests {
         let cards: Vec<Rect> = scene
             .nodes
             .iter()
-            .filter_map(|n| match n { Node::Rect { rect, radius, .. } if *radius == RADIUS => Some(*rect), _ => None })
+            .filter_map(|n| match n {
+                Node::Rect { rect, radius, .. } if *radius == RADIUS => Some(*rect),
+                _ => None,
+            })
             .collect();
         assert_eq!(cards.len(), 3);
         assert_eq!(cards[1].y, cards[0].bottom() + SPACING);

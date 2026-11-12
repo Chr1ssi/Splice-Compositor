@@ -38,12 +38,25 @@ const PLAY_BUTTON: f32 = 46.0;
 const BUTTON_SPACING: f32 = 14.0;
 const ICON: TextStyle = TextStyle::new(18.0).icons(true);
 
-pub fn content(players: &[PlayerView], hover: Option<&PanelTarget>, theme: &Theme, measure: &mut impl Measure, width: f32, language: Language) -> Content {
+pub fn content(
+    players: &[PlayerView],
+    hover: Option<&PanelTarget>,
+    theme: &Theme,
+    measure: &mut impl Measure,
+    width: f32,
+    language: Language,
+) -> Content {
     let mut content = Content::default();
     if players.is_empty() {
         let style = TextStyle::new(14.0);
         let rect = Rect::new(0.0, 0.0, width, measure.line_height(style));
-        content.push(Node::Label { rect, text: language.tr("Keine aktive Wiedergabe").into(), style, color: theme.muted, align: Align::Left });
+        content.push(Node::Label {
+            rect,
+            text: language.tr("Keine aktive Wiedergabe").into(),
+            style,
+            color: theme.muted,
+            align: Align::Left,
+        });
         content.height = rect.h;
         return content;
     }
@@ -64,9 +77,21 @@ pub fn content(players: &[PlayerView], hover: Option<&PanelTarget>, theme: &Them
             top += COVER_HEIGHT + SPACING;
         }
         let fallback = |text: &str| if text.is_empty() { player.identity.clone() } else { text.to_owned() };
-        content.push(Node::Label { rect: Rect::new(PADDING, top, inner, title_h), text: fallback(&player.title), style: title_style, color: theme.text, align: Align::Left });
+        content.push(Node::Label {
+            rect: Rect::new(PADDING, top, inner, title_h),
+            text: fallback(&player.title),
+            style: title_style,
+            color: theme.text,
+            align: Align::Left,
+        });
         top += title_h + 2.0;
-        content.push(Node::Label { rect: Rect::new(PADDING, top, inner, artist_h), text: fallback(&player.artist), style: artist_style, color: theme.muted, align: Align::Left });
+        content.push(Node::Label {
+            rect: Rect::new(PADDING, top, inner, artist_h),
+            text: fallback(&player.artist),
+            style: artist_style,
+            color: theme.muted,
+            align: Align::Left,
+        });
         top += artist_h + SPACING;
         let toggle = if player.playing { "󰏤" } else { "󰐊" };
         let buttons = [
@@ -135,7 +160,14 @@ mod tests {
             ..PlayerView::default()
         };
         let content = content(&[player], None, &theme(), &mut Mono, 360.0, Language::English);
-        let texts: Vec<_> = content.nodes.iter().filter_map(|n| match n { Node::Label { text, .. } => Some(text.as_str()), _ => None }).collect();
+        let texts: Vec<_> = content
+            .nodes
+            .iter()
+            .filter_map(|n| match n {
+                Node::Label { text, .. } => Some(text.as_str()),
+                _ => None,
+            })
+            .collect();
         // No artist: the player's name stands in.
         assert_eq!(texts, ["Lied", "Firefox", "󰒮", "󰏤", "󰒭"]);
         let targets: Vec<_> = content.targets.iter().map(|(_, t)| *t).collect();

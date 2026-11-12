@@ -68,9 +68,7 @@ pub fn apply(wallpaper: &Path, neon: bool) -> Result<()> {
         }
     };
     let state = state_from_analysis(wallpaper, analysis, neon);
-    let directory = state_path
-        .parent()
-        .ok_or("theme state path has no parent directory")?;
+    let directory = state_path.parent().ok_or("theme state path has no parent directory")?;
     fs::create_dir_all(directory)?;
 
     let serialized = serde_json::to_string_pretty(&state)? + "\n";
@@ -164,19 +162,11 @@ fn first_wallpaper(directory: &Path) -> Result<PathBuf> {
                 && path
                     .extension()
                     .and_then(|value| value.to_str())
-                    .is_some_and(|extension| {
-                        matches!(
-                            extension.to_ascii_lowercase().as_str(),
-                            "jpg" | "jpeg" | "png" | "webp" | "bmp"
-                        )
-                    })
+                    .is_some_and(|extension| matches!(extension.to_ascii_lowercase().as_str(), "jpg" | "jpeg" | "png" | "webp" | "bmp"))
         })
         .collect::<Vec<_>>();
     candidates.sort();
-    candidates
-        .into_iter()
-        .next()
-        .ok_or_else(|| format!("no wallpapers found in {}", directory.display()).into())
+    candidates.into_iter().next().ok_or_else(|| format!("no wallpapers found in {}", directory.display()).into())
 }
 
 fn decode_file_url(url: &str) -> Option<PathBuf> {
@@ -218,10 +208,7 @@ fn write_atomic(path: &Path, contents: &str) -> Result<bool> {
 
 /// Mirrors wallpaper and colors into a directory the greeter user can read.
 fn sync_greeter(wallpaper: &Path, state: &ThemeState) {
-    let Some(directory) = std::env::var_os("SPLICE_GREETER_DIR")
-        .filter(|p| !p.is_empty())
-        .map(PathBuf::from)
-    else {
+    let Some(directory) = std::env::var_os("SPLICE_GREETER_DIR").filter(|p| !p.is_empty()).map(PathBuf::from) else {
         return;
     };
     let sync = || -> Result<()> {
@@ -266,14 +253,7 @@ fn notify_consumers(directory: &Path) {
 }
 
 fn insert(colors: &mut BTreeMap<String, Token>, name: &str, value: Argb) {
-    colors.insert(
-        name.to_owned(),
-        Token {
-            default: HexValue {
-                hex: value.to_hex_with_pound(),
-            },
-        },
-    );
+    colors.insert(name.to_owned(), Token { default: HexValue { hex: value.to_hex_with_pound() } });
 }
 
 fn state_from_analysis(path: &Path, analysis: Analysis, neon: bool) -> ThemeState {
@@ -299,10 +279,8 @@ pub fn wallpapers(directory: &str) -> Result<Vec<PathBuf>> {
     let mut paths = Vec::new();
     for entry in fs::read_dir(directory)? {
         let path = entry?.path();
-        let is_image = path
-            .extension()
-            .and_then(|s| s.to_str())
-            .is_some_and(|ext| IMAGE_EXTENSIONS.contains(&ext.to_ascii_lowercase().as_str()));
+        let is_image =
+            path.extension().and_then(|s| s.to_str()).is_some_and(|ext| IMAGE_EXTENSIONS.contains(&ext.to_ascii_lowercase().as_str()));
         if path.is_file() && is_image {
             paths.push(path);
         }
@@ -359,7 +337,8 @@ mod tests {
     use super::*;
 
     fn sample_state() -> ThemeState {
-        let analysis = Analysis::of_histogram([(Argb::from_u32(0xff336699), 60), (Argb::from_u32(0xffd4a017), 10), (Argb::from_u32(0xff121820), 30)]);
+        let analysis =
+            Analysis::of_histogram([(Argb::from_u32(0xff336699), 60), (Argb::from_u32(0xffd4a017), 10), (Argb::from_u32(0xff121820), 30)]);
         state_from_analysis(Path::new("/wallpaper.png"), analysis, false)
     }
 
@@ -368,16 +347,60 @@ mod tests {
         let state = sample_state();
         // Every role the Material-based generator wrote, so consumers and templates keep working.
         for name in [
-            "primary", "on_primary", "primary_container", "on_primary_container", "inverse_primary", "primary_fixed",
-            "primary_fixed_dim", "on_primary_fixed", "on_primary_fixed_variant", "secondary", "on_secondary",
-            "secondary_container", "on_secondary_container", "secondary_fixed", "secondary_fixed_dim", "on_secondary_fixed",
-            "on_secondary_fixed_variant", "tertiary", "on_tertiary", "tertiary_container", "on_tertiary_container",
-            "tertiary_fixed", "tertiary_fixed_dim", "on_tertiary_fixed", "on_tertiary_fixed_variant", "error", "on_error",
-            "error_container", "on_error_container", "surface_dim", "surface", "surface_tint", "surface_bright",
-            "surface_container_lowest", "surface_container_low", "surface_container", "surface_container_high",
-            "surface_container_highest", "on_surface", "on_surface_variant", "outline", "outline_variant", "inverse_surface",
-            "inverse_on_surface", "surface_variant", "background", "on_background", "shadow", "scrim",
-            "terminal_background", "terminal_foreground", "terminal_cursor", "terminal_cursor_text", "terminal_selection_bg",
+            "primary",
+            "on_primary",
+            "primary_container",
+            "on_primary_container",
+            "inverse_primary",
+            "primary_fixed",
+            "primary_fixed_dim",
+            "on_primary_fixed",
+            "on_primary_fixed_variant",
+            "secondary",
+            "on_secondary",
+            "secondary_container",
+            "on_secondary_container",
+            "secondary_fixed",
+            "secondary_fixed_dim",
+            "on_secondary_fixed",
+            "on_secondary_fixed_variant",
+            "tertiary",
+            "on_tertiary",
+            "tertiary_container",
+            "on_tertiary_container",
+            "tertiary_fixed",
+            "tertiary_fixed_dim",
+            "on_tertiary_fixed",
+            "on_tertiary_fixed_variant",
+            "error",
+            "on_error",
+            "error_container",
+            "on_error_container",
+            "surface_dim",
+            "surface",
+            "surface_tint",
+            "surface_bright",
+            "surface_container_lowest",
+            "surface_container_low",
+            "surface_container",
+            "surface_container_high",
+            "surface_container_highest",
+            "on_surface",
+            "on_surface_variant",
+            "outline",
+            "outline_variant",
+            "inverse_surface",
+            "inverse_on_surface",
+            "surface_variant",
+            "background",
+            "on_background",
+            "shadow",
+            "scrim",
+            "terminal_background",
+            "terminal_foreground",
+            "terminal_cursor",
+            "terminal_cursor_text",
+            "terminal_selection_bg",
             "terminal_selection_fg",
         ] {
             assert!(state.colors.contains_key(name), "{name}");
@@ -427,10 +450,7 @@ mod tests {
 
     #[test]
     fn decodes_wallpaper_file_urls() {
-        assert_eq!(
-            decode_file_url("file:///tmp/Bild%20%231%25%20%C3%A4.png").unwrap(),
-            PathBuf::from("/tmp/Bild #1% ä.png")
-        );
+        assert_eq!(decode_file_url("file:///tmp/Bild%20%231%25%20%C3%A4.png").unwrap(), PathBuf::from("/tmp/Bild #1% ä.png"));
         assert!(decode_file_url("https://example.com/wallpaper.png").is_none());
     }
 

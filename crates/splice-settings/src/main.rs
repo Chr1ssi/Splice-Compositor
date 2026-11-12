@@ -5,13 +5,13 @@
 use std::{collections::HashMap, path::PathBuf, sync::Arc};
 
 use eframe::egui::{self, Color32, RichText};
-use style::Colors;
 use splice_config::{Bindings, Config, parse_key};
 use splice_settings::{
     files,
     keys::{self, Mods},
     model::{self, Document, Kind, Page, Setting},
 };
+use style::Colors;
 use toml_edit::{Table, Value};
 
 mod style;
@@ -229,7 +229,10 @@ impl App {
                         }
                     }
                     Kind::Float { min, max } => {
-                        let mut value = current.as_ref().and_then(|v| v.as_float().or_else(|| v.as_integer().map(|i| i as f64))).unwrap_or(min.max(0.0));
+                        let mut value = current
+                            .as_ref()
+                            .and_then(|v| v.as_float().or_else(|| v.as_integer().map(|i| i as f64)))
+                            .unwrap_or(min.max(0.0));
                         ui.spacing_mut().slider_width = 200.0;
                         if ui.add(egui::Slider::new(&mut value, min..=max)).changed() {
                             changed = Some(Some(((value * 100.0).round() / 100.0).into()));
@@ -269,10 +272,12 @@ impl App {
                 }
             }
             Kind::List => {
-                let initial = self.doc.get_list(setting.path).or_else(|| model::default_value(setting).map(|v| list_of(&v))).unwrap_or_default();
+                let initial =
+                    self.doc.get_list(setting.path).or_else(|| model::default_value(setting).map(|v| list_of(&v))).unwrap_or_default();
                 let buffer = self.lists.entry(setting.path.to_owned()).or_insert_with(|| initial.join("\n"));
                 let lines = buffer.lines().count().clamp(2, 6);
-                if ui.add(egui::TextEdit::multiline(buffer).desired_rows(lines).desired_width(f32::INFINITY).margin(INPUT_MARGIN)).changed() {
+                if ui.add(egui::TextEdit::multiline(buffer).desired_rows(lines).desired_width(f32::INFINITY).margin(INPUT_MARGIN)).changed()
+                {
                     let values: Vec<String> = buffer.lines().map(str::trim).filter(|l| !l.is_empty()).map(str::to_owned).collect();
                     self.doc.set_list(setting.path, &values);
                     self.revalidate();
@@ -307,7 +312,6 @@ impl App {
         });
     }
 
-
     // --- Keybindings --------------------------------------------------------------------------
 
     /// All effective bindings as (normalized key, who), for spotting duplicates.
@@ -341,12 +345,17 @@ impl App {
         let mut remove = None;
         ui.horizontal_wrapped(|ui| {
             for (index, key) in keys.iter().enumerate() {
-                let clash = parse_key(key).ok().and_then(|(s, m)| owners.get(&(s, (m.logo, m.ctrl, m.alt, m.shift)))).filter(|who| who.len() > 1);
+                let clash =
+                    parse_key(key).ok().and_then(|(s, m)| owners.get(&(s, (m.logo, m.ctrl, m.alt, m.shift)))).filter(|who| who.len() > 1);
                 let text = RichText::new(key).monospace();
                 style::chip(ui, &colors, |ui| {
                     ui.spacing_mut().item_spacing.x = 2.0;
                     ui.label(if clash.is_some() { text.color(colors.alert) } else { text });
-                    if ui.add(egui::Button::new(RichText::new("×").size(17.0).color(colors.muted)).frame(false)).on_hover_text("Taste entfernen").clicked() {
+                    if ui
+                        .add(egui::Button::new(RichText::new("×").size(17.0).color(colors.muted)).frame(false))
+                        .on_hover_text("Taste entfernen")
+                        .clicked()
+                    {
                         remove = Some(index);
                     }
                 });
@@ -355,7 +364,8 @@ impl App {
                 }
             }
             if ui.button("+ Taste").clicked() {
-                self.capture = Some(Capture { path: path.to_owned(), title: title.to_owned(), mods: Mods { logo: true, ..Default::default() } });
+                self.capture =
+                    Some(Capture { path: path.to_owned(), title: title.to_owned(), mods: Mods { logo: true, ..Default::default() } });
             }
             if is_set && reset_button(ui) {
                 self.doc.unset(path);
@@ -381,7 +391,11 @@ impl App {
         let colors = self.colors;
         let owners = self.binding_owners();
         let defaults = Bindings::default();
-        ui.label(RichText::new("Belegungen mit doppelten Tasten sind rot markiert; die Datei wird dann nicht gespeichert.").small().color(colors.muted));
+        ui.label(
+            RichText::new("Belegungen mit doppelten Tasten sind rot markiert; die Datei wird dann nicht gespeichert.")
+                .small()
+                .color(colors.muted),
+        );
         style::card(ui, &colors, |ui| {
             for (index, (name, default_keys)) in defaults.entries().into_iter().enumerate() {
                 if index > 0 {
@@ -404,11 +418,15 @@ impl App {
                 let path = format!("bindings.{name}");
                 let mut text = self.doc.get_str(&path).unwrap_or(default).to_owned();
                 ui.horizontal(|ui| {
-                    field_label(ui, KEY_LABEL_WIDTH + 40.0, RichText::new(match name {
-                        "pointer_modifiers" => "Fenster mit der Maus verschieben/skalieren",
-                        "workspace_modifiers" => "Workspace 1-9 wählen",
-                        _ => "Fenster zu Workspace 1-9",
-                    }));
+                    field_label(
+                        ui,
+                        KEY_LABEL_WIDTH + 40.0,
+                        RichText::new(match name {
+                            "pointer_modifiers" => "Fenster mit der Maus verschieben/skalieren",
+                            "workspace_modifiers" => "Workspace 1-9 wählen",
+                            _ => "Fenster zu Workspace 1-9",
+                        }),
+                    );
                     if ui.add(egui::TextEdit::singleline(&mut text).desired_width(140.0).margin(INPUT_MARGIN)).changed() {
                         if text == *default {
                             self.doc.unset(&path);
@@ -426,22 +444,25 @@ impl App {
         let Some(capture) = self.capture.clone() else { return };
         let mut capture = capture;
         let mut close = false;
-        egui::Window::new("Taste aufnehmen").collapsible(false).resizable(false).anchor(egui::Align2::CENTER_CENTER, [0.0, 0.0]).show(ctx, |ui| {
-            ui.label(format!("Für: {}", capture.title));
-            ui.label("Modifikatoren (Super lässt sich nicht erkennen und wird hier gewählt):");
-            ui.horizontal(|ui| {
-                ui.checkbox(&mut capture.mods.logo, "Super");
-                ui.checkbox(&mut capture.mods.ctrl, "Ctrl");
-                ui.checkbox(&mut capture.mods.alt, "Alt");
-                ui.checkbox(&mut capture.mods.shift, "Shift");
-            });
-            ui.add_space(6.0);
-            ui.label(RichText::new("Jetzt die Taste drücken …").strong());
-            ui.label(RichText::new("Esc ohne Modifikator bricht ab.").small().weak());
-            if ui.button("Abbrechen").clicked() {
-                close = true;
-            }
-        });
+        egui::Window::new("Taste aufnehmen").collapsible(false).resizable(false).anchor(egui::Align2::CENTER_CENTER, [0.0, 0.0]).show(
+            ctx,
+            |ui| {
+                ui.label(format!("Für: {}", capture.title));
+                ui.label("Modifikatoren (Super lässt sich nicht erkennen und wird hier gewählt):");
+                ui.horizontal(|ui| {
+                    ui.checkbox(&mut capture.mods.logo, "Super");
+                    ui.checkbox(&mut capture.mods.ctrl, "Ctrl");
+                    ui.checkbox(&mut capture.mods.alt, "Alt");
+                    ui.checkbox(&mut capture.mods.shift, "Shift");
+                });
+                ui.add_space(6.0);
+                ui.label(RichText::new("Jetzt die Taste drücken …").strong());
+                ui.label(RichText::new("Esc ohne Modifikator bricht ab.").small().weak());
+                if ui.button("Abbrechen").clicked() {
+                    close = true;
+                }
+            },
+        );
         let events = ctx.input(|i| i.events.clone());
         for event in events {
             if let egui::Event::Key { key, physical_key, pressed: true, modifiers, repeat: false, .. } = event {
@@ -463,7 +484,10 @@ impl App {
                     self.doc.get_str("keyboard.options").unwrap_or(&defaults.options),
                 );
                 if let Some(binding) = layout.binding(mods, physical_key.unwrap_or(key)) {
-                    let default_keys = capture.path.strip_prefix("bindings.").and_then(|name| Bindings::default().entries().into_iter().find(|(n, _)| *n == name).map(|(_, k)| k.clone()));
+                    let default_keys = capture
+                        .path
+                        .strip_prefix("bindings.")
+                        .and_then(|name| Bindings::default().entries().into_iter().find(|(n, _)| *n == name).map(|(_, k)| k.clone()));
                     let mut list = self.doc.get_list(&capture.path).or_else(|| default_keys.clone()).unwrap_or_default();
                     if !list.contains(&binding) {
                         list.push(binding);
@@ -591,8 +615,14 @@ impl App {
         }
         style::card(ui, &colors, |ui| {
             ui.horizontal(|ui| {
-                ui.add(egui::TextEdit::singleline(&mut self.new_program).hint_text("Name, z. B. browser").desired_width(200.0).margin(INPUT_MARGIN));
-                let valid = !self.new_program.is_empty() && self.new_program.chars().all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '-');
+                ui.add(
+                    egui::TextEdit::singleline(&mut self.new_program)
+                        .hint_text("Name, z. B. browser")
+                        .desired_width(200.0)
+                        .margin(INPUT_MARGIN),
+                );
+                let valid =
+                    !self.new_program.is_empty() && self.new_program.chars().all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '-');
                 if ui.add_enabled(valid, egui::Button::new("+ Programm hinzufügen")).clicked() {
                     let name = std::mem::take(&mut self.new_program);
                     self.doc.set_list(&format!("program_bindings.{name}.keys"), &["Super+b".to_owned()]);
@@ -608,7 +638,12 @@ impl App {
         style::card(ui, &colors, |ui| {
             ui.label(RichText::new("Konfigurationsdatei").strong());
             ui.horizontal(|ui| {
-                ui.add(egui::TextEdit::singleline(&mut self.path_edit).desired_width(ui.available_width() - 110.0).margin(INPUT_MARGIN).margin(INPUT_MARGIN));
+                ui.add(
+                    egui::TextEdit::singleline(&mut self.path_edit)
+                        .desired_width(ui.available_width() - 110.0)
+                        .margin(INPUT_MARGIN)
+                        .margin(INPUT_MARGIN),
+                );
                 if ui.button("Übernehmen").clicked() {
                     let path = PathBuf::from(self.path_edit.trim());
                     files::remember_path(&path);
@@ -631,7 +666,11 @@ impl App {
                     self.reload_from_disk();
                 }
                 if ui.button("Compositor neu laden lassen").clicked() {
-                    self.status = if files::reload_compositor() { "Neu laden angefordert.".into() } else { "Der Compositor ist nicht erreichbar.".into() };
+                    self.status = if files::reload_compositor() {
+                        "Neu laden angefordert.".into()
+                    } else {
+                        "Der Compositor ist nicht erreichbar.".into()
+                    };
                 }
             });
         });
@@ -695,25 +734,27 @@ fn tri_state(ui: &mut egui::Ui, table: &mut Table, key: &str, label: &str) -> bo
     let mut changed = false;
     ui.horizontal(|ui| {
         field_label(ui, FIELD_LABEL_WIDTH, RichText::new(label));
-        egui::ComboBox::from_id_salt((key, table.get("app_id").map(|v| v.to_string()))).selected_text(match current {
-            None => "egal",
-            Some(true) => "ja",
-            Some(false) => "nein",
-        }).show_ui(ui, |ui| {
-            for (value, text) in [(None, "egal"), (Some(true), "ja"), (Some(false), "nein")] {
-                if ui.selectable_label(current == value, text).clicked() {
-                    match value {
-                        Some(v) => {
-                            table.insert(key, toml_edit::value(v));
+        egui::ComboBox::from_id_salt((key, table.get("app_id").map(|v| v.to_string())))
+            .selected_text(match current {
+                None => "egal",
+                Some(true) => "ja",
+                Some(false) => "nein",
+            })
+            .show_ui(ui, |ui| {
+                for (value, text) in [(None, "egal"), (Some(true), "ja"), (Some(false), "nein")] {
+                    if ui.selectable_label(current == value, text).clicked() {
+                        match value {
+                            Some(v) => {
+                                table.insert(key, toml_edit::value(v));
+                            }
+                            None => {
+                                table.remove(key);
+                            }
                         }
-                        None => {
-                            table.remove(key);
-                        }
+                        changed = true;
                     }
-                    changed = true;
                 }
-            }
-        });
+            });
     });
     changed
 }
@@ -830,7 +871,12 @@ impl eframe::App for App {
         // The note on the file or the last save sits at the bottom: showing it must not move what is above.
         if self.problem.is_some() || !self.status.is_empty() {
             egui::TopBottomPanel::bottom("status")
-                .frame(egui::Frame::new().fill(style::sunken(&colors)).inner_margin(egui::Margin { left: 36, right: 36, top: 4, bottom: 16 }))
+                .frame(egui::Frame::new().fill(style::sunken(&colors)).inner_margin(egui::Margin {
+                    left: 36,
+                    right: 36,
+                    top: 4,
+                    bottom: 16,
+                }))
                 .show(ctx, |ui| match &self.problem {
                     Some(problem) => style::banner(ui, colors.alert, &format!("Die Datei wäre ungültig: {problem}")),
                     None => {
@@ -839,44 +885,52 @@ impl eframe::App for App {
                 });
         }
 
-        egui::CentralPanel::default().frame(egui::Frame::new().fill(style::sunken(&colors)).inner_margin(egui::Margin::symmetric(36, 26))).show(ctx, |ui| {
-            let title = Nav::all().into_iter().find(|(nav, _)| *nav == self.nav).map_or("", |(_, title)| title);
-            ui.horizontal(|ui| {
-                ui.heading(RichText::new(title).strong());
-                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                    let can_save = dirty && self.problem.is_none() && !read_only;
-                    let save = egui::Button::new(RichText::new("Speichern").strong().color(if can_save { colors.background } else { colors.muted })).fill(if can_save { colors.accent } else { style::control(&colors) });
-                    if ui.add_enabled(can_save, save).on_hover_text("Strg+S").clicked() {
-                        self.save();
-                    }
-                    if ui.add_enabled(dirty, egui::Button::new("Verwerfen")).clicked() {
-                        self.reload_from_disk();
-                    }
-                    if dirty {
-                        ui.label(RichText::new("ungespeicherte Änderungen").color(Color32::from_rgb(249, 226, 175)));
-                    }
+        egui::CentralPanel::default()
+            .frame(egui::Frame::new().fill(style::sunken(&colors)).inner_margin(egui::Margin::symmetric(36, 26)))
+            .show(ctx, |ui| {
+                let title = Nav::all().into_iter().find(|(nav, _)| *nav == self.nav).map_or("", |(_, title)| title);
+                ui.horizontal(|ui| {
+                    ui.heading(RichText::new(title).strong());
+                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                        let can_save = dirty && self.problem.is_none() && !read_only;
+                        let save = egui::Button::new(RichText::new("Speichern").strong().color(if can_save {
+                            colors.background
+                        } else {
+                            colors.muted
+                        }))
+                        .fill(if can_save { colors.accent } else { style::control(&colors) });
+                        if ui.add_enabled(can_save, save).on_hover_text("Strg+S").clicked() {
+                            self.save();
+                        }
+                        if ui.add_enabled(dirty, egui::Button::new("Verwerfen")).clicked() {
+                            self.reload_from_disk();
+                        }
+                        if dirty {
+                            ui.label(RichText::new("ungespeicherte Änderungen").color(Color32::from_rgb(249, 226, 175)));
+                        }
+                    });
+                });
+                ui.add_space(8.0);
+                egui::ScrollArea::vertical().auto_shrink([false, false]).show(ui, |ui| {
+                    // The cards are a column of their own in the middle, not as wide as a large window.
+                    let area = ui.available_rect_before_wrap();
+                    let width = area.width().min(MAX_CONTENT_WIDTH);
+                    let column =
+                        egui::Rect::from_min_size(egui::pos2(area.center().x - width / 2.0, area.top()), egui::vec2(width, area.height()));
+                    ui.scope_builder(egui::UiBuilder::new().max_rect(column).layout(egui::Layout::top_down(egui::Align::Min)), |ui| {
+                        ui.set_width(width);
+                        ui.spacing_mut().item_spacing.y = 14.0;
+                        match self.nav {
+                            Nav::Page(Page::Keys) => self.keys_page(ui),
+                            Nav::Page(page) => self.settings_card(ui, model::settings_of(page)),
+                            Nav::Rules => self.rules_page(ui),
+                            Nav::Programs => self.programs_page(ui),
+                            Nav::File => self.file_page(ui),
+                        }
+                        ui.add_space(8.0);
+                    });
                 });
             });
-            ui.add_space(8.0);
-            egui::ScrollArea::vertical().auto_shrink([false, false]).show(ui, |ui| {
-                // The cards are a column of their own in the middle, not as wide as a large window.
-                let area = ui.available_rect_before_wrap();
-                let width = area.width().min(MAX_CONTENT_WIDTH);
-                let column = egui::Rect::from_min_size(egui::pos2(area.center().x - width / 2.0, area.top()), egui::vec2(width, area.height()));
-                ui.scope_builder(egui::UiBuilder::new().max_rect(column).layout(egui::Layout::top_down(egui::Align::Min)), |ui| {
-                    ui.set_width(width);
-                    ui.spacing_mut().item_spacing.y = 14.0;
-                    match self.nav {
-                        Nav::Page(Page::Keys) => self.keys_page(ui),
-                        Nav::Page(page) => self.settings_card(ui, model::settings_of(page)),
-                        Nav::Rules => self.rules_page(ui),
-                        Nav::Programs => self.programs_page(ui),
-                        Nav::File => self.file_page(ui),
-                    }
-                    ui.add_space(8.0);
-                });
-            });
-        });
 
         self.capture_window(ctx);
     }
@@ -922,7 +976,10 @@ fn main() -> eframe::Result {
         eprintln!("Hinweis: {} ist derzeit ungültig: {error}", path.display());
     }
     let options = eframe::NativeOptions {
-        viewport: egui::ViewportBuilder::default().with_inner_size([size.0, size.1]).with_title("splice Einstellungen").with_app_id("splice-settings"),
+        viewport: egui::ViewportBuilder::default()
+            .with_inner_size([size.0, size.1])
+            .with_title("splice Einstellungen")
+            .with_app_id("splice-settings"),
         ..Default::default()
     };
     let colors = Colors::current(&files::read(&path).unwrap_or_default());

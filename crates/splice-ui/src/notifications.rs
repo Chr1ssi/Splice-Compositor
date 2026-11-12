@@ -56,7 +56,15 @@ const TEXT: TextStyle = TextStyle::new(14.0);
 
 /// The card of `view`, `width` wide. Toasts are `compact` (on their own: glass, three lines of body); in the
 /// notification center cards sit on the panel's glass and show eight lines.
-pub fn card(view: &NotificationView, theme: &Theme, measure: &mut impl Measure, width: f32, compact: bool, hover: Option<CardTarget>, language: Language) -> Card {
+pub fn card(
+    view: &NotificationView,
+    theme: &Theme,
+    measure: &mut impl Measure,
+    width: f32,
+    compact: bool,
+    hover: Option<CardTarget>,
+    language: Language,
+) -> Card {
     let id = view.id;
     let mut nodes = Vec::new();
     let mut targets = Vec::new();
@@ -156,11 +164,17 @@ pub fn center(
     let mut content = Content::default();
 
     let heading_style = crate::panel::HEADING;
-    let heading = if count == 1 { tr("1 Benachrichtigung").to_owned() } else { language.trf("%1 Benachrichtigungen", &[&count.to_string()]) };
+    let heading =
+        if count == 1 { tr("1 Benachrichtigung").to_owned() } else { language.trf("%1 Benachrichtigungen", &[&count.to_string()]) };
     let clear_text = tr("Alle löschen");
     let clear_width = measure.width(clear_text, TEXT).ceil() + 16.0;
     let heading_height = measure.line_height(heading_style).max(BUTTON_HEIGHT);
-    let heading_rect = Rect::new(0.0, (heading_height - measure.line_height(heading_style)) / 2.0, width - clear_width - 8.0, measure.line_height(heading_style));
+    let heading_rect = Rect::new(
+        0.0,
+        (heading_height - measure.line_height(heading_style)) / 2.0,
+        width - clear_width - 8.0,
+        measure.line_height(heading_style),
+    );
     content.push(Node::Label { rect: heading_rect, text: heading, style: heading_style, color: theme.muted, align: Align::Left });
     let clear = Rect::new(width - clear_width, 0.0, clear_width, BUTTON_HEIGHT);
     let mut button: Scene<()> = Scene::new(width, 0.0);
@@ -194,7 +208,13 @@ pub fn center(
     content.push(Node::Clip(Some(list)));
     if cards.is_empty() {
         let style = TextStyle::new(14.0);
-        content.push(Node::Label { rect: list, text: tr("Keine Benachrichtigungen").into(), style, color: theme.muted, align: Align::Center });
+        content.push(Node::Label {
+            rect: list,
+            text: tr("Keine Benachrichtigungen").into(),
+            style,
+            color: theme.muted,
+            align: Align::Center,
+        });
     }
     let mut y = list.y - scroll;
     for card in cards {
@@ -262,8 +282,14 @@ mod tests {
     fn the_cyberdeck_card_has_a_console_tag_in_place_of_the_app_name() {
         let deck = theme().with_shape(Shape::Chamfer);
         let card = card(&view(107), &deck, &mut Mono, 390.0, true, None, Language::English);
-        let labels: Vec<(&str, crate::Color)> =
-            card.nodes.iter().filter_map(|n| match n { Node::Label { text, color, .. } => Some((text.as_str(), *color)), _ => None }).collect();
+        let labels: Vec<(&str, crate::Color)> = card
+            .nodes
+            .iter()
+            .filter_map(|n| match n {
+                Node::Label { text, color, .. } => Some((text.as_str(), *color)),
+                _ => None,
+            })
+            .collect();
         // The tag on top in the accent color (the id modulo 100), the app name not repeated below.
         assert_eq!(labels[0], ("MSG·07 · APP", deck.accent));
         assert!(!labels.iter().any(|(text, _)| *text == "App"), "{labels:?}");
@@ -272,7 +298,9 @@ mod tests {
         assert_eq!(card.height, plain.height);
         let critical = NotificationView { critical: true, ..view(1) };
         let card = super::card(&critical, &deck, &mut Mono, 390.0, true, None, Language::English);
-        assert!(card.nodes.iter().any(|n| matches!(n, Node::Label { text, color, .. } if text.starts_with("MSG·01") && *color == deck.alert)));
+        assert!(
+            card.nodes.iter().any(|n| matches!(n, Node::Label { text, color, .. } if text.starts_with("MSG·01") && *color == deck.alert))
+        );
     }
 
     #[test]
@@ -281,7 +309,14 @@ mod tests {
         let bare = NotificationView { body: Vec::new(), app_name: String::new(), actions: Vec::new(), picture: Some(picture), ..view(2) };
         let card = card(&bare, &theme(), &mut Mono, 390.0, false, None, Language::English);
         assert_eq!(card.height, 12.0 + 42.0 + 12.0);
-        let title = card.nodes.iter().find_map(|n| match n { Node::Label { rect, .. } => Some(*rect), _ => None }).unwrap();
+        let title = card
+            .nodes
+            .iter()
+            .find_map(|n| match n {
+                Node::Label { rect, .. } => Some(*rect),
+                _ => None,
+            })
+            .unwrap();
         assert_eq!(title.x, 12.0 + 42.0 + 12.0);
     }
 
@@ -291,7 +326,14 @@ mod tests {
         let (content, max_scroll) = center(&items, 0.0, None, &theme(), &mut Mono, 360.0, Language::English);
         assert!(max_scroll > 0.0, "eight cards overflow 470 pixels");
         assert_eq!(content.height, 26.0 + 12.0 + 470.0);
-        let texts: Vec<_> = content.nodes.iter().filter_map(|n| match n { Node::Label { text, .. } => Some(text.clone()), _ => None }).collect();
+        let texts: Vec<_> = content
+            .nodes
+            .iter()
+            .filter_map(|n| match n {
+                Node::Label { text, .. } => Some(text.clone()),
+                _ => None,
+            })
+            .collect();
         assert!(texts.contains(&"8 notifications".to_owned()), "{texts:?}");
         let first = texts.iter().position(|t| t == "Titel 8").unwrap();
         assert!(texts.iter().position(|t| t == "Titel 7").unwrap() > first);

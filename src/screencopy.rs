@@ -101,19 +101,12 @@ impl State {
     }
 
     /// Answer requests that came in since the last frame using the elements just drawn.
-    pub fn fulfill_screencopy(
-        &mut self,
-        renderer: &mut GlesRenderer,
-        output: &Output,
-        elements: &[OutputElement],
-        had_damage: bool,
-    ) {
+    pub fn fulfill_screencopy(&mut self, renderer: &mut GlesRenderer, output: &Output, elements: &[OutputElement], had_damage: bool) {
         if self.pending_copies.is_empty() {
             return;
         }
-        let (ready, waiting): (Vec<_>, Vec<_>) = std::mem::take(&mut self.pending_copies)
-            .into_iter()
-            .partition(|p| &p.output == output && (!p.wait_for_damage || had_damage));
+        let (ready, waiting): (Vec<_>, Vec<_>) =
+            std::mem::take(&mut self.pending_copies).into_iter().partition(|p| &p.output == output && (!p.wait_for_damage || had_damage));
         self.pending_copies = waiting;
         let clear = self.clear_color();
         for pending in ready {
@@ -272,10 +265,7 @@ fn capture_output(
             }
         }
     };
-    let resource = data_init.init(
-        frame,
-        FrameData { output, overlay_cursor, region, full, used: AtomicBool::new(false) },
-    );
+    let resource = data_init.init(frame, FrameData { output, overlay_cursor, region, full, used: AtomicBool::new(false) });
     let (w, h) = (region.size.w as u32, region.size.h as u32);
     resource.buffer(wl_shm::Format::Argb8888, w, h, w * 4);
     // Version 3 announces all buffer types first and then says it is done; older clients
@@ -320,9 +310,7 @@ impl Dispatch<ZwlrScreencopyFrameV1, FrameData, State> for State {
     ) {
         match request {
             zwlr_screencopy_frame_v1::Request::Copy { buffer } => state.screencopy_request(frame, data, buffer, false),
-            zwlr_screencopy_frame_v1::Request::CopyWithDamage { buffer } => {
-                state.screencopy_request(frame, data, buffer, true)
-            }
+            zwlr_screencopy_frame_v1::Request::CopyWithDamage { buffer } => state.screencopy_request(frame, data, buffer, true),
             _ => {}
         }
     }
@@ -352,9 +340,7 @@ pub fn render_to_buffer<E: smithay::backend::renderer::element::RenderElement<Gl
     if let Ok(dmabuf) = get_dmabuf(buffer) {
         let mut dmabuf = dmabuf.clone();
         let mut target = renderer.bind(&mut dmabuf).map_err(|e| format!("bind: {e}"))?;
-        tracker
-            .render_output(renderer, &mut target, 0, elements, clear)
-            .map_err(|e| format!("render: {e:?}"))?;
+        tracker.render_output(renderer, &mut target, 0, elements, clear).map_err(|e| format!("render: {e:?}"))?;
         drop(target);
         // The client reads the buffer as soon as it gets `ready`: not before the GPU is done with it.
         return Ok(Readback { mapping: None, fence: submit_fence(renderer)?, region });
@@ -401,13 +387,8 @@ pub fn start_readback<E: smithay::backend::renderer::element::RenderElement<Gles
     region: Rectangle<i32, Physical>,
 ) -> Result<Readback, String> {
     let mut target = renderer.bind(texture).map_err(|e| format!("bind: {e}"))?;
-    tracker
-        .render_output(renderer, &mut target, age, elements, clear)
-        .map_err(|e| format!("render: {e:?}"))?;
-    let buffer_region = Rectangle::<i32, BufferCoords>::new(
-        (region.loc.x, region.loc.y).into(),
-        (region.size.w, region.size.h).into(),
-    );
+    tracker.render_output(renderer, &mut target, age, elements, clear).map_err(|e| format!("render: {e:?}"))?;
+    let buffer_region = Rectangle::<i32, BufferCoords>::new((region.loc.x, region.loc.y).into(), (region.size.w, region.size.h).into());
     let mapping = renderer.copy_framebuffer(&target, buffer_region, Fourcc::Argb8888).map_err(|e| format!("read back: {e}"))?;
     drop(target);
     Ok(Readback { mapping: Some(mapping), fence: submit_fence(renderer)?, region })
@@ -520,13 +501,8 @@ pub fn render_region_into<E: smithay::backend::renderer::element::RenderElement<
     region: Rectangle<i32, Physical>,
 ) -> Result<Vec<u8>, String> {
     let mut target = renderer.bind(texture).map_err(|e| format!("bind: {e}"))?;
-    tracker
-        .render_output(renderer, &mut target, age, elements, clear)
-        .map_err(|e| format!("render: {e:?}"))?;
-    let region = Rectangle::<i32, BufferCoords>::new(
-        (region.loc.x, region.loc.y).into(),
-        (region.size.w, region.size.h).into(),
-    );
+    tracker.render_output(renderer, &mut target, age, elements, clear).map_err(|e| format!("render: {e:?}"))?;
+    let region = Rectangle::<i32, BufferCoords>::new((region.loc.x, region.loc.y).into(), (region.size.w, region.size.h).into());
     let mapping = renderer.copy_framebuffer(&target, region, Fourcc::Argb8888).map_err(|e| format!("read back: {e}"))?;
     let pixels = renderer.map_texture(&mapping).map_err(|e| format!("map: {e}"))?;
     Ok(pixels.to_vec())

@@ -7,9 +7,7 @@
 use smithay::{
     backend::renderer::{
         element::{Element, Id, Kind, RenderElement, UnderlyingStorage},
-        gles::{
-            GlesError, GlesFrame, GlesPixelProgram, GlesRenderer, GlesTexProgram, Uniform, UniformName, UniformType,
-        },
+        gles::{GlesError, GlesFrame, GlesPixelProgram, GlesRenderer, GlesTexProgram, Uniform, UniformName, UniformType},
         utils::{CommitCounter, DamageSet, OpaqueRegions},
     },
     utils::{Buffer, Physical, Point, Rectangle, Scale, Transform},
@@ -377,8 +375,7 @@ impl<E> Rounded<E> {
         // Whole pixels only, one pixel inside the edges: they are smoothed, and fractional scales leave
         // the geometry between pixels.
         let (x0, y0) = (geometry.loc.x.ceil() as i32 + 1, geometry.loc.y.ceil() as i32 + 1);
-        let (x1, y1) =
-            ((geometry.loc.x + geometry.size.w).floor() as i32 - 1, (geometry.loc.y + geometry.size.h).floor() as i32 - 1);
+        let (x1, y1) = ((geometry.loc.x + geometry.size.w).floor() as i32 - 1, (geometry.loc.y + geometry.size.h).floor() as i32 - 1);
         let r = radius.max(0.0).ceil() as i32 + 1;
         let (w, h) = (x1 - x0, y1 - y0);
         if w > 2 * r && h > 2 * r {

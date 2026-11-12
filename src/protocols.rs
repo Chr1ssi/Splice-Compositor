@@ -3,10 +3,9 @@
 use calloop::Interest;
 use smithay::{
     backend::allocator::dmabuf::Dmabuf,
-    delegate_commit_timing, delegate_content_type, delegate_cursor_shape, delegate_drm_syncobj, delegate_fifo,
-    delegate_fractional_scale,
-    delegate_pointer_constraints, delegate_presentation, delegate_primary_selection,
-    delegate_relative_pointer, delegate_viewporter, delegate_xdg_decoration, delegate_xdg_foreign,
+    delegate_commit_timing, delegate_content_type, delegate_cursor_shape, delegate_drm_syncobj, delegate_fifo, delegate_fractional_scale,
+    delegate_pointer_constraints, delegate_presentation, delegate_primary_selection, delegate_relative_pointer, delegate_viewporter,
+    delegate_xdg_decoration, delegate_xdg_foreign,
     input::pointer::PointerHandle,
     reexports::{
         wayland_protocols::xdg::decoration::zv1::server::zxdg_toplevel_decoration_v1::Mode,
@@ -14,16 +13,14 @@ use smithay::{
     },
     utils::{Logical, Point},
     wayland::{
-        compositor::{
-            BufferAssignment, CompositorHandler, SurfaceAttributes, add_blocker, add_pre_commit_hook, get_parent, with_states,
-        },
+        compositor::{BufferAssignment, CompositorHandler, SurfaceAttributes, add_blocker, add_pre_commit_hook, get_parent, with_states},
         dmabuf::get_dmabuf,
         drm_syncobj::{DrmSyncobjCachedState, DrmSyncobjHandler, DrmSyncobjState},
         fractional_scale::{FractionalScaleHandler, with_fractional_scale},
         pointer_constraints::{PointerConstraintsHandler, with_pointer_constraint},
         selection::primary_selection::{PrimarySelectionHandler, PrimarySelectionState},
-        tablet_manager::TabletSeatHandler,
         shell::xdg::{ToplevelSurface, decoration::XdgDecorationHandler},
+        tablet_manager::TabletSeatHandler,
     },
 };
 
@@ -76,10 +73,7 @@ impl State {
             .by_surface(root)
             .and_then(|m| self.desktop.desk.locate(&m.id))
             .map_or(self.desktop.focused_monitor, |(monitor, _)| monitor);
-        self.outputs
-            .get(monitor)
-            .or_else(|| self.outputs.first())
-            .map_or(1.0, |entry| entry.output.current_scale().fractional_scale())
+        self.outputs.get(monitor).or_else(|| self.outputs.first()).map_or(1.0, |entry| entry.output.current_scale().fractional_scale())
     }
 }
 
@@ -157,16 +151,10 @@ impl State {
             let mut acquire_point = None;
             let dmabuf: Option<Dmabuf> = with_states(surface, |states| {
                 acquire_point.clone_from(&states.cached_state.get::<DrmSyncobjCachedState>().pending().acquire_point);
-                states
-                    .cached_state
-                    .get::<SurfaceAttributes>()
-                    .pending()
-                    .buffer
-                    .as_ref()
-                    .and_then(|assignment| match assignment {
-                        BufferAssignment::NewBuffer(buffer) => get_dmabuf(buffer).cloned().ok(),
-                        _ => None,
-                    })
+                states.cached_state.get::<SurfaceAttributes>().pending().buffer.as_ref().and_then(|assignment| match assignment {
+                    BufferAssignment::NewBuffer(buffer) => get_dmabuf(buffer).cloned().ok(),
+                    _ => None,
+                })
             });
             let Some(dmabuf) = dmabuf else { return };
             let Some(client) = surface.client() else { return };

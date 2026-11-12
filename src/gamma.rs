@@ -42,7 +42,14 @@ impl State {
 }
 
 impl GlobalDispatch<ZwlrGammaControlManagerV1, (), State> for State {
-    fn bind(_: &mut State, _: &DisplayHandle, _: &Client, resource: New<ZwlrGammaControlManagerV1>, _: &(), init: &mut DataInit<'_, State>) {
+    fn bind(
+        _: &mut State,
+        _: &DisplayHandle,
+        _: &Client,
+        resource: New<ZwlrGammaControlManagerV1>,
+        _: &(),
+        init: &mut DataInit<'_, State>,
+    ) {
         init.init(resource, ());
     }
 }

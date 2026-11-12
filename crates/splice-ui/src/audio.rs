@@ -95,7 +95,8 @@ fn control(
     let height = 2.0 * CARD_PADDING + NAME_HEIGHT + if node.audio.is_some() { 4.0 + SLIDER_HEIGHT } else { 0.0 };
     content.card(Rect::new(0.0, y, width, height), theme.glass_surface());
     let name = if selected { format!("✓ {}", node.label) } else { node.label.clone() };
-    let level_rect = Rect::new(width - CARD_PADDING - LEVEL_WIDTH, y + CARD_PADDING + (NAME_HEIGHT - BUTTON_HEIGHT) / 2.0, LEVEL_WIDTH, BUTTON_HEIGHT);
+    let level_rect =
+        Rect::new(width - CARD_PADDING - LEVEL_WIDTH, y + CARD_PADDING + (NAME_HEIGHT - BUTTON_HEIGHT) / 2.0, LEVEL_WIDTH, BUTTON_HEIGHT);
     let row = Rect::new(CARD_PADDING, y + CARD_PADDING, level_rect.x - 4.0 - CARD_PADDING, NAME_HEIGHT);
     let select = PanelTarget::Audio(AudioTarget::Select(node.id));
     if selectable {
@@ -117,7 +118,12 @@ fn control(
     let position = volume.clamp(0.0, 1.0);
     let track = Rect::new(slider.x, slider.y + (SLIDER_HEIGHT - 6.0) / 2.0, slider.w, 6.0);
     content.push(Node::Rect { rect: track, radius: 3.0, fill: theme.surface, border: None });
-    content.push(Node::Rect { rect: Rect::new(slider.x, track.y, position * slider.w, 6.0), radius: 3.0, fill: theme.accent, border: None });
+    content.push(Node::Rect {
+        rect: Rect::new(slider.x, track.y, position * slider.w, 6.0),
+        radius: 3.0,
+        fill: theme.accent,
+        border: None,
+    });
     let handle = Rect::new(slider.x + position * (slider.w - 14.0), slider.y + (SLIDER_HEIGHT - 14.0) / 2.0, 14.0, 14.0);
     content.push(Node::Rect { rect: handle, radius: 7.0, fill: theme.accent, border: None });
     content.target(slider, PanelTarget::Audio(AudioTarget::Slider(node.id)));
@@ -130,13 +136,36 @@ fn text(content: &mut Content, measure: &mut impl Measure, y: f32, width: f32, t
     height
 }
 
-pub fn content(model: &AudioModel, hover: Option<&PanelTarget>, theme: &Theme, measure: &mut impl Measure, width: f32, language: Language) -> Content {
+pub fn content(
+    model: &AudioModel,
+    hover: Option<&PanelTarget>,
+    theme: &Theme,
+    measure: &mut impl Measure,
+    width: f32,
+    language: Language,
+) -> Content {
     let tr = |text| language.tr(text);
     let mut content = Content::default();
     let mut y = 0.0;
     let devices = [
-        (tr("Ausgabe"), tr("Kein Ausgabegerät"), &model.outputs, model.default_output, model.outputs_expanded, AudioTarget::ToggleOutputs, (tr("Anderen Ausgang wählen"), tr("Andere Ausgänge ausblenden"))),
-        (tr("Mikrofon"), tr("Kein Eingabegerät"), &model.inputs, model.default_input, model.inputs_expanded, AudioTarget::ToggleInputs, (tr("Anderes Mikrofon wählen"), tr("Andere Eingänge ausblenden"))),
+        (
+            tr("Ausgabe"),
+            tr("Kein Ausgabegerät"),
+            &model.outputs,
+            model.default_output,
+            model.outputs_expanded,
+            AudioTarget::ToggleOutputs,
+            (tr("Anderen Ausgang wählen"), tr("Andere Ausgänge ausblenden")),
+        ),
+        (
+            tr("Mikrofon"),
+            tr("Kein Eingabegerät"),
+            &model.inputs,
+            model.default_input,
+            model.inputs_expanded,
+            AudioTarget::ToggleInputs,
+            (tr("Anderes Mikrofon wählen"), tr("Andere Eingänge ausblenden")),
+        ),
     ];
     for (title, none, nodes, current, expanded, toggle, (choose, hide)) in devices {
         y += content.heading(theme, measure, y, width, title) + SPACING;
@@ -185,7 +214,14 @@ mod tests {
     }
 
     fn texts(content: &Content) -> Vec<String> {
-        content.nodes.iter().filter_map(|n| match n { Node::Label { text, .. } => Some(text.clone()), _ => None }).collect()
+        content
+            .nodes
+            .iter()
+            .filter_map(|n| match n {
+                Node::Label { text, .. } => Some(text.clone()),
+                _ => None,
+            })
+            .collect()
     }
 
     fn has(content: &Content, target: AudioTarget) -> bool {

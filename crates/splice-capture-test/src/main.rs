@@ -8,7 +8,13 @@ use std::{fs::File, os::fd::AsFd, os::unix::fs::FileExt};
 use wayland_client::{
     Connection, Dispatch, QueueHandle, WEnum, delegate_noop,
     globals::{GlobalListContents, registry_queue_init},
-    protocol::{wl_buffer::WlBuffer, wl_output::WlOutput, wl_registry::WlRegistry, wl_shm::{self, WlShm}, wl_shm_pool::WlShmPool},
+    protocol::{
+        wl_buffer::WlBuffer,
+        wl_output::WlOutput,
+        wl_registry::WlRegistry,
+        wl_shm::{self, WlShm},
+        wl_shm_pool::WlShmPool,
+    },
 };
 use wayland_protocols::ext::{
     foreign_toplevel_list::v1::client::{
@@ -39,11 +45,26 @@ struct App {
 }
 
 impl Dispatch<WlRegistry, GlobalListContents> for App {
-    fn event(_: &mut Self, _: &WlRegistry, _: wayland_client::protocol::wl_registry::Event, _: &GlobalListContents, _: &Connection, _: &QueueHandle<Self>) {}
+    fn event(
+        _: &mut Self,
+        _: &WlRegistry,
+        _: wayland_client::protocol::wl_registry::Event,
+        _: &GlobalListContents,
+        _: &Connection,
+        _: &QueueHandle<Self>,
+    ) {
+    }
 }
 
 impl Dispatch<ExtForeignToplevelListV1, ()> for App {
-    fn event(state: &mut Self, _: &ExtForeignToplevelListV1, event: ext_foreign_toplevel_list_v1::Event, _: &(), _: &Connection, _: &QueueHandle<Self>) {
+    fn event(
+        state: &mut Self,
+        _: &ExtForeignToplevelListV1,
+        event: ext_foreign_toplevel_list_v1::Event,
+        _: &(),
+        _: &Connection,
+        _: &QueueHandle<Self>,
+    ) {
         if let ext_foreign_toplevel_list_v1::Event::Toplevel { toplevel } = event {
             state.toplevels.push(toplevel);
         }
@@ -54,7 +75,14 @@ impl Dispatch<ExtForeignToplevelListV1, ()> for App {
 }
 
 impl Dispatch<ExtForeignToplevelHandleV1, ()> for App {
-    fn event(state: &mut Self, _: &ExtForeignToplevelHandleV1, event: ext_foreign_toplevel_handle_v1::Event, _: &(), _: &Connection, _: &QueueHandle<Self>) {
+    fn event(
+        state: &mut Self,
+        _: &ExtForeignToplevelHandleV1,
+        event: ext_foreign_toplevel_handle_v1::Event,
+        _: &(),
+        _: &Connection,
+        _: &QueueHandle<Self>,
+    ) {
         if let ext_foreign_toplevel_handle_v1::Event::Title { title } = event {
             state.titles.push(title);
         }
@@ -62,7 +90,14 @@ impl Dispatch<ExtForeignToplevelHandleV1, ()> for App {
 }
 
 impl Dispatch<ExtImageCopyCaptureSessionV1, ()> for App {
-    fn event(state: &mut Self, _: &ExtImageCopyCaptureSessionV1, event: ext_image_copy_capture_session_v1::Event, _: &(), _: &Connection, _: &QueueHandle<Self>) {
+    fn event(
+        state: &mut Self,
+        _: &ExtImageCopyCaptureSessionV1,
+        event: ext_image_copy_capture_session_v1::Event,
+        _: &(),
+        _: &Connection,
+        _: &QueueHandle<Self>,
+    ) {
         use ext_image_copy_capture_session_v1::Event;
         match event {
             Event::BufferSize { width, height } => state.size = (width, height),
@@ -75,7 +110,14 @@ impl Dispatch<ExtImageCopyCaptureSessionV1, ()> for App {
 }
 
 impl Dispatch<ExtImageCopyCaptureFrameV1, ()> for App {
-    fn event(state: &mut Self, _: &ExtImageCopyCaptureFrameV1, event: ext_image_copy_capture_frame_v1::Event, _: &(), _: &Connection, _: &QueueHandle<Self>) {
+    fn event(
+        state: &mut Self,
+        _: &ExtImageCopyCaptureFrameV1,
+        event: ext_image_copy_capture_frame_v1::Event,
+        _: &(),
+        _: &Connection,
+        _: &QueueHandle<Self>,
+    ) {
         match event {
             ext_image_copy_capture_frame_v1::Event::Ready => state.ready = true,
             ext_image_copy_capture_frame_v1::Event::Failed { reason } => {
@@ -170,7 +212,13 @@ fn main() {
             hasher.finish()
         };
         // Argb8888 is little endian: B, G, R, A.
-        println!("{w}x{h} center={:02X}{:02X}{:02X} alpha={:02X} hash={hash:016x}", pixels[at + 2], pixels[at + 1], pixels[at], pixels[at + 3]);
+        println!(
+            "{w}x{h} center={:02X}{:02X}{:02X} alpha={:02X} hash={hash:016x}",
+            pixels[at + 2],
+            pixels[at + 1],
+            pixels[at],
+            pixels[at + 3]
+        );
     }
     let hold = args.iter().position(|a| a == "hold").and_then(|i| args.get(i + 1)).and_then(|s| s.parse().ok());
     if let Some(seconds) = hold {

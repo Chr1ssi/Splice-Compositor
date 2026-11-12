@@ -14,9 +14,9 @@ use std::{
     process::{Command, Stdio},
 };
 
+use smithay::reexports::calloop::channel;
 use splice_shell_protocol::{LoginEvent, LoginRequest};
 use splice_ui::{edit::Input, lock_screen::LockMessage};
-use smithay::reexports::calloop::channel;
 
 use crate::State;
 
@@ -244,9 +244,12 @@ mod tests {
             ("splice.desktop".into(), "[Desktop Entry]\nName=splice\nName[de]=Splice\nExec=/run/splice-launch\nType=Application\n".into()),
             ("broken.desktop".into(), "[Desktop Entry]\nName=Ohne Befehl\n".into()),
         ];
-        assert_eq!(sessions(files), vec![
-            Session { name: "splice".into(), command: vec!["/run/splice-launch".into()] },
-            Session { name: "Andere".into(), command: vec!["/run/other-launch".into(), "--flag".into()] },
-        ]);
+        assert_eq!(
+            sessions(files),
+            vec![
+                Session { name: "splice".into(), command: vec!["/run/splice-launch".into()] },
+                Session { name: "Andere".into(), command: vec!["/run/other-launch".into(), "--flag".into()] },
+            ]
+        );
     }
 }

@@ -185,8 +185,7 @@ impl State {
         if !self.pending_shots.iter().any(|p| &p.output == output) {
             return;
         }
-        let (ready, waiting): (Vec<_>, Vec<_>) =
-            std::mem::take(&mut self.pending_shots).into_iter().partition(|p| &p.output == output);
+        let (ready, waiting): (Vec<_>, Vec<_>) = std::mem::take(&mut self.pending_shots).into_iter().partition(|p| &p.output == output);
         self.pending_shots = waiting;
         let Some(geometry) = self.capture_geometry(output) else { return };
         let scale = output.current_scale().fractional_scale();
@@ -219,11 +218,7 @@ impl State {
         let scale = output.current_scale().fractional_scale();
         let to_local = |r: Rectangle<i32, Logical>| {
             Rectangle::<i32, Physical>::new(
-                (
-                    (f64::from(r.loc.x - geo.loc.x) * scale).round() as i32,
-                    (f64::from(r.loc.y - geo.loc.y) * scale).round() as i32,
-                )
-                    .into(),
+                ((f64::from(r.loc.x - geo.loc.x) * scale).round() as i32, (f64::from(r.loc.y - geo.loc.y) * scale).round() as i32).into(),
                 ((f64::from(r.size.w) * scale).round() as i32, (f64::from(r.size.h) * scale).round() as i32).into(),
             )
         };
@@ -276,15 +271,7 @@ fn timestamp() -> String {
         libc::localtime_r(&now, &mut tm);
         tm
     };
-    format!(
-        "{:04}-{:02}-{:02}_{:02}-{:02}-{:02}",
-        tm.tm_year + 1900,
-        tm.tm_mon + 1,
-        tm.tm_mday,
-        tm.tm_hour,
-        tm.tm_min,
-        tm.tm_sec
-    )
+    format!("{:04}-{:02}-{:02}_{:02}-{:02}-{:02}", tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec)
 }
 
 /// Encode, write and publish the picture without holding up the compositor.
@@ -297,7 +284,8 @@ fn save(directory: PathBuf, width: u32, height: u32, mut pixels: Vec<u8>, waylan
         }
         let path = directory.join(format!("Screenshot_{}.png", timestamp()));
         // Written under a hidden name and renamed, so that nobody (a file manager, a watcher) sees a half-written picture.
-        let partial = directory.join(format!(".{}.part", path.file_name().map_or_else(|| "Screenshot".into(), |name| name.to_string_lossy())));
+        let partial =
+            directory.join(format!(".{}.part", path.file_name().map_or_else(|| "Screenshot".into(), |name| name.to_string_lossy())));
         let written = (|| -> Result<(), Box<dyn std::error::Error>> {
             std::fs::create_dir_all(&directory)?;
             let mut encoder = png::Encoder::new(BufWriter::new(std::fs::File::create(&partial)?), width, height);

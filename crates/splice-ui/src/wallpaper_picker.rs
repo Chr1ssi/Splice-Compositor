@@ -261,7 +261,13 @@ pub fn scene(model: &PickerModel, theme: &Theme, measure: &mut impl Measure) -> 
     let scrolled = field_text(measure, &model.query, field.w);
     scene.push(Node::Clip(Some(text_area)));
     if model.query.text.is_empty() {
-        scene.push(Node::Label { rect: text_area, text: tr("Bilder filtern …").into(), style: FIELD_TEXT, color: theme.muted, align: Align::Left });
+        scene.push(Node::Label {
+            rect: text_area,
+            text: tr("Bilder filtern …").into(),
+            style: FIELD_TEXT,
+            color: theme.muted,
+            align: Align::Left,
+        });
     } else {
         // Wide enough not to be cut off with "…": the clip cuts it.
         let line = Rect::new(text_area.x - scrolled, field.y, measure.width(&model.query.text, FIELD_TEXT).ceil() + 2.0, field.h);
@@ -290,14 +296,7 @@ pub fn scene(model: &PickerModel, theme: &Theme, measure: &mut impl Measure) -> 
 }
 
 /// What is at (`x`, `y`) of the scene: a tile (as it leans, the one on top) or the filter field.
-pub fn target_at(
-    scene: &Scene<PickerTarget>,
-    tiles: &[TileView],
-    selected: usize,
-    area: &Rect,
-    x: f32,
-    y: f32,
-) -> Option<PickerTarget> {
+pub fn target_at(scene: &Scene<PickerTarget>, tiles: &[TileView], selected: usize, area: &Rect, x: f32, y: f32) -> Option<PickerTarget> {
     if area.contains(x, y) {
         for tile in stacked(tiles, selected).into_iter().rev() {
             let rect = tile_rect(area, tile, tile.index == selected);

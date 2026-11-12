@@ -83,11 +83,8 @@ pub fn release_overdue(
     throttle: Duration,
     released: &Released,
 ) {
-    let due = states
-        .data_map
-        .get::<LastRelease>()
-        .and_then(|last| *last.0.lock().ok()?)
-        .is_none_or(|last| at.saturating_sub(last) >= throttle);
+    let due =
+        states.data_map.get::<LastRelease>().and_then(|last| *last.0.lock().ok()?).is_none_or(|last| at.saturating_sub(last) >= throttle);
     if due {
         release(surface, states, deadline, at, released);
     }
@@ -98,9 +95,8 @@ impl State {
     /// in time even if nothing else redraws that output, or the commit would wait for the fallback timer.
     pub fn wake_for_timed_commits(&mut self, surface: &WlSurface) {
         add_pre_commit_hook::<State, _>(surface, |state, _, surface| {
-            let target = with_states(surface, |states| {
-                states.data_map.get::<CommitTimerStateUserData>().and_then(|timer| timer.borrow().timestamp)
-            });
+            let target =
+                with_states(surface, |states| states.data_map.get::<CommitTimerStateUserData>().and_then(|timer| timer.borrow().timestamp));
             if let Some(target) = target {
                 state.redraw_before(surface.clone(), target.into());
             }

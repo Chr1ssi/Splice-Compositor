@@ -1,22 +1,23 @@
 //! Configuration for Splice: `~/.config/splice/config.toml` (or `$SPLICE_CONFIG`).
 mod keys;
 mod rules;
-pub mod session;
 mod sections;
+pub mod session;
 
 use std::{
     collections::{BTreeMap, HashSet},
     path::PathBuf,
 };
 
-pub use keys::{Modifiers, parse_key};
 use keys::Result;
-use splice_layout::MAX_NUMBER;
+pub use keys::{Modifiers, parse_key};
 pub use rules::{Placement, Rule, Subject, any_blocks_capture, blocks_capture, glob, opacity, resolve, video};
-use serde::Deserialize;
 pub use sections::{
-    AppearanceConfig, HexColor, IdleConfig, KeyboardConfig, OutputConfig, OutputMode, OutputTransform, RenderConfig, VrrConfig, EffectsConfig, InputConfig, AccelProfile, ShellStyle,
+    AccelProfile, AppearanceConfig, EffectsConfig, HexColor, IdleConfig, InputConfig, KeyboardConfig, OutputConfig, OutputMode,
+    OutputTransform, RenderConfig, ShellStyle, VrrConfig,
 };
+use serde::Deserialize;
+use splice_layout::MAX_NUMBER;
 
 /// Leaves at least one number of 1 to 9 free for dynamic workspaces.
 const MAX_HOME_WORKSPACES: usize = MAX_NUMBER - 1;
@@ -153,9 +154,7 @@ impl Default for Config {
     fn default() -> Self {
         Self {
             workspace_outputs: Vec::new(),
-            screenshot_directory: std::env::var("HOME")
-                .map(|home| format!("{home}/Bilder/Screenshots"))
-                .unwrap_or_else(|_| "/tmp".into()),
+            screenshot_directory: std::env::var("HOME").map(|home| format!("{home}/Bilder/Screenshots")).unwrap_or_else(|_| "/tmp".into()),
             wallpaper_directory: std::env::var("HOME")
                 .map(|home| format!("{home}/Bilder/Wallpaper"))
                 .unwrap_or_else(|_| "/usr/share/backgrounds".into()),
@@ -546,10 +545,7 @@ impl Config {
         }
         for workspace in 1..=MAX_NUMBER {
             add(&format!("{}+{}", b.workspace_modifiers, workspace), Action::Workspace(workspace))?;
-            add(
-                &format!("{}+{}", b.move_to_workspace_modifiers, workspace),
-                Action::MoveToWorkspace(workspace),
-            )?;
+            add(&format!("{}+{}", b.move_to_workspace_modifiers, workspace), Action::MoveToWorkspace(workspace))?;
         }
         for (index, binding) in self.program_bindings.values().enumerate() {
             for key in &binding.keys {
@@ -720,10 +716,9 @@ mod tests {
 
     #[test]
     fn program_bindings_add_commands_and_detect_duplicates() {
-        let config = Config::parse(
-            "[program_bindings.browser]\nkeys = ['Super+b', 'Super+Shift+b']\ncommand = ['firefox', '--private-window']",
-        )
-        .unwrap();
+        let config =
+            Config::parse("[program_bindings.browser]\nkeys = ['Super+b', 'Super+Shift+b']\ncommand = ['firefox', '--private-window']")
+                .unwrap();
         assert_eq!(config.keybindings().unwrap().len(), 60);
         let binding = config.program_bindings.get("browser").unwrap();
         assert_eq!(binding.command, ["firefox", "--private-window"]);
@@ -752,10 +747,7 @@ mod tests {
         )
         .unwrap();
         let dp3 = &config.outputs[1];
-        assert_eq!(
-            dp3.parsed_mode().unwrap(),
-            Some(OutputMode { width: 2560, height: 1440, refresh_mhz: Some(143_970) })
-        );
+        assert_eq!(dp3.parsed_mode().unwrap(), Some(OutputMode { width: 2560, height: 1440, refresh_mhz: Some(143_970) }));
         assert_eq!(config.outputs[0].parsed_mode().unwrap().unwrap().refresh_mhz, Some(60_000));
         assert_eq!(config.outputs[2].parsed_mode().unwrap(), None);
         assert_eq!(config.outputs[2].transform, OutputTransform::Rotate270);

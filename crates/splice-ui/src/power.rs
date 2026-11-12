@@ -164,7 +164,13 @@ pub fn scene(model: &PowerModel, theme: &Theme, measure: &mut impl Measure) -> S
                 let text = action.icon().into();
                 scene.push(Node::Label { rect: row(top, icon_h), text, style: icon, color: icon_color, align: Align::Center });
                 let text = action.label(model.language).into();
-                scene.push(Node::Label { rect: row(top + icon_h + 10.0, label_h), text, style: label, color: label_color, align: Align::Center });
+                scene.push(Node::Label {
+                    rect: row(top + icon_h + 10.0, label_h),
+                    text,
+                    style: label,
+                    color: label_color,
+                    align: Align::Center,
+                });
                 scene.target(rect, target);
             }
             y += 112.0 + SPACING;
@@ -230,7 +236,14 @@ mod tests {
     }
 
     fn texts(scene: &Scene<PowerTarget>) -> Vec<String> {
-        scene.nodes.iter().filter_map(|n| match n { Node::Label { text, .. } => Some(text.clone()), _ => None }).collect()
+        scene
+            .nodes
+            .iter()
+            .filter_map(|n| match n {
+                Node::Label { text, .. } => Some(text.clone()),
+                _ => None,
+            })
+            .collect()
     }
 
     #[test]
@@ -265,7 +278,17 @@ mod tests {
     #[test]
     fn the_cyberdeck_gives_each_action_its_own_color_and_shutting_down_red() {
         let json = r##"{"version":1,"colors":{"primary":{"default":{"hex":"#8799ff"}},"secondary":{"default":{"hex":"#00a9fa"}},"tertiary":{"default":{"hex":"#c085ff"}},"error":{"default":{"hex":"#ff291a"}}}}"##;
-        let normal = Theme::new(Palette { background: Color::rgba(10, 10, 10, 255), surface: Color::rgba(20, 20, 20, 255), text: Color::rgba(240, 240, 240, 255), muted: Color::rgba(150, 150, 150, 255), accent: Color::rgba(90, 90, 90, 255), border: Color::rgba(60, 60, 60, 255) }, Some(json));
+        let normal = Theme::new(
+            Palette {
+                background: Color::rgba(10, 10, 10, 255),
+                surface: Color::rgba(20, 20, 20, 255),
+                text: Color::rgba(240, 240, 240, 255),
+                muted: Color::rgba(150, 150, 150, 255),
+                accent: Color::rgba(90, 90, 90, 255),
+                border: Color::rgba(60, 60, 60, 255),
+            },
+            Some(json),
+        );
         let deck = normal.clone().with_shape(Shape::Chamfer);
         let icon_color = |theme: &Theme, action: PowerAction| {
             scene(&model(None), theme, &mut Mono)

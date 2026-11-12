@@ -21,9 +21,7 @@ pub fn lock_and_wait() -> Result<()> {
     let mut reader = BufReader::new(socket);
     let deadline = Instant::now() + Duration::from_secs(8);
     loop {
-        let remaining = deadline
-            .checked_duration_since(Instant::now())
-            .ok_or("the compositor did not confirm the session lock")?;
+        let remaining = deadline.checked_duration_since(Instant::now()).ok_or("the compositor did not confirm the session lock")?;
         reader.get_ref().set_read_timeout(Some(remaining))?;
         let mut line = String::new();
         if reader.read_line(&mut line)? == 0 {

@@ -1,17 +1,10 @@
 //! Window management model: windows, per-monitor workspaces and their mapping onto the smithay `Space`.
-use splice_layout::{
-    Appearance, Desk, DragKind, Edges, GAMING, Placement, Rect, WindowInfo, Workspace,
-    arrange, place_floating,
-};
 use smithay::{
-    backend::renderer::{
-        element::Kind,
-        gles::element::PixelShaderElement,
-    },
     backend::renderer::element::{
         solid::{SolidColorBuffer, SolidColorRenderElement},
         utils::CropRenderElement,
     },
+    backend::renderer::{element::Kind, gles::element::PixelShaderElement},
     desktop::Window,
     output::Output,
     reexports::{
@@ -19,13 +12,15 @@ use smithay::{
         wayland_server::protocol::wl_surface::WlSurface,
     },
     utils::{Logical, Physical, Point, Rectangle},
-    xwayland::{X11Surface, xwm::WmWindowType},
     wayland::{
         compositor::{TraversalAction, get_parent, with_states, with_surface_tree_downward},
         content_type::ContentTypeSurfaceCachedState,
-        fractional_scale::with_fractional_scale, shell::xdg::XdgToplevelSurfaceData,
+        fractional_scale::with_fractional_scale,
+        shell::xdg::XdgToplevelSurfaceData,
     },
+    xwayland::{X11Surface, xwm::WmWindowType},
 };
+use splice_layout::{Appearance, Desk, DragKind, Edges, GAMING, Placement, Rect, WindowInfo, Workspace, arrange, place_floating};
 
 use crate::State;
 use smithay::wayland::seat::WaylandFocus;
@@ -386,17 +381,11 @@ impl State {
             None => {
                 let app_id = m.surface().and_then(|surface| {
                     with_states(&surface, |states| {
-                        states
-                            .data_map
-                            .get::<XdgToplevelSurfaceData>()
-                            .and_then(|data| data.lock().unwrap().app_id.clone())
+                        states.data_map.get::<XdgToplevelSurfaceData>().and_then(|data| data.lock().unwrap().app_id.clone())
                     })
                 });
-                let parent = m
-                    .window
-                    .toplevel()
-                    .and_then(|t| t.parent())
-                    .and_then(|surface| self.desktop.by_surface(&surface).map(|p| p.id));
+                let parent =
+                    m.window.toplevel().and_then(|t| t.parent()).and_then(|surface| self.desktop.by_surface(&surface).map(|p| p.id));
                 (app_id, parent, false)
             }
         };
@@ -421,16 +410,13 @@ impl State {
         let d = &mut self.desktop;
         // Dialogs join their parent's workspace, everything else the focused monitor's shown one.
         let focused = d.focused_monitor.min(d.desk.monitors.len() - 1);
-        let (mut monitor, mut active) = parent
-            .and_then(|p| d.desk.locate(&p))
-            .unwrap_or((focused, d.desk.monitors[focused].workspaces.active));
+        let (mut monitor, mut active) =
+            parent.and_then(|p| d.desk.locate(&p)).unwrap_or((focused, d.desk.monitors[focused].workspaces.active));
         // Rules only apply while their workspace or monitor exists; a workspace belongs to its monitor.
         let rule_workspace = placement.workspace.filter(|n| d.desk.owner(*n).is_some());
         if rule_workspace.is_none()
-            && let Some(index) = placement
-                .output
-                .as_deref()
-                .and_then(|name| d.desk.monitors.iter().position(|m| m.name.as_deref() == Some(name)))
+            && let Some(index) =
+                placement.output.as_deref().and_then(|name| d.desk.monitors.iter().position(|m| m.name.as_deref() == Some(name)))
         {
             monitor = index;
             active = d.desk.monitors[index].workspaces.active;
@@ -488,11 +474,7 @@ impl State {
     pub fn parent_changed(&mut self, surface: &WlSurface) {
         let Some(m) = self.desktop.by_surface(surface).filter(|m| m.placed) else { return };
         let id = m.id;
-        let parent = m
-            .window
-            .toplevel()
-            .and_then(|t| t.parent())
-            .and_then(|parent| self.desktop.by_surface(&parent).map(|p| p.id));
+        let parent = m.window.toplevel().and_then(|t| t.parent()).and_then(|parent| self.desktop.by_surface(&parent).map(|p| p.id));
         if parent.is_none() || parent == m.parent {
             return;
         }
@@ -546,8 +528,7 @@ impl State {
     pub(crate) fn is_game(&self, app_id: Option<&str>, surface: Option<&WlSurface>, parent: Option<WindowId>) -> bool {
         let prefixes = &self.config.game_app_id_prefixes;
         let matches = |id: Option<&str>, surface: Option<&WlSurface>| {
-            id.is_some_and(|id| prefixes.iter().any(|p| id.starts_with(p)) || is_windows_program(id))
-                || surface.is_some_and(shows_game)
+            id.is_some_and(|id| prefixes.iter().any(|p| id.starts_with(p)) || is_windows_program(id)) || surface.is_some_and(shows_game)
         };
         if matches(app_id, surface) {
             return true;
@@ -630,10 +611,8 @@ impl State {
         let anim_ms = self.config.effects.animation_ms;
         let urgent_color = self.config.appearance.urgent_border.0.0;
         let capture_color = self.config.appearance.capture_border.0.0;
-        let captured: Vec<WindowId> =
-            self.desktop.windows.iter().filter(|m| self.window_captured(&m.window)).map(|m| m.id).collect();
-        let monitors: Vec<(WindowId, Option<usize>)> =
-            self.desktop.windows.iter().map(|m| (m.id, self.monitor_of_window(m))).collect();
+        let captured: Vec<WindowId> = self.desktop.windows.iter().filter(|m| self.window_captured(&m.window)).map(|m| m.id).collect();
+        let monitors: Vec<(WindowId, Option<usize>)> = self.desktop.windows.iter().map(|m| (m.id, self.monitor_of_window(m))).collect();
         let d = &mut self.desktop;
         if d.desk.monitors.is_empty() {
             return;
@@ -691,10 +670,7 @@ impl State {
                 configure_toplevel(toplevel, &p);
             } else if let Some(x11) = m.window.x11_surface() {
                 // X11 windows know their position on the (global) screen.
-                let target = Rectangle::new(
-                    (p.content.x, p.content.y).into(),
-                    (p.content.width, p.content.height).into(),
-                );
+                let target = Rectangle::new((p.content.x, p.content.y).into(), (p.content.width, p.content.height).into());
                 if x11.geometry() != target {
                     let _ = x11.configure(target);
                 }
@@ -703,8 +679,7 @@ impl State {
                 }
             }
             // Mapping in paint order keeps floating windows above tiled ones.
-            self.space
-                .map_element(m.window.clone(), (p.content.x, p.content.y), false);
+            self.space.map_element(m.window.clone(), (p.content.x, p.content.y), false);
             m.shown_fullscreen = p.fullscreen;
             let old_place = m.frame.map(|(f, _)| (f.x, f.y));
             let monitor = monitors.iter().find(|(id, _)| *id == m.id).and_then(|(_, monitor)| *monitor);
@@ -726,10 +701,8 @@ impl State {
                 match old_place {
                     Some(old) if old != new_place && m.last_monitor == monitor => {
                         let current = m.slide_offset(anim_ms);
-                        m.slide = Some((
-                            (old.0 - new_place.0 + current.x, old.1 - new_place.1 + current.y).into(),
-                            std::time::Instant::now(),
-                        ));
+                        m.slide =
+                            Some(((old.0 - new_place.0 + current.x, old.1 - new_place.1 + current.y).into(), std::time::Instant::now()));
                     }
                     Some(_) => {}
                     None => m.shown = Some(std::time::Instant::now()),
@@ -751,12 +724,7 @@ impl State {
             };
             m.border_color = color;
             if let Some((frame, b)) = m.frame.filter(|(_, b)| *b > 0) {
-                let strips = [
-                    (frame.width, b),
-                    (frame.width, b),
-                    (b, frame.height - 2 * b),
-                    (b, frame.height - 2 * b),
-                ];
+                let strips = [(frame.width, b), (frame.width, b), (b, frame.height - 2 * b), (b, frame.height - 2 * b)];
                 for (buffer, size) in m.borders.iter_mut().zip(strips) {
                     buffer.update(size, color);
                 }
@@ -798,9 +766,7 @@ impl State {
         let surface = layer.clone().filter(|_| !shell).or_else(|| focused.and_then(|id| self.desktop.get(id)).and_then(|m| m.surface()));
         // X11 clients also need the X11 input focus; a wl_surface focus alone leaves Wine and
         // Proton games without keyboard input.
-        let x11 = focused
-            .and_then(|id| self.desktop.get(id))
-            .and_then(|m| m.window.x11_surface().cloned());
+        let x11 = focused.and_then(|id| self.desktop.get(id)).and_then(|m| m.window.x11_surface().cloned());
         if x11 != self.x11_focus {
             if let Some(old) = self.x11_focus.take()
                 && x11.is_none()
@@ -920,10 +886,7 @@ impl State {
                 (frame.x + frame.width - b, frame.y + b),
             ];
             for (buffer, (x, y)) in m.borders.iter().zip(origins) {
-                let local = (
-                    ((x - geo.loc.x) as f64 * scale).round() as i32,
-                    ((y - geo.loc.y) as f64 * scale).round() as i32,
-                );
+                let local = (((x - geo.loc.x) as f64 * scale).round() as i32, ((y - geo.loc.y) as f64 * scale).round() as i32);
                 let element = SolidColorRenderElement::from_buffer(buffer, local, scale, fade, Kind::Unspecified);
                 if let Some(cropped) = CropRenderElement::from_element(element, scale, visible_area) {
                     elements.push((m.id, OutputElement::from(cropped)));
@@ -1059,8 +1022,7 @@ impl State {
     /// The next of the placed windows `matches` picks, after the focused one if that is one of them: pressed
     /// again, a key goes through all of them.
     pub fn next_window_where(&self, matches: impl Fn(&Managed) -> bool) -> Option<WindowId> {
-        let candidates: Vec<WindowId> =
-            self.desktop.windows.iter().filter(|m| m.placed && matches(m)).map(|m| m.id).collect();
+        let candidates: Vec<WindowId> = self.desktop.windows.iter().filter(|m| m.placed && matches(m)).map(|m| m.id).collect();
         let after = self.desktop.focused().and_then(|focused| candidates.iter().position(|id| *id == focused));
         after.map_or(candidates.first(), |index| candidates.get((index + 1) % candidates.len())).copied()
     }
@@ -1156,13 +1118,7 @@ impl State {
         // Floating rects are relative to the monitor's work area.
         let relative = Rect { x: frame.x - area.x, y: frame.y - area.y, ..frame };
         let start_rect = m.floating_rect.unwrap_or(relative);
-        self.desktop.drag = Some(Drag {
-            id,
-            kind,
-            start: self.pointer_location,
-            start_rect,
-            start_width: frame.width,
-        });
+        self.desktop.drag = Some(Drag { id, kind, start: self.pointer_location, start_rect, start_width: frame.width });
         self.focus_window(id);
     }
 
@@ -1305,8 +1261,7 @@ fn current_title(window: &Window) -> Option<String> {
 /// The client marks what `surface` shows as a game (`wp-content-type-v1`).
 fn shows_game(surface: &WlSurface) -> bool {
     with_states(surface, |states| {
-        *states.cached_state.get::<ContentTypeSurfaceCachedState>().current().content_type()
-            == wp_content_type_v1::Type::Game
+        *states.cached_state.get::<ContentTypeSurfaceCachedState>().current().content_type() == wp_content_type_v1::Type::Game
     })
 }
 
@@ -1319,8 +1274,8 @@ fn shows_video(surface: &WlSurface) -> bool {
         (),
         |_, _, ()| TraversalAction::DoChildren(()),
         |_, states, ()| {
-            video |= *states.cached_state.get::<ContentTypeSurfaceCachedState>().current().content_type()
-                == wp_content_type_v1::Type::Video;
+            video |=
+                *states.cached_state.get::<ContentTypeSurfaceCachedState>().current().content_type() == wp_content_type_v1::Type::Video;
         },
         |_, _, ()| true,
     );

@@ -10,8 +10,8 @@ use std::{
     os::unix::net::UnixStream,
 };
 
-use splice_shell_protocol::{LoginEvent, LoginRequest};
 use serde_json::{Value, json};
+use splice_shell_protocol::{LoginEvent, LoginRequest};
 
 /// greetd's messages are small; anything larger is not greetd.
 const MAX_MESSAGE: usize = 1 << 20;

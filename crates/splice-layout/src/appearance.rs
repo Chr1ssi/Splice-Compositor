@@ -52,33 +52,14 @@ impl Appearance {
 
     /// Area for tiled columns: the work area minus the outer gap.
     pub fn viewport(&self, area: Rect) -> Rect {
-        let gap = self
-            .gaps_outer
-            .min((area.width - 1).max(0) / 2)
-            .min((area.height - 1).max(0) / 2);
-        Rect {
-            x: area.x + gap,
-            y: area.y + gap,
-            width: area.width - 2 * gap,
-            height: area.height - 2 * gap,
-        }
+        let gap = self.gaps_outer.min((area.width - 1).max(0) / 2).min((area.height - 1).max(0) / 2);
+        Rect { x: area.x + gap, y: area.y + gap, width: area.width - 2 * gap, height: area.height - 2 * gap }
     }
 
     /// Split a frame into window content and border width (border is drawn inside the frame).
     pub fn content(&self, frame: Rect) -> (Rect, i32) {
-        let border = self
-            .border_width
-            .min((frame.width - 1).max(0) / 2)
-            .min((frame.height - 1).max(0) / 2);
-        (
-            Rect {
-                x: frame.x + border,
-                y: frame.y + border,
-                width: frame.width - 2 * border,
-                height: frame.height - 2 * border,
-            },
-            border,
-        )
+        let border = self.border_width.min((frame.width - 1).max(0) / 2).min((frame.height - 1).max(0) / 2);
+        (Rect { x: frame.x + border, y: frame.y + border, width: frame.width - 2 * border, height: frame.height - 2 * border }, border)
     }
 }
 

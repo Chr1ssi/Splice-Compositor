@@ -111,7 +111,13 @@ pub fn scroll_to(scroll: f32, selected: usize, count: usize, card_height: f32) -
     let top = selected as f32 * (ROW_HEIGHT + ROW_SPACING);
     let bottom = top + ROW_HEIGHT;
     let height = list_height(card_height);
-    let scroll = if top < scroll { top } else if bottom > scroll + height { bottom - height } else { scroll };
+    let scroll = if top < scroll {
+        top
+    } else if bottom > scroll + height {
+        bottom - height
+    } else {
+        scroll
+    };
     scroll.clamp(0.0, max_scroll(count, card_height))
 }
 
@@ -143,7 +149,8 @@ pub fn scene(model: &LauncherModel, theme: &Theme, measure: &mut impl Measure) -
     let header = TextStyle::new(14.0).bold(true);
     let header_h = measure.line_height(header);
     // The cyberdeck marks the card like a console section: in the accent color, closed by slashes.
-    let (title, title_color) = if deck { (format!("{} //", tr("ANWENDUNGEN")), theme.accent) } else { (tr("ANWENDUNGEN").to_owned(), theme.text) };
+    let (title, title_color) =
+        if deck { (format!("{} //", tr("ANWENDUNGEN")), theme.accent) } else { (tr("ANWENDUNGEN").to_owned(), theme.text) };
     scene.push(Node::Label { rect: Rect::new(x, y, inner, header_h), text: title, style: header, color: title_color, align: Align::Left });
     y += header_h + SPACING;
 
@@ -189,13 +196,22 @@ pub fn scene(model: &LauncherModel, theme: &Theme, measure: &mut impl Measure) -
             scene.push(Node::Rect { rect: row, radius: 14.0, fill: theme.surface, border: None });
         }
         if let Some(picture) = &app.icon {
-            scene.push(Node::Image { rect: Rect::new(row.x + 12.0, row.y + (ROW_HEIGHT - 32.0) / 2.0, 32.0, 32.0), picture: picture.clone() });
+            scene.push(Node::Image {
+                rect: Rect::new(row.x + 12.0, row.y + (ROW_HEIGHT - 32.0) / 2.0, 32.0, 32.0),
+                picture: picture.clone(),
+            });
         }
         let column_w = (inner - 70.0).max(0.0);
         let top = row.y + (ROW_HEIGHT - name_h - 3.0 - detail_h) / 2.0;
         // The cyberdeck's selected row names its app in the second accent.
         let name_color = if index == model.selected && deck { theme.secondary } else { theme.text };
-        scene.push(Node::Label { rect: Rect::new(row.x + 56.0, top, column_w, name_h), text: app.name.clone(), style: name_style, color: name_color, align: Align::Left });
+        scene.push(Node::Label {
+            rect: Rect::new(row.x + 56.0, top, column_w, name_h),
+            text: app.name.clone(),
+            style: name_style,
+            color: name_color,
+            align: Align::Left,
+        });
         let detail = Rect::new(row.x + 56.0, top + name_h + 3.0, column_w, detail_h);
         scene.push(Node::Label { rect: detail, text: app.detail.clone(), style: detail_style, color: theme.muted, align: Align::Left });
         let reachable = crate::panel::intersect(row, list);
@@ -210,7 +226,13 @@ pub fn scene(model: &LauncherModel, theme: &Theme, measure: &mut impl Measure) -
 
     let footer = TextStyle::new(14.0);
     let text = model.language.trf("%1 Apps  ·  ↑↓ Auswahl  ·  ↵ Start  ·  Esc", &[&model.apps.len().to_string()]);
-    scene.push(Node::Label { rect: Rect::new(x, y, inner, measure.line_height(footer)), text, style: footer, color: theme.muted, align: Align::Left });
+    scene.push(Node::Label {
+        rect: Rect::new(x, y, inner, measure.line_height(footer)),
+        text,
+        style: footer,
+        color: theme.muted,
+        align: Align::Left,
+    });
     scene
 }
 
@@ -275,12 +297,26 @@ mod tests {
         // Header 19 high (Mono's 14 px line), then 12, the field 48, 12: the list starts at 107.
         assert_eq!(scene.target_rect(&LauncherTarget::Search), Some(Rect::new(16.0, 47.0, 608.0, 48.0)));
         assert_eq!(scene.target_rect(&LauncherTarget::App(0)), Some(Rect::new(16.0, 107.0, 608.0, 52.0)));
-        let texts: Vec<&str> = scene.nodes.iter().filter_map(|n| match n { Node::Label { text, .. } => Some(text.as_str()), _ => None }).collect();
+        let texts: Vec<&str> = scene
+            .nodes
+            .iter()
+            .filter_map(|n| match n {
+                Node::Label { text, .. } => Some(text.as_str()),
+                _ => None,
+            })
+            .collect();
         assert_eq!(texts, ["ANWENDUNGEN", "web", "Probe Browser", "Web Browser", "1 Apps  ·  ↑↓ Auswahl  ·  ↵ Start  ·  Esc"]);
         assert!(scene.nodes.iter().any(|n| matches!(n, Node::Rect { fill, .. } if *fill == theme().surface)), "the selected row");
 
         let empty = super::scene(&LauncherModel { apps: Vec::new(), query: Input::default(), ..model }, &theme(), &mut Mono);
-        let texts: Vec<&str> = empty.nodes.iter().filter_map(|n| match n { Node::Label { text, .. } => Some(text.as_str()), _ => None }).collect();
+        let texts: Vec<&str> = empty
+            .nodes
+            .iter()
+            .filter_map(|n| match n {
+                Node::Label { text, .. } => Some(text.as_str()),
+                _ => None,
+            })
+            .collect();
         assert!(texts.contains(&"App suchen …") && texts.contains(&"Keine passenden Anwendungen"), "{texts:?}");
     }
 
@@ -297,9 +333,13 @@ mod tests {
             language: Language::German,
         };
         let scene = scene(&model, &deck, &mut Mono);
-        assert!(scene.nodes.iter().any(|n| matches!(n, Node::Label { text, color, .. } if text == "ANWENDUNGEN //" && *color == deck.accent)));
+        assert!(
+            scene.nodes.iter().any(|n| matches!(n, Node::Label { text, color, .. } if text == "ANWENDUNGEN //" && *color == deck.accent))
+        );
         let row = scene.target_rect(&LauncherTarget::App(0)).unwrap();
-        assert!(scene.nodes.iter().any(|n| matches!(n, Node::Rect { rect, border: Some((width, color)), .. } if *rect == row && *width == 1.0 && *color == deck.accent)));
+        assert!(scene.nodes.iter().any(
+            |n| matches!(n, Node::Rect { rect, border: Some((width, color)), .. } if *rect == row && *width == 1.0 && *color == deck.accent)
+        ));
     }
 
     #[test]

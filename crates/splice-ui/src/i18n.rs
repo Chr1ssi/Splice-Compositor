@@ -41,9 +41,7 @@ impl Language {
 
     /// `tr` with `%1`, `%2`, … replaced by `args`.
     pub fn trf(self, text: &'static str, args: &[&str]) -> String {
-        args.iter()
-            .enumerate()
-            .fold(self.tr(text).to_owned(), |result, (index, value)| result.replace(&format!("%{}", index + 1), value))
+        args.iter().enumerate().fold(self.tr(text).to_owned(), |result, (index, value)| result.replace(&format!("%{}", index + 1), value))
     }
 }
 
@@ -207,9 +205,10 @@ mod tests {
         ];
         let mut used = std::collections::BTreeSet::new();
         for source in sources {
-            for call in ["tr(\"", "trf(\""] {
-                for part in source.split(call).skip(1) {
-                    used.insert(part.split('"').next().unwrap_or_default().to_owned());
+            // rustfmt may put a long text on the line after the parenthesis.
+            for call in ["tr(", "trf("] {
+                for text in source.split(call).skip(1).filter_map(|part| part.trim_start().strip_prefix('"')) {
+                    used.insert(text.split('"').next().unwrap_or_default().to_owned());
                 }
             }
         }

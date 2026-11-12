@@ -247,7 +247,12 @@ fn text(properties: &HashMap<String, OwnedValue>, name: &str) -> String {
 }
 
 /// The item at `address`, `None` if it does not answer.
-fn item(connection: &Connection, address: &str, icons: &mut HashMap<String, Option<Image>>, paths: &mut HashMap<String, ItemPaths>) -> Option<TrayItem> {
+fn item(
+    connection: &Connection,
+    address: &str,
+    icons: &mut HashMap<String, Option<Image>>,
+    paths: &mut HashMap<String, ItemPaths>,
+) -> Option<TrayItem> {
     let (service, path) = split(address);
     let properties = zbus::blocking::fdo::PropertiesProxy::builder(connection)
         .destination(service)
@@ -356,7 +361,12 @@ pub fn run_commands(commands: mpsc::Receiver<TrayCommand>, paths: Paths, updates
     }
 }
 
-fn call_item<B: serde::Serialize + zbus::zvariant::DynamicType>(bus: &Connection, item: &ItemPaths, method: &str, body: &B) -> zbus::Result<()> {
+fn call_item<B: serde::Serialize + zbus::zvariant::DynamicType>(
+    bus: &Connection,
+    item: &ItemPaths,
+    method: &str,
+    body: &B,
+) -> zbus::Result<()> {
     proxy(bus, &item.service, &item.path, ITEM)?.call::<_, _, ()>(method, body)
 }
 
@@ -380,7 +390,9 @@ fn entry((id, properties, children): (i32, HashMap<String, OwnedValue>, Vec<Owne
         .get("icon-data")
         .and_then(|v| Vec::<u8>::try_from(v.clone()).ok())
         .and_then(|data| icons::from_bytes(&data, ICON_SIZE))
-        .or_else(|| (!icon_name.is_empty() && !icon_name.contains("symbolic")).then(|| icons::load_icon(&icon_name, &[], ICON_SIZE)).flatten());
+        .or_else(|| {
+            (!icon_name.is_empty() && !icon_name.contains("symbolic")).then(|| icons::load_icon(&icon_name, &[], ICON_SIZE)).flatten()
+        });
     let toggle = match text(&properties, "toggle-type").as_str() {
         "checkmark" => Toggle::Check,
         "radio" => Toggle::Radio,

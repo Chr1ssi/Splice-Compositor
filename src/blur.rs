@@ -142,7 +142,17 @@ fn pass(
     let src = Rectangle::<f64, Buffer>::from_size((f64::from(from_size.w), f64::from(from_size.h)).into());
     let half_pixel = (0.5 / from_size.w as f32 * offset, 0.5 / from_size.h as f32 * offset);
     frame
-        .render_texture_from_to(from, src, dst, &[dst], &[], Transform::Normal, 1.0, Some(program), &[Uniform::new("half_pixel", half_pixel)])
+        .render_texture_from_to(
+            from,
+            src,
+            dst,
+            &[dst],
+            &[],
+            Transform::Normal,
+            1.0,
+            Some(program),
+            &[Uniform::new("half_pixel", half_pixel)],
+        )
         .map_err(|e| format!("draw: {e}"))?;
     // No wait: the passes, and the frames that sample the result, run in order on this GL context.
     let _ = frame.finish().map_err(|e| format!("finish: {e}"))?;
@@ -174,9 +184,7 @@ impl State {
         {
             let mut target = renderer.bind(&mut targets.full).map_err(|e| format!("bind: {e}"))?;
             let mut tracker = OutputDamageTracker::new(size, scale, Transform::Normal);
-            tracker
-                .render_output(renderer, &mut target, 0, &background, self.clear_color())
-                .map_err(|e| format!("render: {e:?}"))?;
+            tracker.render_output(renderer, &mut target, 0, &background, self.clear_color()).map_err(|e| format!("render: {e:?}"))?;
         }
 
         // 2. Down to 1/2, 1/4, 1/8 of the size, then back up to 1/2.
@@ -291,11 +299,8 @@ impl State {
                 Kind::Unspecified,
             );
             let Some(cropped) = CropRenderElement::from_element(element, scale, visible_area) else { continue };
-            let radius = if radius_logical > 0 {
-                f64::from(corners.outer(radius_logical as f32, border as f32)) * scale / 2.0
-            } else {
-                0.0
-            };
+            let radius =
+                if radius_logical > 0 { f64::from(corners.outer(radius_logical as f32, border as f32)) * scale / 2.0 } else { 0.0 };
             let geo_px = [
                 (f64::from(phys.loc.x) / 2.0) as f32,
                 (f64::from(phys.loc.y) / 2.0) as f32,

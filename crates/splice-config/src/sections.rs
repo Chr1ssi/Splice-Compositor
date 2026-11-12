@@ -1,6 +1,6 @@
 //! Smaller configuration sections.
-use splice_layout::{Appearance, Color};
 use serde::Deserialize;
+use splice_layout::{Appearance, Color};
 
 use crate::keys::Result;
 
@@ -36,8 +36,7 @@ impl IdleConfig {
         if self.lock_after_seconds > 86400 || self.monitor_off_after_seconds > 86400 {
             return Err("idle timeouts must be between 0 and 86400 seconds".into());
         }
-        if self.monitor_off_after_seconds > 0
-            && (self.lock_after_seconds == 0 || self.monitor_off_after_seconds <= self.lock_after_seconds)
+        if self.monitor_off_after_seconds > 0 && (self.lock_after_seconds == 0 || self.monitor_off_after_seconds <= self.lock_after_seconds)
         {
             return Err("monitor-off timeout must be later than the enabled lock timeout".into());
         }
@@ -261,9 +260,7 @@ impl AppearanceConfig {
     /// Take the Material-You roles of a generated theme (`splice-theme`) as window colors.
     pub fn apply_theme_json(&mut self, json: &str) {
         let Ok(value) = serde_json::from_str::<serde_json::Value>(json) else { return };
-        let color = |name: &str| {
-            value["colors"][name]["default"]["hex"].as_str().and_then(|hex| HexColor::try_from(hex.to_owned()).ok())
-        };
+        let color = |name: &str| value["colors"][name]["default"]["hex"].as_str().and_then(|hex| HexColor::try_from(hex.to_owned()).ok());
         for (role, target) in [
             ("surface", &mut self.background),
             ("surface_container", &mut self.surface),
@@ -365,8 +362,7 @@ impl OutputConfig {
                 (hz > 0.0 && hz < 1000.0).then(|| (hz * 1000.0).round() as u32).ok_or_else(invalid)
             })
             .transpose()?;
-        let (width, height): (u32, u32) =
-            (width.parse().map_err(|_| invalid())?, height.parse().map_err(|_| invalid())?);
+        let (width, height): (u32, u32) = (width.parse().map_err(|_| invalid())?, height.parse().map_err(|_| invalid())?);
         if width == 0 || height == 0 {
             return Err(invalid());
         }

@@ -26,23 +26,13 @@ impl Rect {
     pub fn centered(width: i32, height: i32) -> Self {
         let w = (width / 3 * 2).max(1);
         let h = (height / 3 * 2).max(1);
-        Self {
-            x: (width - w) / 2,
-            y: (height - h) / 2,
-            width: w,
-            height: h,
-        }
+        Self { x: (width - w) / 2, y: (height - h) / 2, width: w, height: h }
     }
 
     pub fn constrained(self, width: i32, height: i32) -> Self {
         let w = self.width.clamp(1, width.max(1));
         let h = self.height.clamp(1, height.max(1));
-        Self {
-            x: self.x.clamp(0, (width - w).max(0)),
-            y: self.y.clamp(0, (height - h).max(0)),
-            width: w,
-            height: h,
-        }
+        Self { x: self.x.clamp(0, (width - w).max(0)), y: self.y.clamp(0, (height - h).max(0)), width: w, height: h }
     }
 
     /// Deltas are cumulative from the start, never incremental between events.

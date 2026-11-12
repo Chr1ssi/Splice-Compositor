@@ -8,9 +8,9 @@
 //! critical notifications pop up; the rest wait in the list. A hidden toast stays in the list.
 use std::time::{Duration, Instant};
 
+use smithay::reexports::calloop::timer::{TimeoutAction, Timer};
 use splice_shell_protocol::{Command, Notification, Urgency};
 use splice_ui::{markup, notifications::NotificationView, scene::Picture};
-use smithay::reexports::calloop::timer::{TimeoutAction, Timer};
 
 use crate::{State, shell::ShellHit};
 

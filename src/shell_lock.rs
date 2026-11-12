@@ -16,12 +16,6 @@ use std::{
     process::{Command, Stdio},
 };
 
-use splice_shell_protocol::AuthOutcome;
-use splice_ui::{
-    clock::{self, LocalTime},
-    lock_screen::{self, LockMessage, LockModel, LockTarget},
-    text::Fonts,
-};
 use smithay::{
     backend::{
         allocator::Fourcc,
@@ -36,6 +30,12 @@ use smithay::{
     output::Output,
     reexports::calloop::channel,
     utils::{Buffer, Logical, Physical, Point, Rectangle, Size, Transform},
+};
+use splice_shell_protocol::AuthOutcome;
+use splice_ui::{
+    clock::{self, LocalTime},
+    lock_screen::{self, LockMessage, LockModel, LockTarget},
+    text::Fonts,
 };
 
 use crate::{
@@ -139,11 +139,7 @@ impl Drop for LockScreen {
 
 /// Check `password` in a helper process (see the module); its bytes are zeroed once it is written.
 fn check(mut password: Vec<u8>) -> Option<AuthOutcome> {
-    let child = Command::new(crate::shell_services::program())
-        .arg("--authenticate")
-        .stdin(Stdio::piped())
-        .stdout(Stdio::piped())
-        .spawn();
+    let child = Command::new(crate::shell_services::program()).arg("--authenticate").stdin(Stdio::piped()).stdout(Stdio::piped()).spawn();
     let mut child = match child {
         Ok(child) => child,
         Err(error) => {
@@ -359,12 +355,7 @@ impl State {
             return;
         }
         let primary = self.primary_output_name();
-        let output = self
-            .outputs
-            .iter()
-            .find(|e| Some(e.output.name()) == primary)
-            .or(self.outputs.first())
-            .map(|e| e.output.clone());
+        let output = self.outputs.iter().find(|e| Some(e.output.name()) == primary).or(self.outputs.first()).map(|e| e.output.clone());
         let Some((output, geo)) = output.and_then(|o| Some((o.clone(), self.space.output_geometry(&o)?))) else {
             if let Some(shown) = self.shell.lock.painted.take() {
                 redraw.push(shown.output);

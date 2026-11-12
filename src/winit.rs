@@ -14,12 +14,7 @@ use crate::State;
 fn new_output(name: &str, model: &str, mode: Mode, state: &State) -> Output {
     let output = Output::new(
         name.to_string(),
-        PhysicalProperties {
-            size: (0, 0).into(),
-            subpixel: Subpixel::Unknown,
-            make: "Splice".into(),
-            model: model.into(),
-        },
+        PhysicalProperties { size: (0, 0).into(), subpixel: Subpixel::Unknown, make: "Splice".into(), model: model.into() },
     );
     output.create_global::<State>(&state.display_handle);
     output.set_preferred(mode);
@@ -84,7 +79,10 @@ pub fn init(event_loop: &mut EventLoop<State>, state: &mut State) -> Result<(), 
                 let outputs: Vec<_> = state.outputs.iter().map(|e| e.output.clone()).collect();
                 // Virtual outputs have no window of their own, but can still be captured.
                 for other in outputs.iter().filter(|o| *o != &output) {
-                    if state.pending_copies.iter().any(|p| p.output() == other) || state.has_image_captures_for(other) || state.pending_shots.iter().any(|p| p.output() == other) {
+                    if state.pending_copies.iter().any(|p| p.output() == other)
+                        || state.has_image_captures_for(other)
+                        || state.pending_shots.iter().any(|p| p.output() == other)
+                    {
                         let renderer = backend.renderer();
                         let elements = state.output_elements(renderer, other);
                         state.fulfill_screencopy(renderer, other, &elements, true);

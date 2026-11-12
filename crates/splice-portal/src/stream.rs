@@ -113,11 +113,7 @@ impl Drop for StreamHandle {
 
 /// Start capturing `source`; returns once the PipeWire node exists. `on_end` runs when the
 /// source goes away (window closed, output removed) and the stream ends by itself.
-pub fn start(
-    source: Source,
-    cursor: bool,
-    on_end: impl FnOnce() + Send + 'static,
-) -> Result<(Started, StreamHandle), String> {
+pub fn start(source: Source, cursor: bool, on_end: impl FnOnce() + Send + 'static) -> Result<(Started, StreamHandle), String> {
     let (ready_tx, ready_rx) = mpsc::channel();
     let (stop_tx, stop_rx) = pw::channel::channel::<()>();
     let thread = std::thread::Builder::new()
@@ -154,7 +150,15 @@ struct Wl {
 }
 
 impl Dispatch<WlRegistry, GlobalListContents> for Wl {
-    fn event(_: &mut Self, _: &WlRegistry, _: wayland_client::protocol::wl_registry::Event, _: &GlobalListContents, _: &Connection, _: &QueueHandle<Self>) {}
+    fn event(
+        _: &mut Self,
+        _: &WlRegistry,
+        _: wayland_client::protocol::wl_registry::Event,
+        _: &GlobalListContents,
+        _: &Connection,
+        _: &QueueHandle<Self>,
+    ) {
+    }
 }
 
 impl Dispatch<WlOutput, ()> for Wl {
@@ -168,7 +172,14 @@ impl Dispatch<WlOutput, ()> for Wl {
 }
 
 impl Dispatch<ExtForeignToplevelListV1, ()> for Wl {
-    fn event(state: &mut Self, _: &ExtForeignToplevelListV1, event: ext_foreign_toplevel_list_v1::Event, _: &(), _: &Connection, _: &QueueHandle<Self>) {
+    fn event(
+        state: &mut Self,
+        _: &ExtForeignToplevelListV1,
+        event: ext_foreign_toplevel_list_v1::Event,
+        _: &(),
+        _: &Connection,
+        _: &QueueHandle<Self>,
+    ) {
         if let ext_foreign_toplevel_list_v1::Event::Toplevel { toplevel } = event {
             state.toplevels.push((toplevel, None));
         }
@@ -179,7 +190,14 @@ impl Dispatch<ExtForeignToplevelListV1, ()> for Wl {
 }
 
 impl Dispatch<ExtForeignToplevelHandleV1, ()> for Wl {
-    fn event(state: &mut Self, handle: &ExtForeignToplevelHandleV1, event: ext_foreign_toplevel_handle_v1::Event, _: &(), _: &Connection, _: &QueueHandle<Self>) {
+    fn event(
+        state: &mut Self,
+        handle: &ExtForeignToplevelHandleV1,
+        event: ext_foreign_toplevel_handle_v1::Event,
+        _: &(),
+        _: &Connection,
+        _: &QueueHandle<Self>,
+    ) {
         if let ext_foreign_toplevel_handle_v1::Event::Identifier { identifier } = event
             && let Some(entry) = state.toplevels.iter_mut().find(|(h, _)| h == handle)
         {
@@ -189,7 +207,14 @@ impl Dispatch<ExtForeignToplevelHandleV1, ()> for Wl {
 }
 
 impl Dispatch<ExtImageCopyCaptureSessionV1, ()> for Wl {
-    fn event(state: &mut Self, _: &ExtImageCopyCaptureSessionV1, event: ext_image_copy_capture_session_v1::Event, _: &(), _: &Connection, _: &QueueHandle<Self>) {
+    fn event(
+        state: &mut Self,
+        _: &ExtImageCopyCaptureSessionV1,
+        event: ext_image_copy_capture_session_v1::Event,
+        _: &(),
+        _: &Connection,
+        _: &QueueHandle<Self>,
+    ) {
         use ext_image_copy_capture_session_v1::Event;
         match event {
             Event::BufferSize { width, height } => state.size = Some((width, height)),
@@ -201,7 +226,14 @@ impl Dispatch<ExtImageCopyCaptureSessionV1, ()> for Wl {
 }
 
 impl Dispatch<ExtImageCopyCaptureFrameV1, ()> for Wl {
-    fn event(state: &mut Self, _: &ExtImageCopyCaptureFrameV1, event: ext_image_copy_capture_frame_v1::Event, _: &(), _: &Connection, _: &QueueHandle<Self>) {
+    fn event(
+        state: &mut Self,
+        _: &ExtImageCopyCaptureFrameV1,
+        event: ext_image_copy_capture_frame_v1::Event,
+        _: &(),
+        _: &Connection,
+        _: &QueueHandle<Self>,
+    ) {
         match event {
             ext_image_copy_capture_frame_v1::Event::Ready => state.frame = Some(Ok(())),
             ext_image_copy_capture_frame_v1::Event::Failed { reason } => {
@@ -342,10 +374,7 @@ fn buffers_pod(size: (u32, u32)) -> Vec<u8> {
         properties: vec![
             Property::new(
                 spa_sys::SPA_PARAM_BUFFERS_buffers,
-                Value::Choice(pod::ChoiceValue::Int(Choice(
-                    ChoiceFlags::empty(),
-                    ChoiceEnum::Range { default: 4, min: 2, max: 16 },
-                ))),
+                Value::Choice(pod::ChoiceValue::Int(Choice(ChoiceFlags::empty(), ChoiceEnum::Range { default: 4, min: 2, max: 16 }))),
             ),
             int(spa_sys::SPA_PARAM_BUFFERS_blocks, 1),
             int(spa_sys::SPA_PARAM_BUFFERS_size, (stride * size.1) as i32),
@@ -502,7 +531,11 @@ impl Shared {
         if now < self.next_capture {
             return;
         }
-        self.next_capture = if now.duration_since(self.next_capture) > self.frame_interval { now + self.frame_interval } else { self.next_capture + self.frame_interval };
+        self.next_capture = if now.duration_since(self.next_capture) > self.frame_interval {
+            now + self.frame_interval
+        } else {
+            self.next_capture + self.frame_interval
+        };
         let Some(session) = self.session.clone() else {
             return self.black_frame(stream, size);
         };
@@ -635,12 +668,7 @@ fn follow_targets() -> Result<UnixStream, String> {
 }
 
 /// Run the stream until asked to stop (or the source ends). Returns whether it ended by itself.
-fn run(
-    source: Source,
-    cursor: bool,
-    ready_tx: mpsc::Sender<Result<Started, String>>,
-    stop_rx: pw::channel::Receiver<()>,
-) -> bool {
+fn run(source: Source, cursor: bool, ready_tx: mpsc::Sender<Result<Started, String>>, stop_rx: pw::channel::Receiver<()>) -> bool {
     let fail = |tx: &mpsc::Sender<Result<Started, String>>, message: String| {
         tracing::warn!("screen cast: {message}");
         let _ = tx.send(Err(message));
@@ -657,7 +685,9 @@ fn run(
         },
         _ => None,
     };
-    let size = if follow.is_some() { DYNAMIC_START_SIZE } else {
+    let size = if follow.is_some() {
+        DYNAMIC_START_SIZE
+    } else {
         let Some(size) = wl.size else { return fail(&ready_tx, "the compositor announced no size".into()) };
         size
     };
@@ -767,7 +797,14 @@ fn run(
                 return;
             }
             let size = (info.size().width, info.size().height);
-            tracing::info!("screen cast: negotiated {:?} {}x{} at up to {}/{} fps", info.format(), size.0, size.1, info.max_framerate().num, info.max_framerate().denom.max(1));
+            tracing::info!(
+                "screen cast: negotiated {:?} {}x{} at up to {}/{} fps",
+                info.format(),
+                size.0,
+                size.1,
+                info.max_framerate().num,
+                info.max_framerate().denom.max(1)
+            );
             if let Ok(mut s) = shared.try_borrow_mut() {
                 let rate = info.max_framerate();
                 if rate.num > 0 {
@@ -846,12 +883,9 @@ fn run(
 
     let format = format_pod(size);
     let Some(format_pod) = Pod::from_bytes(&format) else { return fail(&ready_tx, "bad format pod".into()) };
-    if let Err(error) = stream.connect(
-        spa::utils::Direction::Output,
-        None,
-        StreamFlags::DRIVER | StreamFlags::ALLOC_BUFFERS,
-        &mut [format_pod],
-    ) {
+    if let Err(error) =
+        stream.connect(spa::utils::Direction::Output, None, StreamFlags::DRIVER | StreamFlags::ALLOC_BUFFERS, &mut [format_pod])
+    {
         return fail(&ready_tx, format!("cannot connect the stream: {error}"));
     }
 

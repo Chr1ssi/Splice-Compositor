@@ -174,7 +174,9 @@ impl Node {
         match self {
             Node::Rect { rect, radius, fill, border } => Node::Rect { rect: rect.translated(dx, dy), radius, fill, border },
             Node::Label { rect, text, style, color, align } => Node::Label { rect: rect.translated(dx, dy), text, style, color, align },
-            Node::Paragraph { rect, text, style, color, align } => Node::Paragraph { rect: rect.translated(dx, dy), text, style, color, align },
+            Node::Paragraph { rect, text, style, color, align } => {
+                Node::Paragraph { rect: rect.translated(dx, dy), text, style, color, align }
+            }
             Node::Arc { center, radius, width, color, start, sweep } => {
                 Node::Arc { center: (center.0 + dx, center.1 + dy), radius, width, color, start, sweep }
             }

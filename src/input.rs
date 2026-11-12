@@ -1,25 +1,25 @@
-use splice_config::{Action, Modifiers};
-use splice_layout::{DragKind, Edges};
 use smithay::{
-    backend::session::Session,
-    wayland::shell::wlr_layer::Layer,
     backend::input::{
-        AbsolutePositionEvent, Axis, AxisSource, ButtonState, Event, InputBackend, InputEvent,
-        KeyState, KeyboardKeyEvent, PointerAxisEvent, PointerButtonEvent, PointerMotionEvent,
+        AbsolutePositionEvent, Axis, AxisSource, ButtonState, Event, InputBackend, InputEvent, KeyState, KeyboardKeyEvent,
+        PointerAxisEvent, PointerButtonEvent, PointerMotionEvent,
     },
+    backend::session::Session,
+    desktop::WindowSurfaceType,
     input::{
         keyboard::{FilterResult, Keysym, ModifiersState, keysyms},
         pointer::{AxisFrame, ButtonEvent, MotionEvent, RelativeMotionEvent},
     },
     output::Output,
-    desktop::WindowSurfaceType,
     reexports::wayland_server::protocol::wl_surface::WlSurface,
     utils::{Logical, Point, SERIAL_COUNTER},
+    wayland::shell::wlr_layer::Layer,
     wayland::{
         compositor::RegionAttributes,
         pointer_constraints::{PointerConstraint, with_pointer_constraint},
     },
 };
+use splice_config::{Action, Modifiers};
+use splice_layout::{DragKind, Edges};
 
 use crate::State;
 
@@ -57,10 +57,7 @@ fn modifiers(state: &ModifiersState) -> Modifiers {
 impl State {
     fn binding_for(&self, mods: &ModifiersState, sym: Keysym) -> Option<Action> {
         let mods = modifiers(mods);
-        self.bindings
-            .iter()
-            .find(|b| b.symbol == sym.raw() && b.modifiers == mods)
-            .map(|b| b.action)
+        self.bindings.iter().find(|b| b.symbol == sym.raw() && b.modifiers == mods).map(|b| b.action)
     }
 
     pub fn run_action(&mut self, action: Action) {
@@ -80,9 +77,10 @@ impl State {
             Action::Program(index) => {
                 let Some(binding) = self.config.program_bindings.values().nth(index) else { return };
                 // Run or raise: an open window of the app is shown instead of starting another.
-                let open = binding.app_id.as_deref().and_then(|pattern| {
-                    self.next_window_where(|m| m.app_id.as_deref().is_some_and(|id| splice_config::glob(pattern, id)))
-                });
+                let open = binding
+                    .app_id
+                    .as_deref()
+                    .and_then(|pattern| self.next_window_where(|m| m.app_id.as_deref().is_some_and(|id| splice_config::glob(pattern, id))));
                 match open {
                     Some(id) => self.show_window(id),
                     None => self.spawn_command(&binding.command.clone(), false),
@@ -155,79 +153,72 @@ impl State {
                 let time = Event::time_msec(&event);
                 let keyboard = self.seat.get_keyboard().unwrap();
                 let keycode = event.key_code();
-                let action = keyboard.input::<Intercepted, _>(
-                    self,
-                    keycode,
-                    event.state(),
-                    serial,
-                    time,
-                    |state, mods, handle| {
-                        if event.state() != KeyState::Pressed {
-                            // The client never saw the press, and a lone release still acts: a browser
-                            // toggles a video on Space's release after Super+Space opened the launcher.
-                            return match state.suppressed_keys.iter().position(|k| *k == keycode) {
-                                Some(index) => {
-                                    state.suppressed_keys.swap_remove(index);
-                                    FilterResult::Intercept(Intercepted::Release)
-                                }
-                                None => FilterResult::Forward,
-                            };
-                        }
-                        // Ctrl+Alt+F<n> arrives as a dedicated keysym after xkb's processing.
-                        let raw = handle.modified_sym().raw();
-                        if (keysyms::KEY_XF86Switch_VT_1..=keysyms::KEY_XF86Switch_VT_12).contains(&raw) {
-                            return FilterResult::Intercept(Intercepted::Vt((raw - keysyms::KEY_XF86Switch_VT_1 + 1) as i32));
-                        }
-                        // While picking a screenshot region or a color the keyboard belongs to the picker.
-                        // (Locking ends them; the built-in lock screen must get every key even before it shows.)
-                        let modal = state.selecting.is_some() || state.picking.is_some() || state.overview_open();
-                        if modal && !state.session_lock.is_own() {
-                            use crate::screenshot::ModalKey;
-                            return FilterResult::Intercept(Intercepted::Modal(match raw {
-                                keysyms::KEY_Escape => ModalKey::Cancel,
-                                keysyms::KEY_Return | keysyms::KEY_KP_Enter => ModalKey::Confirm,
-                                keysyms::KEY_Left => ModalKey::Left,
-                                keysyms::KEY_Right => ModalKey::Right,
-                                keysyms::KEY_Up => ModalKey::Up,
-                                keysyms::KEY_Down => ModalKey::Down,
-                                keysyms::KEY_d | keysyms::KEY_D => ModalKey::Dynamic,
-                                keysyms::KEY_1..=keysyms::KEY_9 => ModalKey::Digit((raw - keysyms::KEY_1 + 1) as usize),
-                                keysyms::KEY_q | keysyms::KEY_Q => ModalKey::Close,
-                                _ => ModalKey::Ignore,
-                            }));
-                        }
-                        // Unmodified symbol, so Shift+1 is still "1".
-                        let action = handle.raw_syms().first().and_then(|sym| state.binding_for(mods, *sym));
-                        // A locked session hands every key to the locker but the program bindings that allow it.
-                        if state.session_lock.is_active() {
-                            let allowed = |a: &Action| matches!(a, Action::Program(_)) && state.config.allowed_when_locked(*a);
-                            return match action.filter(allowed) {
-                                Some(action) => FilterResult::Intercept(Intercepted::Action(action)),
-                                // The built-in lock screen is the compositor's own: no client gets a key.
-                                None if state.session_lock.is_own() => {
-                                    // SAFETY: as below.
-                                    let repeats = handle.xkb().lock().is_ok_and(|xkb| unsafe { xkb.keymap() }.key_repeats(keycode));
-                                    let modified = mods.ctrl || mods.alt || mods.logo;
-                                    FilterResult::Intercept(Intercepted::Shell(handle.modified_sym(), modified, repeats))
-                                }
-                                None => FilterResult::Forward,
-                            };
-                        }
-                        // A client that took the shortcuts (a game, a VM) gets every key but the way out.
-                        let action = action.filter(|a| !state.shortcuts_inhibited() || *a == Action::ReleaseShortcuts);
-                        match action {
+                let action = keyboard.input::<Intercepted, _>(self, keycode, event.state(), serial, time, |state, mods, handle| {
+                    if event.state() != KeyState::Pressed {
+                        // The client never saw the press, and a lone release still acts: a browser
+                        // toggles a video on Space's release after Super+Space opened the launcher.
+                        return match state.suppressed_keys.iter().position(|k| *k == keycode) {
+                            Some(index) => {
+                                state.suppressed_keys.swap_remove(index);
+                                FilterResult::Intercept(Intercepted::Release)
+                            }
+                            None => FilterResult::Forward,
+                        };
+                    }
+                    // Ctrl+Alt+F<n> arrives as a dedicated keysym after xkb's processing.
+                    let raw = handle.modified_sym().raw();
+                    if (keysyms::KEY_XF86Switch_VT_1..=keysyms::KEY_XF86Switch_VT_12).contains(&raw) {
+                        return FilterResult::Intercept(Intercepted::Vt((raw - keysyms::KEY_XF86Switch_VT_1 + 1) as i32));
+                    }
+                    // While picking a screenshot region or a color the keyboard belongs to the picker.
+                    // (Locking ends them; the built-in lock screen must get every key even before it shows.)
+                    let modal = state.selecting.is_some() || state.picking.is_some() || state.overview_open();
+                    if modal && !state.session_lock.is_own() {
+                        use crate::screenshot::ModalKey;
+                        return FilterResult::Intercept(Intercepted::Modal(match raw {
+                            keysyms::KEY_Escape => ModalKey::Cancel,
+                            keysyms::KEY_Return | keysyms::KEY_KP_Enter => ModalKey::Confirm,
+                            keysyms::KEY_Left => ModalKey::Left,
+                            keysyms::KEY_Right => ModalKey::Right,
+                            keysyms::KEY_Up => ModalKey::Up,
+                            keysyms::KEY_Down => ModalKey::Down,
+                            keysyms::KEY_d | keysyms::KEY_D => ModalKey::Dynamic,
+                            keysyms::KEY_1..=keysyms::KEY_9 => ModalKey::Digit((raw - keysyms::KEY_1 + 1) as usize),
+                            keysyms::KEY_q | keysyms::KEY_Q => ModalKey::Close,
+                            _ => ModalKey::Ignore,
+                        }));
+                    }
+                    // Unmodified symbol, so Shift+1 is still "1".
+                    let action = handle.raw_syms().first().and_then(|sym| state.binding_for(mods, *sym));
+                    // A locked session hands every key to the locker but the program bindings that allow it.
+                    if state.session_lock.is_active() {
+                        let allowed = |a: &Action| matches!(a, Action::Program(_)) && state.config.allowed_when_locked(*a);
+                        return match action.filter(allowed) {
                             Some(action) => FilterResult::Intercept(Intercepted::Action(action)),
-                            // The power menu takes every other key, as the exclusive panel it was did.
-                            None if state.shell_takes_keyboard() => {
-                                // SAFETY: the keymap is only asked here, while the lock is held; no reference to it is kept.
+                            // The built-in lock screen is the compositor's own: no client gets a key.
+                            None if state.session_lock.is_own() => {
+                                // SAFETY: as below.
                                 let repeats = handle.xkb().lock().is_ok_and(|xkb| unsafe { xkb.keymap() }.key_repeats(keycode));
                                 let modified = mods.ctrl || mods.alt || mods.logo;
                                 FilterResult::Intercept(Intercepted::Shell(handle.modified_sym(), modified, repeats))
                             }
                             None => FilterResult::Forward,
+                        };
+                    }
+                    // A client that took the shortcuts (a game, a VM) gets every key but the way out.
+                    let action = action.filter(|a| !state.shortcuts_inhibited() || *a == Action::ReleaseShortcuts);
+                    match action {
+                        Some(action) => FilterResult::Intercept(Intercepted::Action(action)),
+                        // The power menu takes every other key, as the exclusive panel it was did.
+                        None if state.shell_takes_keyboard() => {
+                            // SAFETY: the keymap is only asked here, while the lock is held; no reference to it is kept.
+                            let repeats = handle.xkb().lock().is_ok_and(|xkb| unsafe { xkb.keymap() }.key_repeats(keycode));
+                            let modified = mods.ctrl || mods.alt || mods.logo;
+                            FilterResult::Intercept(Intercepted::Shell(handle.modified_sym(), modified, repeats))
                         }
-                    },
-                );
+                        None => FilterResult::Forward,
+                    }
+                });
                 // A new press settles the key either way: a release lost to a VT switch must not
                 // swallow the release of a later, forwarded press.
                 if event.state() == KeyState::Pressed {
@@ -270,11 +261,7 @@ impl State {
                 pointer.relative_motion(
                     self,
                     focus.clone(),
-                    &RelativeMotionEvent {
-                        delta: event.delta(),
-                        delta_unaccel: event.delta_unaccel(),
-                        utime: event.time(),
-                    },
+                    &RelativeMotionEvent { delta: event.delta(), delta_unaccel: event.delta_unaccel(), utime: event.time() },
                 );
                 let mut target = self.pointer_location + event.delta();
                 if let Some((surface, origin)) = &focus {
@@ -293,11 +280,7 @@ impl State {
                 self.pointer_location = (x, y).into();
                 self.pointer_moved(event.time_msec());
             }
-            InputEvent::PointerButton { event } => self.pointer_button(
-                event.button_code(),
-                event.state(),
-                event.time_msec(),
-            ),
+            InputEvent::PointerButton { event } => self.pointer_button(event.button_code(), event.state(), event.time_msec()),
             InputEvent::PointerAxis { event } => {
                 // The wheel reaches nobody behind the built-in lock screen.
                 if self.session_lock.is_own() {
@@ -322,9 +305,7 @@ impl State {
                 let source = event.source();
                 let mut frame = AxisFrame::new(event.time_msec()).source(source);
                 for axis in [Axis::Horizontal, Axis::Vertical] {
-                    let amount = event
-                        .amount(axis)
-                        .unwrap_or_else(|| event.amount_v120(axis).unwrap_or(0.0) * 15.0 / 120.0);
+                    let amount = event.amount(axis).unwrap_or_else(|| event.amount_v120(axis).unwrap_or(0.0) * 15.0 / 120.0);
                     if amount != 0.0 {
                         frame = frame.value(axis, amount);
                         if let Some(v120) = event.amount_v120(axis) {
@@ -497,9 +478,8 @@ impl State {
                 .surface_under(self.pointer_location - loc.to_f64(), WindowSurfaceType::ALL)
                 .map(|(surface, origin)| (surface, (origin + *loc).to_f64()))
         };
-        let in_front = window_hit.filter(|(window, _)| {
-            self.desktop.windows.iter().find(|m| &m.window == window).is_none_or(|m| m.shown_fullscreen)
-        });
+        let in_front =
+            window_hit.filter(|(window, _)| self.desktop.windows.iter().find(|m| &m.window == window).is_none_or(|m| m.shown_fullscreen));
         let surface = |hit: Option<(WlSurface, Point<f64, Logical>)>| hit.map(|(s, origin)| PointerTarget::Surface(s, origin));
         self.shell_power_at_pointer()
             .map(PointerTarget::Shell)

@@ -1,53 +1,53 @@
 use std::{any::Any, collections::HashMap, ffi::OsString, sync::Arc, time::Instant};
 
-use crate::{screencopy::PendingCopy, cursor::CursorAssets, desktop::Desktop, monitors::OutputEntry, session::SessionLock, udev::UdevData};
-use splice_config::{Binding, Config, Modifiers};
+use crate::{cursor::CursorAssets, desktop::Desktop, monitors::OutputEntry, screencopy::PendingCopy, session::SessionLock, udev::UdevData};
 use smithay::{
-    desktop::{PopupManager, Space, Window},
-    output::Output,
     backend::session::libseat::LibSeatSession,
-    input::{keyboard::XkbConfig, pointer::CursorImageStatus, Seat, SeatState},
+    desktop::{PopupManager, Space, Window},
+    input::{Seat, SeatState, keyboard::XkbConfig, pointer::CursorImageStatus},
+    output::Output,
     reexports::{
         calloop::{
+            EventLoop, Interest, LoopHandle, LoopSignal, Mode, PostAction,
             generic::Generic,
             timer::{TimeoutAction, Timer},
-            EventLoop, Interest, LoopHandle, LoopSignal, Mode, PostAction,
         },
         wayland_protocols_wlr::output_power_management::v1::server::zwlr_output_power_v1::ZwlrOutputPowerV1,
         wayland_server::{
+            Display, DisplayHandle,
             backend::{ClientData, ClientId, DisconnectReason},
             protocol::wl_surface::WlSurface,
-            Display, DisplayHandle,
         },
     },
     utils::{Logical, Point},
-    xwayland::{X11Surface, X11Wm},
     wayland::{
-        compositor::{CompositorClientState, CompositorState},
         commit_timing::CommitTimingManagerState,
+        compositor::{CompositorClientState, CompositorState},
         content_type::ContentTypeState,
-        fifo::FifoManagerState,
-        idle_inhibit::IdleInhibitManagerState,
-        idle_notify::IdleNotifierState,
-        session_lock::SessionLockManagerState,
         cursor_shape::CursorShapeManagerState,
-        fractional_scale::FractionalScaleManagerState,
-        pointer_constraints::PointerConstraintsState,
-        relative_pointer::RelativePointerManagerState,
-        shell::xdg::decoration::XdgDecorationState,
-        viewporter::ViewporterState,
         dmabuf::{DmabufGlobal, DmabufState},
         drm_syncobj::DrmSyncobjState,
-        presentation::PresentationState,
-        selection::{primary_selection::PrimarySelectionState, wlr_data_control::DataControlState},
+        fifo::FifoManagerState,
+        fractional_scale::FractionalScaleManagerState,
+        idle_inhibit::IdleInhibitManagerState,
+        idle_notify::IdleNotifierState,
         output::OutputManagerState,
+        pointer_constraints::PointerConstraintsState,
+        presentation::PresentationState,
+        relative_pointer::RelativePointerManagerState,
         selection::data_device::DataDeviceState,
+        selection::{primary_selection::PrimarySelectionState, wlr_data_control::DataControlState},
+        session_lock::SessionLockManagerState,
+        shell::xdg::decoration::XdgDecorationState,
         shell::{wlr_layer::WlrLayerShellState, xdg::XdgShellState},
-        xwayland_shell::XWaylandShellState,
         shm::ShmState,
         socket::ListeningSocketSource,
+        viewporter::ViewporterState,
+        xwayland_shell::XWaylandShellState,
     },
+    xwayland::{X11Surface, X11Wm},
 };
+use splice_config::{Binding, Config, Modifiers};
 
 pub struct State {
     pub start_time: Instant,
@@ -210,8 +210,7 @@ impl State {
                 let error = format!("{}; using layout {:?}", keymap_error(&config.keyboard, &error), default.layout);
                 tracing::error!("{error}");
                 let xkb = XkbConfig { layout: &default.layout, ..Default::default() };
-                seat.add_keyboard(xkb, config.input.repeat_delay, config.input.repeat_rate)
-                    .expect("keyboard with the default keymap");
+                seat.add_keyboard(xkb, config.input.repeat_delay, config.input.repeat_rate).expect("keyboard with the default keymap");
                 Some(error)
             }
         };
@@ -245,19 +244,16 @@ impl State {
             .expect("socket source");
 
         loop_handle
-            .insert_source(
-                Generic::new(display, Interest::READ, Mode::Level),
-                |_, display, state| {
-                    // SAFETY: the display is never dropped while the source is alive.
-                    if let Err(error) = unsafe { display.get_mut().dispatch_clients(state) } {
-                        // Not a client's error (that ends the client): the display itself cannot be read any
-                        // more, so no request would ever arrive again. End the session in order.
-                        tracing::error!("cannot read the Wayland display: {error}; ending the session");
-                        state.loop_signal.stop();
-                    }
-                    Ok(PostAction::Continue)
-                },
-            )
+            .insert_source(Generic::new(display, Interest::READ, Mode::Level), |_, display, state| {
+                // SAFETY: the display is never dropped while the source is alive.
+                if let Err(error) = unsafe { display.get_mut().dispatch_clients(state) } {
+                    // Not a client's error (that ends the client): the display itself cannot be read any
+                    // more, so no request would ever arrive again. End the session in order.
+                    tracing::error!("cannot read the Wayland display: {error}; ending the session");
+                    state.loop_signal.stop();
+                }
+                Ok(PostAction::Continue)
+            })
             .expect("display source");
 
         // Hidden surfaces get their throttled frame callbacks even while no output redraws.
@@ -268,11 +264,7 @@ impl State {
             })
             .expect("frame callback timer");
 
-        let desktop = Desktop::new(
-            config.workspace_outputs.clone(),
-            config.gaming_output.clone(),
-            config.appearance.layout(),
-        );
+        let desktop = Desktop::new(config.workspace_outputs.clone(), config.gaming_output.clone(), config.appearance.layout());
         let primary_selection_state = PrimarySelectionState::new::<State>(&dh);
         let mut state = Self {
             start_time: Instant::now(),
@@ -319,11 +311,9 @@ impl State {
             dmabuf_state: DmabufState::new(),
             // Clipboard managers and wl-copy/wl-paste use this; SPLICE_NO_DATA_CONTROL=1 hides it
             // so the plain focus-based clipboard path can be tested.
-            data_control_state: DataControlState::new::<State, _>(
-                &dh,
-                Some(&primary_selection_state),
-                |_| std::env::var_os("SPLICE_NO_DATA_CONTROL").is_none(),
-            ),
+            data_control_state: DataControlState::new::<State, _>(&dh, Some(&primary_selection_state), |_| {
+                std::env::var_os("SPLICE_NO_DATA_CONTROL").is_none()
+            }),
             layer_shell_state: WlrLayerShellState::new::<State>(&dh),
             pending_copies: Vec::new(),
             xwayland_shell_state: XWaylandShellState::new::<State>(&dh),
@@ -431,8 +421,7 @@ impl State {
         // The palette's strength depends on the style: generate the theme again (it reloads the config once done).
         let restyled = self.config.appearance.style != new.appearance.style;
         // Monitor and session settings and the choice of shell need a restart; everything else applies live.
-        let Config { workspace_outputs, gaming_output, idle, vrr, builtin_shell, .. } =
-            std::mem::take(&mut self.config);
+        let Config { workspace_outputs, gaming_output, idle, vrr, builtin_shell, .. } = std::mem::take(&mut self.config);
         self.config = Config { workspace_outputs, gaming_output, idle, vrr, builtin_shell, ..new };
         self.desktop.appearance = self.config.appearance.layout();
         if let Some(keyboard) = self.seat.get_keyboard() {
@@ -523,13 +512,9 @@ impl State {
             Err(error) => tracing::warn!("cannot start {what}: {error}"),
         }
     }
-
 }
 
 /// Why `keyboard`'s keymap is not in use, for the log and the bar.
 fn keymap_error(keyboard: &splice_config::KeyboardConfig, error: &smithay::input::keyboard::Error) -> String {
-    format!(
-        "[keyboard] layout {:?}, variant {:?}, options {:?}: {error}",
-        keyboard.layout, keyboard.variant, keyboard.options
-    )
+    format!("[keyboard] layout {:?}, variant {:?}, options {:?}: {error}", keyboard.layout, keyboard.variant, keyboard.options)
 }

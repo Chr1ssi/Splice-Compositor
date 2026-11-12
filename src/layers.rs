@@ -1,10 +1,9 @@
 //! Layer shell (`wlr-layer-shell`): bars, launchers, wallpapers and notifications.
 use std::time::Duration;
 
-use splice_layout::Rect;
 use smithay::{
-    delegate_layer_shell,
     backend::renderer::element::{RenderElementStates, default_primary_scanout_output_compare},
+    delegate_layer_shell,
     desktop::{
         LayerSurface, PopupKind, WindowSurfaceType, layer_map_for_output,
         utils::{send_frames_surface_tree, surface_primary_scanout_output, update_surface_primary_scanout_output},
@@ -15,11 +14,11 @@ use smithay::{
     wayland::{
         compositor::{SurfaceData, with_states},
         shell::wlr_layer::{
-            KeyboardInteractivity, Layer, LayerSurface as WlrLayerSurface, LayerSurfaceData, WlrLayerShellHandler,
-            WlrLayerShellState,
+            KeyboardInteractivity, Layer, LayerSurface as WlrLayerSurface, LayerSurfaceData, WlrLayerShellHandler, WlrLayerShellState,
         },
     },
 };
+use splice_layout::Rect;
 
 use crate::{
     State,
@@ -144,9 +143,7 @@ impl State {
 
     /// The layer surface (of any of its popups or subsurfaces) `surface` belongs to, if any.
     pub fn layer_of_surface(&self, surface: &WlSurface) -> Option<LayerSurface> {
-        self.outputs.iter().find_map(|e| {
-            layer_map_for_output(&e.output).layer_for_surface(surface, WindowSurfaceType::ALL).cloned()
-        })
+        self.outputs.iter().find_map(|e| layer_map_for_output(&e.output).layer_for_surface(surface, WindowSurfaceType::ALL).cloned())
     }
 
     /// The layer surface that holds keyboard focus: one that demands it exclusively on
@@ -238,12 +235,7 @@ impl State {
     }
 
     /// The locker draws its input feedback (a typed character) only when its frame callback comes.
-    fn send_lock_frame(
-        &self,
-        output: &Output,
-        elapsed: Duration,
-        drawn: impl FnMut(&WlSurface, &SurfaceData) -> Option<Output>,
-    ) {
+    fn send_lock_frame(&self, output: &Output, elapsed: Duration, drawn: impl FnMut(&WlSurface, &SurfaceData) -> Option<Output>) {
         if let Some(lock) = self.lock_surface_for(output) {
             send_frames_surface_tree(lock.wl_surface(), output, elapsed, None, drawn);
         }

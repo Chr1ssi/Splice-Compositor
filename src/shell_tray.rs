@@ -2,6 +2,7 @@
 //! opens its menu if it has only a menu), the middle button activates it otherwise, the right button opens its
 //! menu, the wheel scrolls it. The menu opens below the bar at the right edge (one at a time, closing the panels);
 //! a click into it gives it the keyboard, a click elsewhere closes it.
+use smithay::{backend::renderer::gles::GlesRenderer, output::Output};
 use splice_shell_protocol::{Command, MenuEntry, Toggle, TrayItem, TrayStatus};
 use splice_ui::{
     bar::TrayIcon,
@@ -10,7 +11,6 @@ use splice_ui::{
     text::Fonts,
     tray_menu::{self, EntryView, MenuTarget, TrayMenuModel},
 };
-use smithay::{backend::renderer::gles::GlesRenderer, output::Output};
 
 use crate::{
     State,

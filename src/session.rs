@@ -3,8 +3,8 @@ use std::collections::HashSet;
 
 use smithay::{
     delegate_idle_inhibit, delegate_idle_notify, delegate_session_lock,
-    desktop::utils::under_from_surface_tree,
     desktop::WindowSurfaceType,
+    desktop::utils::under_from_surface_tree,
     output::Output,
     reexports::{
         wayland_protocols::ext::session_lock::v1::server::ext_session_lock_v1::ExtSessionLockV1,
@@ -49,12 +49,7 @@ pub struct SessionLock {
 
 impl SessionLock {
     pub fn new() -> Self {
-        Self {
-            state: LockState::Unlocked,
-            surfaces: Vec::new(),
-            unconfirmed: HashSet::new(),
-            holder: None,
-        }
+        Self { state: LockState::Unlocked, surfaces: Vec::new(), unconfirmed: HashSet::new(), holder: None }
     }
 
     /// The session is locked or about to be: nothing but the lock may be shown or reached.
@@ -342,11 +337,7 @@ impl Dispatch<ZwlrOutputPowerManagerV1, (), State> for State {
             let resource = data_init.init(id, OutputPowerData(Output::from_resource(&output)));
             match state.outputs.iter().find(|e| Some(&e.output) == Output::from_resource(&output).as_ref()) {
                 Some(entry) => {
-                    resource.mode(if entry.powered {
-                        zwlr_output_power_v1::Mode::On
-                    } else {
-                        zwlr_output_power_v1::Mode::Off
-                    });
+                    resource.mode(if entry.powered { zwlr_output_power_v1::Mode::On } else { zwlr_output_power_v1::Mode::Off });
                     state.output_power_objects.push((entry.output.clone(), resource));
                 }
                 None => resource.failed(),

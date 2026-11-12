@@ -150,11 +150,9 @@ impl State {
     /// Runs before the elements of an output are built.
     pub fn wallpaper_prepare(&mut self, renderer: &mut GlesRenderer) {
         let wanted = match (&self.wallpaper.file, self.desktop_area()) {
-            (Some((path, modified)), Some((desktop, scale))) => Some(Source {
-                path: path.clone(),
-                modified: *modified,
-                size: desktop.size.to_f64().to_physical(scale).to_i32_ceil(),
-            }),
+            (Some((path, modified)), Some((desktop, scale))) => {
+                Some(Source { path: path.clone(), modified: *modified, size: desktop.size.to_f64().to_physical(scale).to_i32_ceil() })
+            }
             _ => None,
         };
         if wanted != self.wallpaper.requested {
@@ -209,9 +207,11 @@ impl State {
     /// while fading.
     pub fn wallpaper_elements(&self, renderer: &GlesRenderer, output: &Output) -> Vec<OutputElement> {
         let Some(picture) = self.wallpaper.picture.as_ref() else { return Vec::new() };
-        let fade = self.wallpaper.fading.as_ref().map(|(old, start)| {
-            (old, crate::desktop::ease_out(start.elapsed().as_secs_f64() * 1000.0 / f64::from(FADE_MS)) as f32)
-        });
+        let fade = self
+            .wallpaper
+            .fading
+            .as_ref()
+            .map(|(old, start)| (old, crate::desktop::ease_out(start.elapsed().as_secs_f64() * 1000.0 / f64::from(FADE_MS)) as f32));
         let mut elements: Vec<OutputElement> =
             self.wallpaper_element(renderer, output, picture, fade.map(|(_, alpha)| alpha)).into_iter().collect();
         if let Some((old, _)) = fade {

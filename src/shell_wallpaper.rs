@@ -10,12 +10,6 @@ use std::{
     time::Instant,
 };
 
-use splice_ui::{
-    edit::Input,
-    power::ease_out_cubic,
-    text::Fonts,
-    wallpaper_picker::{self, Carousel, LEAN, LEAN_SHIFT, PickerError, PickerModel, PickerTarget, SLIDE_MS, TileView, VISIBLE},
-};
 use smithay::{
     backend::{
         allocator::Fourcc,
@@ -36,6 +30,12 @@ use smithay::{
         timer::{TimeoutAction, Timer},
     },
     utils::{Buffer, Logical, Physical, Point, Rectangle, Scale, Size, Transform},
+};
+use splice_ui::{
+    edit::Input,
+    power::ease_out_cubic,
+    text::Fonts,
+    wallpaper_picker::{self, Carousel, LEAN, LEAN_SHIFT, PickerError, PickerModel, PickerTarget, SLIDE_MS, TileView, VISIBLE},
 };
 
 use crate::{
@@ -324,7 +324,8 @@ impl State {
         let Some(picker) = &mut self.shell.picker else { return };
         let mut near: Vec<usize> = (0..picker.results.len()).filter(|i| i.abs_diff(picker.selected) <= VISIBLE).collect();
         near.sort_by_key(|i| i.abs_diff(picker.selected));
-        let wanted: Vec<PathBuf> = picker.choice.iter().cloned().chain(near.into_iter().filter_map(|i| picker.entry(i).map(|e| e.path.clone()))).collect();
+        let wanted: Vec<PathBuf> =
+            picker.choice.iter().cloned().chain(near.into_iter().filter_map(|i| picker.entry(i).map(|e| e.path.clone()))).collect();
         picker.thumbs.retain(|path, _| wanted.contains(path));
         for path in wanted {
             if picker.decoding.len() >= DECODING {
@@ -522,11 +523,16 @@ impl State {
     pub fn wallpaper_picker_clicked(&mut self, target: Option<PickerTarget>) {
         match target {
             None => self.wallpaper_picker_close(),
-            Some(PickerTarget::Tile(index)) if self.shell.picker.as_ref().is_some_and(|p| p.selected == index) => self.wallpaper_picker_choose(index),
+            Some(PickerTarget::Tile(index)) if self.shell.picker.as_ref().is_some_and(|p| p.selected == index) => {
+                self.wallpaper_picker_choose(index)
+            }
             Some(PickerTarget::Tile(index)) => self.wallpaper_picker_select(index),
             Some(PickerTarget::Search) => {
                 let Some(picker) = self.shell.picker.as_ref() else { return };
-                let (Some(geo), Some(frame)) = (self.space.output_geometry(&picker.output), picker.painted.as_ref().map(|p| p.frame)) else { return };
+                let (Some(geo), Some(frame)) = (self.space.output_geometry(&picker.output), picker.painted.as_ref().map(|p| p.frame))
+                else {
+                    return;
+                };
                 let output = (geo.size.w as f32, geo.size.h as f32);
                 let Some(field) = picker.painted.as_ref().and_then(|p| p.painted.scene.target_rect(&PickerTarget::Search)) else { return };
                 let x = (self.pointer_location.x - f64::from(geo.loc.x)) as f32 - frame.x - field.x;
@@ -609,7 +615,9 @@ impl State {
             };
         }
         picker.drawn.clear();
-        let (Some(geo), Some(framed), Some(blank)) = (self.space.output_geometry(&picker.output), &picker.painted, &picker.blank) else { return };
+        let (Some(geo), Some(framed), Some(blank)) = (self.space.output_geometry(&picker.output), &picker.painted, &picker.blank) else {
+            return;
+        };
         let scale = picker.output.current_scale().fractional_scale();
         let s = scale as f32;
         let carousel = Carousel::new((geo.size.w as f32, geo.size.h as f32));
@@ -709,10 +717,28 @@ impl State {
 
 /// `texture` stretched over `size` (logical) at `location`: the tile shader only takes its coordinates (they run
 /// from 0 to 1 over the whole box) and samples the picture where it wants.
-fn tile_texture(id: Id, renderer: &GlesRenderer, location: Point<f64, Physical>, texture: &GlesTexture, size: Size<i32, Logical>) -> TextureRenderElement<GlesTexture> {
+fn tile_texture(
+    id: Id,
+    renderer: &GlesRenderer,
+    location: Point<f64, Physical>,
+    texture: &GlesTexture,
+    size: Size<i32, Logical>,
+) -> TextureRenderElement<GlesTexture> {
     // Without `src` the element would take `size` for the texture's own.
     let src = Rectangle::from_size(texture.size().to_f64().to_logical(1.0, Transform::Normal));
-    TextureRenderElement::from_static_texture(id, renderer.context_id(), location, texture.clone(), 1, Transform::Normal, None, Some(src), Some(size), None, Kind::Unspecified)
+    TextureRenderElement::from_static_texture(
+        id,
+        renderer.context_id(),
+        location,
+        texture.clone(),
+        1,
+        Transform::Normal,
+        None,
+        Some(src),
+        Some(size),
+        None,
+        Kind::Unspecified,
+    )
 }
 
 /// A tile as worked out before the frame (`wallpaper_picker_prepare`).

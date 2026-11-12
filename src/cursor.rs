@@ -2,7 +2,6 @@
 use std::collections::HashMap;
 
 use smithay::{
-    reexports::wayland_server::Resource,
     backend::{
         allocator::Fourcc,
         renderer::{
@@ -17,6 +16,7 @@ use smithay::{
     },
     input::pointer::{CursorIcon, CursorImageAttributes, CursorImageStatus},
     output::Output,
+    reexports::wayland_server::Resource,
     utils::{Logical, Physical, Point, Transform},
     wayland::compositor::with_states,
 };
@@ -37,8 +37,13 @@ struct Loaded {
 
 /// The cursor theme and size from the GTK settings, for sessions that only configure them there.
 fn gtk_cursor_settings() -> (Option<String>, Option<String>) {
-    let config = std::env::var("XDG_CONFIG_HOME").ok().filter(|v| !v.is_empty()).or_else(|| std::env::var("HOME").ok().map(|h| format!("{h}/.config")));
-    let Some(text) = config.and_then(|dir| std::fs::read_to_string(format!("{dir}/gtk-3.0/settings.ini")).ok()) else { return (None, None) };
+    let config = std::env::var("XDG_CONFIG_HOME")
+        .ok()
+        .filter(|v| !v.is_empty())
+        .or_else(|| std::env::var("HOME").ok().map(|h| format!("{h}/.config")));
+    let Some(text) = config.and_then(|dir| std::fs::read_to_string(format!("{dir}/gtk-3.0/settings.ini")).ok()) else {
+        return (None, None);
+    };
     let value = |key: &str| {
         text.lines().find_map(|line| {
             let (name, value) = line.split_once('=')?;
@@ -189,7 +194,8 @@ impl State {
         let Some(geo) = self.space.output_geometry(output) else { return Vec::new() };
         let scale = output.current_scale().fractional_scale();
         let to_physical = |p: Point<f64, Logical>, hotspot: Point<i32, Logical>| -> Point<f64, Physical> {
-            ((p.x - f64::from(geo.loc.x) - f64::from(hotspot.x)) * scale, (p.y - f64::from(geo.loc.y) - f64::from(hotspot.y)) * scale).into()
+            ((p.x - f64::from(geo.loc.x) - f64::from(hotspot.x)) * scale, (p.y - f64::from(geo.loc.y) - f64::from(hotspot.y)) * scale)
+                .into()
         };
         let pointer = self.pointer_location;
         // A cursor further outside than any image is large cannot show up here.
@@ -201,7 +207,8 @@ impl State {
             return Vec::new();
         }
         // A client that went away (or dropped its cursor surface) must not leave an invisible cursor.
-        if matches!(&self.cursor_status, CursorImageStatus::Surface(surface) if !smithay::reexports::wayland_server::Resource::is_alive(surface)) {
+        if matches!(&self.cursor_status, CursorImageStatus::Surface(surface) if !smithay::reexports::wayland_server::Resource::is_alive(surface))
+        {
             self.cursor_status = CursorImageStatus::default_named();
         }
         match self.effective_cursor() {

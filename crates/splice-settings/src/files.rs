@@ -32,9 +32,7 @@ pub fn remember_path(path: &Path) {
 /// Which file to edit: the command line, then the remembered choice, then what the
 /// compositor itself would load (`SPLICE_CONFIG`, `~/.config/splice/config.toml`).
 pub fn resolve(cli: Option<PathBuf>) -> PathBuf {
-    cli.or_else(remembered_path)
-        .or_else(splice_config::Config::path)
-        .unwrap_or_else(|| PathBuf::from("config.toml"))
+    cli.or_else(remembered_path).or_else(splice_config::Config::path).unwrap_or_else(|| PathBuf::from("config.toml"))
 }
 
 /// The file behind symlinks (a dotfiles link ends up in the dotfiles repository).

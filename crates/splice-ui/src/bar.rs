@@ -105,7 +105,10 @@ struct Button {
 enum Content {
     Buttons(Vec<Button>),
     /// A plain text with eight pixels of padding on either side (the recording indicator).
-    Text { text: String, color: Color },
+    Text {
+        text: String,
+        color: Color,
+    },
     /// Tray icons, a 26 pixel circle each.
     Tray(Vec<TrayIcon>),
 }
@@ -138,9 +141,7 @@ impl Button {
 impl Content {
     fn width(&self, measure: &mut impl Measure) -> f32 {
         let inner = match self {
-            Content::Buttons(buttons) => {
-                buttons.iter().map(|b| b.width).sum::<f32>() + SPACING * buttons.len().saturating_sub(1) as f32
-            }
+            Content::Buttons(buttons) => buttons.iter().map(|b| b.width).sum::<f32>() + SPACING * buttons.len().saturating_sub(1) as f32,
             Content::Text { text, .. } => measure.width(text, BUTTON_TEXT.bold(true)).ceil() + 16.0,
             Content::Tray(icons) => 26.0 * icons.len() as f32 + SPACING * icons.len().saturating_sub(1) as f32,
         };
@@ -188,16 +189,12 @@ pub fn scene(model: &BarModel, theme: &Theme, measure: &mut impl Measure) -> Sce
                 number if deck => format!("{number:02}"),
                 number => number.to_string(),
             };
-            Button::fixed(text, 26.0, BarTarget::Workspace(w.number))
-                .selected(model.active == Some(w.number))
-                .marked(w.occupied)
+            Button::fixed(text, 26.0, BarTarget::Workspace(w.number)).selected(model.active == Some(w.number)).marked(w.occupied)
         })
         .collect();
     workspaces.push(Button::fixed("+".into(), 26.0, BarTarget::NewWorkspace));
     if model.scratchpad_occupied {
-        workspaces.push(
-            Button::fixed("S".into(), 26.0, BarTarget::Scratchpad).selected(model.scratchpad_visible).marked(true),
-        );
+        workspaces.push(Button::fixed("S".into(), 26.0, BarTarget::Scratchpad).selected(model.scratchpad_visible).marked(true));
     }
 
     let mut middle = Vec::new();
@@ -378,7 +375,10 @@ mod tests {
         scene
             .nodes
             .iter()
-            .filter_map(|n| match n { Node::Rect { rect, radius, border: Some(_), .. } if *radius == ISLAND_HEIGHT / 2.0 => Some(*rect), _ => None })
+            .filter_map(|n| match n {
+                Node::Rect { rect, radius, border: Some(_), .. } if *radius == ISLAND_HEIGHT / 2.0 => Some(*rect),
+                _ => None,
+            })
             .collect()
     }
 
@@ -387,7 +387,10 @@ mod tests {
         scene
             .nodes
             .iter()
-            .find_map(|n| match n { Node::Label { rect: r, text, .. } if rect.contains(r.x, r.y + 1.0) => Some(text.clone()), _ => None })
+            .find_map(|n| match n {
+                Node::Label { rect: r, text, .. } if rect.contains(r.x, r.y + 1.0) => Some(text.clone()),
+                _ => None,
+            })
             .expect("label")
     }
 
@@ -413,7 +416,10 @@ mod tests {
     fn the_cyberdeck_bar_colors_the_clock_the_volume_and_the_power_button() {
         let json = r##"{"version":1,"colors":{"primary":{"default":{"hex":"#8799ff"}},"secondary":{"default":{"hex":"#00a9fa"}},"tertiary":{"default":{"hex":"#c085ff"}},"error":{"default":{"hex":"#ff291a"}}}}"##;
         let c = |v| Color::rgba(v, v, v, 255);
-        let normal = Theme::new(Palette { background: c(10), surface: c(20), text: c(200), muted: c(150), accent: c(90), border: c(60) }, Some(json));
+        let normal = Theme::new(
+            Palette { background: c(10), surface: c(20), text: c(200), muted: c(150), accent: c(90), border: c(60) },
+            Some(json),
+        );
         let deck = normal.clone().with_shape(Shape::Chamfer);
         let color_of = |theme: &Theme, starts: &str| {
             scene(&model(), theme, &mut Mono)
@@ -548,7 +554,8 @@ mod tests {
         let scene = scene(&BarModel { active: Some(2), ..model() }, &theme(), &mut Mono);
         let first = scene.target_rect(&BarTarget::Workspace(1)).unwrap();
         let second = scene.target_rect(&BarTarget::Workspace(2)).unwrap();
-        let mark = |r: Rect| scene.nodes.iter().any(|n| matches!(n, Node::Rect { rect, .. } if rect.w == 4.0 && r.contains(rect.x, rect.y)));
+        let mark =
+            |r: Rect| scene.nodes.iter().any(|n| matches!(n, Node::Rect { rect, .. } if rect.w == 4.0 && r.contains(rect.x, rect.y)));
         let lit = |r: Rect| scene.nodes.iter().any(|n| matches!(n, Node::Rect { rect, .. } if *rect == r));
         assert!(mark(first) && !lit(first));
         assert!(!mark(second) && lit(second));

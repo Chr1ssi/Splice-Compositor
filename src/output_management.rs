@@ -16,8 +16,7 @@ use smithay::{
             zwlr_output_mode_v1::ZwlrOutputModeV1,
         },
         wayland_server::{
-            Client, DataInit, Dispatch, DisplayHandle, GlobalDispatch, New, Resource,
-            backend::GlobalId,
+            Client, DataInit, Dispatch, DisplayHandle, GlobalDispatch, New, Resource, backend::GlobalId,
             protocol::wl_output::Transform as WlTransform,
         },
     },
@@ -133,12 +132,7 @@ impl State {
             {
                 return false;
             }
-            output.change_current_state(
-                change.mode,
-                change.transform,
-                change.scale.map(Scale::Fractional),
-                change.position,
-            );
+            output.change_current_state(change.mode, change.transform, change.scale.map(Scale::Fractional), change.position);
             if let Some(position) = change.position {
                 self.space.map_output(output, position);
             }
@@ -204,11 +198,7 @@ impl GlobalDispatch<ZwlrOutputManagerV1, (), State> for State {
         data_init: &mut DataInit<'_, State>,
     ) {
         let manager = data_init.init(resource, ());
-        let heads = state
-            .outputs
-            .iter()
-            .filter_map(|e| send_head(dh, client, &manager, &e.output))
-            .collect();
+        let heads = state.outputs.iter().filter_map(|e| send_head(dh, client, &manager, &e.output)).collect();
         manager.done(state.output_management.serial);
         state.output_management.managers.push(Manager { resource: manager, heads });
     }
@@ -287,7 +277,14 @@ impl Dispatch<ZwlrOutputConfigurationV1, Shared, State> for State {
                     resource.post_error(zwlr_output_configuration_v1::Error::AlreadyConfiguredHead, "head configured twice");
                     return;
                 }
-                config.heads.push(HeadChange { output: output.clone(), enabled: true, mode: None, position: None, transform: None, scale: None });
+                config.heads.push(HeadChange {
+                    output: output.clone(),
+                    enabled: true,
+                    mode: None,
+                    position: None,
+                    transform: None,
+                    scale: None,
+                });
                 drop(config);
                 data_init.init(id, ConfigHeadData { state: data.clone(), output });
             }

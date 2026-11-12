@@ -4,14 +4,14 @@
 //! of them, what its clicks do, and the way to the settings app.
 use std::time::Duration;
 
+use smithay::reexports::calloop::{
+    channel,
+    timer::{TimeoutAction, Timer},
+};
 use splice_shell_protocol::{Bluetooth, Command};
 use splice_ui::{
     bar::Panel,
     control::{AdapterView, ControlModel, ControlTarget, DeviceBusy, DeviceView},
-};
-use smithay::reexports::calloop::{
-    channel,
-    timer::{TimeoutAction, Timer},
 };
 
 use crate::State;
@@ -45,7 +45,8 @@ pub fn parse_addresses(text: &str) -> Vec<(String, String)> {
     text.lines()
         .filter_map(|line| {
             let fields: Vec<&str> = line.split_whitespace().collect();
-            (fields.len() > 3 && fields[2] == "inet").then(|| (fields[1].to_owned(), fields[3].split('/').next().unwrap_or_default().to_owned()))
+            (fields.len() > 3 && fields[2] == "inet")
+                .then(|| (fields[1].to_owned(), fields[3].split('/').next().unwrap_or_default().to_owned()))
         })
         .collect()
 }
@@ -64,7 +65,8 @@ impl State {
     fn night_light_set(&mut self, on: bool) {
         self.shell.control.night_light = on;
         if let Some(file) = night_light_file() {
-            let written = file.parent().map_or(Ok(()), std::fs::create_dir_all).and_then(|()| std::fs::write(&file, if on { "1\n" } else { "0\n" }));
+            let written =
+                file.parent().map_or(Ok(()), std::fs::create_dir_all).and_then(|()| std::fs::write(&file, if on { "1\n" } else { "0\n" }));
             if let Err(error) = written {
                 tracing::warn!("night light: cannot keep the choice in {}: {error}", file.display());
             }

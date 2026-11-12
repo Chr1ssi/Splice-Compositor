@@ -6,16 +6,14 @@ use smithay::{
     delegate_xwayland_shell,
     desktop::Window,
     reexports::{
-        calloop::{generic::Generic, Interest, Mode, PostAction, RegistrationToken},
+        calloop::{Interest, Mode, PostAction, RegistrationToken, generic::Generic},
         wayland_server::protocol::wl_surface::WlSurface,
     },
     utils::{Logical, Rectangle},
     wayland::{
         selection::{
             SelectionHandler, SelectionSource, SelectionTarget,
-            data_device::{
-                clear_data_device_selection, request_data_device_client_selection, set_data_device_selection,
-            },
+            data_device::{clear_data_device_selection, request_data_device_client_selection, set_data_device_selection},
             primary_selection::{clear_primary_selection, request_primary_client_selection, set_primary_selection},
         },
         xwayland_shell::{XWaylandShellHandler, XWaylandShellState},
@@ -48,7 +46,8 @@ fn cursor_environment() -> Vec<(String, String)> {
         dirs.dedup();
         dirs.join(":")
     });
-    let mut env = vec![("XCURSOR_PATH".to_owned(), path), ("XCURSOR_SIZE".to_owned(), current("XCURSOR_SIZE").unwrap_or_else(|| "24".to_owned()))];
+    let mut env =
+        vec![("XCURSOR_PATH".to_owned(), path), ("XCURSOR_SIZE".to_owned(), current("XCURSOR_SIZE").unwrap_or_else(|| "24".to_owned()))];
     if let Some(theme) = current("XCURSOR_THEME") {
         env.push(("XCURSOR_THEME".to_owned(), theme));
     }
@@ -397,14 +396,7 @@ impl SelectionHandler for State {
     }
 
     /// An X11 client wants the selection an X11 client owns.
-    fn send_selection(
-        &mut self,
-        ty: SelectionTarget,
-        mime_type: String,
-        fd: OwnedFd,
-        _seat: smithay::input::Seat<Self>,
-        _user_data: &(),
-    ) {
+    fn send_selection(&mut self, ty: SelectionTarget, mime_type: String, fd: OwnedFd, _seat: smithay::input::Seat<Self>, _user_data: &()) {
         if let Some(xwm) = self.xwm.as_mut()
             && let Err(error) = xwm.send_selection(ty, mime_type, fd, self.loop_handle.clone())
         {

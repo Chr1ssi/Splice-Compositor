@@ -50,13 +50,16 @@ impl Date {
         const OFFSETS: [i32; 12] = [0, 3, 2, 5, 0, 3, 5, 1, 4, 6, 2, 4];
         let year = if self.month < 3 { self.year - 1 } else { self.year };
         let index = (self.month.clamp(1, 12) - 1) as usize;
-        let sunday_first = (year + year.div_euclid(4) - year.div_euclid(100) + year.div_euclid(400) + OFFSETS[index] + self.day as i32).rem_euclid(7);
+        let sunday_first =
+            (year + year.div_euclid(4) - year.div_euclid(100) + year.div_euclid(400) + OFFSETS[index] + self.day as i32).rem_euclid(7);
         ((sunday_first + 6) % 7) as u32
     }
 }
 
-const MONTHS_DE: [&str; 12] = ["Januar", "Februar", "März", "April", "Mai", "Juni", "Juli", "August", "September", "Oktober", "November", "Dezember"];
-const MONTHS_EN: [&str; 12] = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+const MONTHS_DE: [&str; 12] =
+    ["Januar", "Februar", "März", "April", "Mai", "Juni", "Juli", "August", "September", "Oktober", "November", "Dezember"];
+const MONTHS_EN: [&str; 12] =
+    ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 /// Qt's stand-alone short day names (CLDR), from Monday.
 const DAYS_DE: [&str; 7] = ["Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"];
 const DAYS_EN: [&str; 7] = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
@@ -263,7 +266,16 @@ fn rect(content: &mut Content, rect: Rect, radius: f32, fill: Color, border: Opt
 }
 
 #[allow(clippy::too_many_arguments)]
-fn button(content: &mut Content, theme: &Theme, rect: Rect, text: &str, selected: bool, enabled: bool, target: CalendarTarget, hover: Option<&PanelTarget>) {
+fn button(
+    content: &mut Content,
+    theme: &Theme,
+    rect: Rect,
+    text: &str,
+    selected: bool,
+    enabled: bool,
+    target: CalendarTarget,
+    hover: Option<&PanelTarget>,
+) {
     let target = PanelTarget::Calendar(target);
     let mut scene: Scene<()> = Scene::new(rect.w, 0.0);
     button_shape(&mut scene, theme, rect, text, false, selected, false, enabled && hover == Some(&target));
@@ -299,7 +311,16 @@ fn field_box(content: &mut Content, theme: &Theme, area: Rect, focused: bool) {
 
 /// A text field: the line scrolls so that the cursor stays in view.
 #[allow(clippy::too_many_arguments)]
-fn text_field(content: &mut Content, theme: &Theme, measure: &mut impl Measure, area: Rect, input: &Input, placeholder: &str, focused: bool, field: Field) {
+fn text_field(
+    content: &mut Content,
+    theme: &Theme,
+    measure: &mut impl Measure,
+    area: Rect,
+    input: &Input,
+    placeholder: &str,
+    focused: bool,
+    field: Field,
+) {
     field_box(content, theme, area, focused);
     let inner = Rect::new(area.x + FIELD_PADDING, area.y, area.w - 2.0 * FIELD_PADDING, area.h);
     let cursor_x = measure.width(&input.text[..input.cursor], FIELD_TEXT);
@@ -354,7 +375,16 @@ fn choice_list(content: &mut Content, theme: &Theme, area: Rect, names: &[String
 
 /// An event's card: a stripe in its calendar's color, its title and `detail`. Returns its height.
 #[allow(clippy::too_many_arguments)]
-fn card(content: &mut Content, theme: &Theme, measure: &mut impl Measure, y: f32, width: f32, event: &EventView, detail: String, language: Language) -> f32 {
+fn card(
+    content: &mut Content,
+    theme: &Theme,
+    measure: &mut impl Measure,
+    y: f32,
+    width: f32,
+    event: &EventView,
+    detail: String,
+    language: Language,
+) -> f32 {
     let (title_style, detail_style) = (TextStyle::new(15.0), TextStyle::new(13.0));
     let (title_h, detail_h) = (measure.line_height(title_style), measure.line_height(detail_style));
     let column_h = title_h + 2.0 + detail_h;
@@ -380,7 +410,14 @@ fn line(content: &mut Content, measure: &mut impl Measure, y: f32, width: f32, t
     height
 }
 
-pub fn content(model: &CalendarModel, hover: Option<&PanelTarget>, theme: &Theme, measure: &mut impl Measure, width: f32, language: Language) -> Content {
+pub fn content(
+    model: &CalendarModel,
+    hover: Option<&PanelTarget>,
+    theme: &Theme,
+    measure: &mut impl Measure,
+    width: f32,
+    language: Language,
+) -> Content {
     let tr = |text| language.tr(text);
     let mut content = Content::default();
 
@@ -467,14 +504,29 @@ pub fn content(model: &CalendarModel, hover: Option<&PanelTarget>, theme: &Theme
             choice_area = Some(area);
         }
         let text = if form.saving { tr("Wird gespeichert …") } else { tr("Termin erstellen") };
-        button(&mut content, theme, Rect::new(0.0, y + 4.0 * FIELD_ROW, width, BUTTON_HEIGHT), text, false, !form.saving, CalendarTarget::Create, hover);
+        button(
+            &mut content,
+            theme,
+            Rect::new(0.0, y + 4.0 * FIELD_ROW, width, BUTTON_HEIGHT),
+            text,
+            false,
+            !form.saving,
+            CalendarTarget::Create,
+            hover,
+        );
         y += 4.0 * FIELD_ROW + BUTTON_HEIGHT + SPACING;
     }
 
     if let Some(error) = model.error {
         let text = error.text(language);
         let height = measure.paragraph_height(text, TEXT, width);
-        content.push(Node::Paragraph { rect: Rect::new(0.0, y, width, height), text: text.to_owned(), style: TEXT, color: theme.muted, align: Align::Left });
+        content.push(Node::Paragraph {
+            rect: Rect::new(0.0, y, width, height),
+            text: text.to_owned(),
+            style: TEXT,
+            color: theme.muted,
+            align: Align::Left,
+        });
         y += height + SPACING;
     }
     let selected = model.selected.iso();
@@ -506,7 +558,16 @@ pub fn content(model: &CalendarModel, hover: Option<&PanelTarget>, theme: &Theme
     if model.error.is_none() && upcoming.is_empty() {
         y += line(&mut content, measure, y, width, tr("Keine anstehenden Termine im geladenen Zeitraum."), TEXT, theme.muted) + SPACING;
     }
-    button(&mut content, theme, Rect::new(0.0, y, width, BUTTON_HEIGHT), tr("Kalender-App öffnen"), false, true, CalendarTarget::OpenApp, hover);
+    button(
+        &mut content,
+        theme,
+        Rect::new(0.0, y, width, BUTTON_HEIGHT),
+        tr("Kalender-App öffnen"),
+        false,
+        true,
+        CalendarTarget::OpenApp,
+        hover,
+    );
     content.height = y + BUTTON_HEIGHT;
 
     // The open list lies over everything after the choice (and takes the clicks there).
@@ -527,7 +588,14 @@ mod tests {
     }
 
     fn texts(content: &Content) -> Vec<String> {
-        content.nodes.iter().filter_map(|n| match n { Node::Label { text, .. } | Node::Paragraph { text, .. } => Some(text.clone()), _ => None }).collect()
+        content
+            .nodes
+            .iter()
+            .filter_map(|n| match n {
+                Node::Label { text, .. } | Node::Paragraph { text, .. } => Some(text.clone()),
+                _ => None,
+            })
+            .collect()
     }
 
     fn target(content: &Content, target: CalendarTarget) -> Option<Rect> {
@@ -535,7 +603,15 @@ mod tests {
     }
 
     fn event(title: &str, start: &str, end: &str) -> EventView {
-        EventView { title: title.into(), calendar: "Privat".into(), start_date: start.into(), end_date: end.into(), start_time: "09:00".into(), end_time: "10:00".into(), ..EventView::default() }
+        EventView {
+            title: title.into(),
+            calendar: "Privat".into(),
+            start_date: start.into(),
+            end_date: end.into(),
+            start_time: "09:00".into(),
+            end_time: "10:00".into(),
+            ..EventView::default()
+        }
     }
 
     fn model() -> CalendarModel {
@@ -544,7 +620,10 @@ mod tests {
             today,
             month: today.first_of_month(0),
             selected: today,
-            events: vec![event("Zahnarzt", "2026-10-20", "2026-10-20"), EventView { all_day: true, ..event("", "2026-10-23", "2026-10-24") }],
+            events: vec![
+                event("Zahnarzt", "2026-10-20", "2026-10-20"),
+                EventView { all_day: true, ..event("", "2026-10-23", "2026-10-24") },
+            ],
             calendars: vec!["Arbeit".into(), "Privat".into()],
             error: None,
             creating: false,
@@ -583,7 +662,17 @@ mod tests {
     fn the_month_starts_on_its_weekday_and_marks_days() {
         let content = content(&model(), None, &theme(), &mut Mono, 360.0, Language::German);
         let texts = texts(&content);
-        for text in ["Oktober 2026", "Mo", "So", "Termine am 20. Oktober", "Zahnarzt", "09:00–10:00  ·  Privat", "(Ohne Titel)", "23.10.  ·  Ganztägig  ·  Privat", "Kalender-App öffnen"] {
+        for text in [
+            "Oktober 2026",
+            "Mo",
+            "So",
+            "Termine am 20. Oktober",
+            "Zahnarzt",
+            "09:00–10:00  ·  Privat",
+            "(Ohne Titel)",
+            "23.10.  ·  Ganztägig  ·  Privat",
+            "Kalender-App öffnen",
+        ] {
             assert!(texts.contains(&text.to_owned()), "{text} missing in {texts:?}");
         }
         assert!(!texts.contains(&"Keine Termine an diesem Tag.".to_owned()));
@@ -596,7 +685,11 @@ mod tests {
         // The 23rd and 24th have the all-day event's dot.
         let dots = |day| {
             let cell = target(&content, CalendarTarget::Day(day)).unwrap();
-            content.nodes.iter().filter(|n| matches!(n, Node::Rect { rect, .. } if rect.w == 4.0 && rect.h == 4.0 && cell.contains(rect.x, rect.y))).count()
+            content
+                .nodes
+                .iter()
+                .filter(|n| matches!(n, Node::Rect { rect, .. } if rect.w == 4.0 && rect.h == 4.0 && cell.contains(rect.x, rect.y)))
+                .count()
         };
         assert_eq!((dots(20), dots(23), dots(24), dots(25)), (1, 1, 1, 0));
     }
@@ -654,7 +747,10 @@ mod tests {
         form.input_mut(Field::Title).insert("  Zahnarzt ");
         form.input_mut(Field::Location).insert(" Praxis");
         let made = new_event(&form, &calendars, date).unwrap();
-        assert_eq!((made.title.as_str(), made.location.as_str(), made.start.as_str(), made.calendar.as_str()), ("Zahnarzt", "Praxis", "09:00", "Arbeit"));
+        assert_eq!(
+            (made.title.as_str(), made.location.as_str(), made.start.as_str(), made.calendar.as_str()),
+            ("Zahnarzt", "Praxis", "09:00", "Arbeit")
+        );
         for (start, end) in [("10:00", "09:00"), ("9:00", "10:00"), ("09:00", "10:00x"), ("09:00", "09:00")] {
             form.inputs[Field::Start.index()] = Input::new(start);
             form.inputs[Field::End.index()] = Input::new(end);
@@ -674,7 +770,11 @@ mod tests {
         assert!(!texts.iter().any(|t| t.starts_with("No ")), "{texts:?}");
         let english = CalendarModel { time_language: Language::English, ..model };
         let texts = texts_of(&english);
-        assert!(texts.contains(&"October 2026".to_owned()) && texts.contains(&"Mon".to_owned()) && texts.contains(&"Events on 20. October".to_owned()));
+        assert!(
+            texts.contains(&"October 2026".to_owned())
+                && texts.contains(&"Mon".to_owned())
+                && texts.contains(&"Events on 20. October".to_owned())
+        );
     }
 
     fn texts_of(model: &CalendarModel) -> Vec<String> {

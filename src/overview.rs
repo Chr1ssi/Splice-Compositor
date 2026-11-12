@@ -10,13 +10,16 @@
 //! Enter) its monitor, `d` a dynamic cast; closing it in any way answers that nothing was picked.
 use std::time::{Duration, Instant};
 
-use splice_ipc::{Chosen, SourceKinds};
-use splice_layout::{Rect, Workspace, arrange, place_floating};
 use smithay::{
     backend::{
         input::ButtonState,
         renderer::{
-            element::{AsRenderElements, Id, Kind, utils::{CropRenderElement, RescaleRenderElement}, solid::SolidColorRenderElement, surface::WaylandSurfaceRenderElement},
+            element::{
+                AsRenderElements, Id, Kind,
+                solid::SolidColorRenderElement,
+                surface::WaylandSurfaceRenderElement,
+                utils::{CropRenderElement, RescaleRenderElement},
+            },
             gles::GlesRenderer,
             utils::CommitCounter,
         },
@@ -24,8 +27,15 @@ use smithay::{
     output::Output,
     utils::{Logical, Physical, Point, Rectangle, Scale},
 };
+use splice_ipc::{Chosen, SourceKinds};
+use splice_layout::{Rect, Workspace, arrange, place_floating};
 
-use crate::{State, desktop::{Managed, WindowId, ease_out}, render::{Blank, OutputElement}, screenshot::ModalKey};
+use crate::{
+    State,
+    desktop::{Managed, WindowId, ease_out},
+    render::{Blank, OutputElement},
+    screenshot::ModalKey,
+};
 
 const BTN_LEFT: u32 = 0x110;
 const BTN_MIDDLE: u32 = 0x112;
@@ -206,7 +216,13 @@ impl State {
                 Cell::Workspace(number) => {
                     let Some(workspace) = monitor.workspaces.get(number) else { continue };
                     // Lay the workspace out as it would be shown (on a copy: arranging scrolls it).
-                    let mut copy = Workspace { number: workspace.number, kind: workspace.kind, windows: workspace.windows.clone(), focused: workspace.focused, scroll: workspace.scroll };
+                    let mut copy = Workspace {
+                        number: workspace.number,
+                        kind: workspace.kind,
+                        windows: workspace.windows.clone(),
+                        focused: workspace.focused,
+                        scroll: workspace.scroll,
+                    };
                     arrange(&mut copy, &infos, usable, area, &d.appearance)
                 }
                 // The scratchpad as it would appear on this monitor.
@@ -221,16 +237,14 @@ impl State {
             };
             // A scrolling workspace reaches beyond the screen: shrink the picture until every window fits.
             let left = placements.iter().map(|p| p.content.x).min().unwrap_or(area.x).min(area.x);
-            let right = placements.iter().map(|p| p.content.x + p.content.width).max().unwrap_or(area.x + area.width).max(area.x + area.width);
+            let right =
+                placements.iter().map(|p| p.content.x + p.content.width).max().unwrap_or(area.x + area.width).max(area.x + area.width);
             let span = f64::from((right - left).max(1));
             let k = f64::from(cell.size.w) / span;
             // Placements come back in paint order (back to front); we list front to back.
             for placement in placements.iter().rev() {
                 let Rect { x, y, width, height } = placement.content;
-                let origin = (
-                    f64::from(cell.loc.x) + f64::from(x - left) * k,
-                    f64::from(cell.loc.y) + f64::from(y - area.y) * k,
-                );
+                let origin = (f64::from(cell.loc.x) + f64::from(x - left) * k, f64::from(cell.loc.y) + f64::from(y - area.y) * k);
                 let slot = Rectangle::new(
                     (origin.0.round() as i32, origin.1.round() as i32).into(),
                     ((f64::from(width) * k).round() as i32, (f64::from(height) * k).round() as i32).into(),
@@ -423,7 +437,9 @@ impl State {
             return self.share_from_overview(index, None);
         }
         let Some(part) = self.overview.as_ref().and_then(|o| o.parts.get(index)) else { return };
-        let (Some(monitor), Some(cell)) = (self.part_monitor(part), self.overview_cell_kinds(part).get(part.selected).copied()) else { return };
+        let (Some(monitor), Some(cell)) = (self.part_monitor(part), self.overview_cell_kinds(part).get(part.selected).copied()) else {
+            return;
+        };
         self.end_overview(Chosen::Nothing);
         match cell {
             Cell::Workspace(number) => self.select_workspace_on(monitor, number),
@@ -448,7 +464,10 @@ impl State {
         }
         let Some(part) = self.part_under_pointer().and_then(|index| self.overview.as_ref()?.parts.get(index)) else { return };
         let Some(monitor) = self.part_monitor(part) else { return };
-        let Some(cell) = self.overview_cell_at(part, self.pointer_location).and_then(|i| self.overview_cell_kinds(part).get(i).copied()) else { return };
+        let Some(cell) = self.overview_cell_at(part, self.pointer_location).and_then(|i| self.overview_cell_kinds(part).get(i).copied())
+        else {
+            return;
+        };
         match cell {
             Cell::Workspace(number) if self.desktop.desk.locate(&id).map(|(_, n)| n) != Some(number) => {
                 self.move_window_to_workspace(id, number);
@@ -537,8 +556,7 @@ impl State {
         // Cropped solids (the `Border` variant) rather than plain ones, which are the capture-exempt overlay.
         let solid = |area: Rectangle<i32, Physical>, color: [f32; 4]| {
             let element = SolidColorRenderElement::new(Id::new(), area, CommitCounter::default(), color, Kind::Unspecified);
-            CropRenderElement::from_element(element, scale, full)
-                .map(OutputElement::from)
+            CropRenderElement::from_element(element, scale, full).map(OutputElement::from)
         };
         // Colors are premultiplied: fading scales every channel.
         let faded = |color: [f32; 4], alpha: f32| color.map(|channel| channel * alpha);

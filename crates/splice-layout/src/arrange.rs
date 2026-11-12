@@ -27,21 +27,13 @@ pub struct Placement<Id> {
 }
 
 /// Place one floating window; its rect is constrained to the work area.
-pub fn place_floating<Id: Clone>(
-    window: &WindowInfo<Id>,
-    work_area: Rect,
-    appearance: &Appearance,
-) -> Placement<Id> {
+pub fn place_floating<Id: Clone>(window: &WindowInfo<Id>, work_area: Rect, appearance: &Appearance) -> Placement<Id> {
     let rect = window
         .floating_rect
         .unwrap_or_else(|| Rect::centered(work_area.width, work_area.height))
         .constrained(work_area.width, work_area.height);
-    let (content, border) = appearance.content(Rect {
-        x: work_area.x + rect.x,
-        y: work_area.y + rect.y,
-        width: rect.width,
-        height: rect.height,
-    });
+    let (content, border) =
+        appearance.content(Rect { x: work_area.x + rect.x, y: work_area.y + rect.y, width: rect.width, height: rect.height });
     Placement { id: window.id.clone(), content, border, fullscreen: false, floating_rect: Some(rect) }
 }
 
@@ -74,13 +66,7 @@ pub fn arrange<Id: Clone + Eq>(
 
     let viewport = appearance.viewport(work_area);
     let widths: Vec<_> = all_tiled.iter().map(|w| w.tiled_width).collect();
-    let (scroll, columns) = scrolling::variable_columns(
-        viewport.width,
-        &widths,
-        focused,
-        workspace.scroll,
-        appearance.gaps_inner,
-    );
+    let (scroll, columns) = scrolling::variable_columns(viewport.width, &widths, focused, workspace.scroll, appearance.gaps_inner);
     workspace.scroll = scroll;
 
     let mut placements = Vec::new();
@@ -88,19 +74,9 @@ pub fn arrange<Id: Clone + Eq>(
         if window.fullscreen {
             continue;
         }
-        let (content, border) = appearance.content(Rect {
-            x: viewport.x + left,
-            y: viewport.y,
-            width: column_width,
-            height: viewport.height,
-        });
-        placements.push(Placement {
-            id: window.id.clone(),
-            content,
-            border,
-            fullscreen: false,
-            floating_rect: None,
-        });
+        let (content, border) =
+            appearance.content(Rect { x: viewport.x + left, y: viewport.y, width: column_width, height: viewport.height });
+        placements.push(Placement { id: window.id.clone(), content, border, fullscreen: false, floating_rect: None });
     }
 
     for window in in_workspace.iter().filter(|w| w.floating && !w.fullscreen) {

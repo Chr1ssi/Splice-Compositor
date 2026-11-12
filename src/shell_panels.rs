@@ -2,6 +2,7 @@
 //! whose button was clicked. A click into a panel gives it the keyboard (Escape closes it), as its window got it on
 //! demand; a button pressed anywhere but the panel and the bar closes it, as the window did when it lost the
 //! keyboard. The wheel scrolls the notification list where it is over it, else the panel's area.
+use smithay::{backend::renderer::gles::GlesRenderer, output::Output};
 use splice_shell_protocol::{Command, NodeKind, PlayerAction};
 use splice_ui::{
     audio::{self, AudioModel, AudioTarget, NodeView},
@@ -11,7 +12,6 @@ use splice_ui::{
     panel::{self, ContentModel, PanelModel, PanelTarget, SCROLL_STEP},
     text::Fonts,
 };
-use smithay::{backend::renderer::gles::GlesRenderer, output::Output};
 
 use crate::{
     State,
@@ -134,7 +134,8 @@ impl State {
             AudioTarget::Mute(id) => self.node_toggle_mute(id),
             AudioTarget::ToggleOutputs | AudioTarget::ToggleInputs => {
                 if let Some(panel) = &mut self.shell.panel {
-                    let expanded = if target == AudioTarget::ToggleOutputs { &mut panel.outputs_expanded } else { &mut panel.inputs_expanded };
+                    let expanded =
+                        if target == AudioTarget::ToggleOutputs { &mut panel.outputs_expanded } else { &mut panel.inputs_expanded };
                     *expanded = !*expanded;
                 }
                 self.shell_changed();

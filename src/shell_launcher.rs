@@ -4,6 +4,11 @@
 //! they went past the Quickshell window. Starting an application, Escape or the binding of a lock closes it.
 use std::collections::HashMap;
 
+use smithay::{
+    backend::renderer::gles::GlesRenderer,
+    input::keyboard::{Keysym, keysyms},
+    output::Output,
+};
 use splice_shell_protocol::{Application, Command, Image};
 use splice_ui::{
     edit::Input,
@@ -11,11 +16,6 @@ use splice_ui::{
     panel::SCROLL_STEP,
     scene::Picture,
     text::Fonts,
-};
-use smithay::{
-    backend::renderer::gles::GlesRenderer,
-    input::keyboard::{Keysym, keysyms},
-    output::Output,
 };
 
 use crate::{
@@ -61,7 +61,8 @@ impl State {
         self.panel_close();
         self.tray_menu_close();
         self.wallpaper_picker_close();
-        self.shell.launcher = Some(Launcher { output, query: Input::default(), selected: 0, scroll: 0.0, results: Vec::new(), model: None, painted: None });
+        self.shell.launcher =
+            Some(Launcher { output, query: Input::default(), selected: 0, scroll: 0.0, results: Vec::new(), model: None, painted: None });
         self.services_send(Command::Applications);
         self.sync_focus();
         self.shell_changed();

@@ -232,7 +232,13 @@ fn card_scene(model: &LockModel, theme: &Theme, measure: &mut impl Measure) -> (
     let mut scene = Scene::new(width, card.y + card.h + 1.0);
 
     let y = top(h * 0.16);
-    scene.push(Node::Label { rect: Rect::new(left, y, width, clock_h), text: model.time.clone(), style: CLOCK, color: theme.text, align: Align::Center });
+    scene.push(Node::Label {
+        rect: Rect::new(left, y, width, clock_h),
+        text: model.time.clone(),
+        style: CLOCK,
+        color: theme.text,
+        align: Align::Center,
+    });
     let y = y + clock_h + 4.0;
     let date_color = if deck { theme.secondary } else { theme.text };
     let date = Node::Label { rect: Rect::new(left, y, width, date_h), text: date, style: DATE, color: date_color, align: Align::Center };
@@ -243,11 +249,26 @@ fn card_scene(model: &LockModel, theme: &Theme, measure: &mut impl Measure) -> (
     let x = card.x + CARD_PADDING;
     let mut y = card.y + CARD_PADDING;
     if deck {
-        let (kind, size) = (if model.show_power { "SPLICE // LOGIN" } else { "SPLICE // LOCK" }, format!("{}×{}", model.output.0 as i32, model.output.1 as i32));
+        let (kind, size) = (
+            if model.show_power { "SPLICE // LOGIN" } else { "SPLICE // LOCK" },
+            format!("{}×{}", model.output.0 as i32, model.output.1 as i32),
+        );
         let height = measure.line_height(TAG);
-        scene.push(Node::Label { rect: Rect::new(x, y, inner, height), text: kind.into(), style: TAG, color: theme.accent, align: Align::Left });
+        scene.push(Node::Label {
+            rect: Rect::new(x, y, inner, height),
+            text: kind.into(),
+            style: TAG,
+            color: theme.accent,
+            align: Align::Left,
+        });
         let size_w = measure.width(&size, TAG).ceil();
-        scene.push(Node::Label { rect: Rect::new(x + inner - size_w, y, size_w, height), text: size, style: TAG, color: theme.muted, align: Align::Left });
+        scene.push(Node::Label {
+            rect: Rect::new(x + inner - size_w, y, size_w, height),
+            text: size,
+            style: TAG,
+            color: theme.muted,
+            align: Align::Left,
+        });
         y += tag_h;
     }
 
@@ -274,7 +295,13 @@ fn card_scene(model: &LockModel, theme: &Theme, measure: &mut impl Measure) -> (
             y += FIELD_HEIGHT + SPACING;
         }
         None => {
-            scene.push(Node::Label { rect: Rect::new(x, y, inner, name_h), text: model.user.clone(), style: NAME, color: theme.text, align: Align::Center });
+            scene.push(Node::Label {
+                rect: Rect::new(x, y, inner, name_h),
+                text: model.user.clone(),
+                style: NAME,
+                color: theme.text,
+                align: Align::Center,
+            });
             y += name_h + SPACING;
         }
     }
@@ -294,7 +321,8 @@ fn card_scene(model: &LockModel, theme: &Theme, measure: &mut impl Measure) -> (
     let dots = "●".repeat(model.password_len);
     field_text(&mut scene, measure, theme, area, &dots, dots.len(), model.language.tr("Passwort"), has_focus);
 
-    let submit = Rect::new(field.x + field.w - SUBMIT_MARGIN - SUBMIT_SIZE, field.y + (field.h - SUBMIT_SIZE) / 2.0, SUBMIT_SIZE, SUBMIT_SIZE);
+    let submit =
+        Rect::new(field.x + field.w - SUBMIT_MARGIN - SUBMIT_SIZE, field.y + (field.h - SUBMIT_SIZE) / 2.0, SUBMIT_SIZE, SUBMIT_SIZE);
     let hovered = model.hover == Some(LockTarget::Submit);
     let (fill, icon_color) = if hovered { (theme.accent, theme.background) } else { (theme.surface, theme.accent) };
     scene.push(Node::Rect { rect: submit, radius: SUBMIT_SIZE / 2.0, fill, border: None });
@@ -403,7 +431,8 @@ fn side_scenes(model: &LockModel, theme: &Theme, measure: &mut impl Measure, car
     let card_w = CARD_WIDTH.min(w - 48.0).max(0.0);
     let k = side_scale(h);
     let side_w = (SIDE_WIDTH * k).floor();
-    if theme.shape != Shape::Chamfer || !model.show_power || w < CARD_WIDTH + 2.0 * side_w + SIDE_GAP + SIDE_GAP_RIGHT + 2.0 * ISLAND_MARGIN {
+    if theme.shape != Shape::Chamfer || !model.show_power || w < CARD_WIDTH + 2.0 * side_w + SIDE_GAP + SIDE_GAP_RIGHT + 2.0 * ISLAND_MARGIN
+    {
         return Vec::new();
     }
     let style = TextStyle::new(SIDE.size * k);
@@ -415,7 +444,13 @@ fn side_scenes(model: &LockModel, theme: &Theme, measure: &mut impl Measure, car
     for (index, line) in LOGIN_FLOW.iter().enumerate() {
         let y = index as f32 * line_h;
         if index == 0 {
-            flow.push(Node::Label { rect: Rect::new(0.0, y, side_w, line_h), text: (*line).into(), style, color: theme.accent, align: Align::Left });
+            flow.push(Node::Label {
+                rect: Rect::new(0.0, y, side_w, line_h),
+                text: (*line).into(),
+                style,
+                color: theme.accent,
+                align: Align::Left,
+            });
             continue;
         }
         // Colored like a code editor does: keywords and types stand out, comments sink.
@@ -452,12 +487,36 @@ fn side_scenes(model: &LockModel, theme: &Theme, measure: &mut impl Measure, car
     for (index, (marker, marker_color, key, value, value_color)) in rows.into_iter().enumerate() {
         let y = index as f32 * line_h;
         if index == 0 {
-            status.push(Node::Label { rect: Rect::new(0.0, y, side_w, line_h), text: key.into(), style, color: theme.accent, align: Align::Left });
+            status.push(Node::Label {
+                rect: Rect::new(0.0, y, side_w, line_h),
+                text: key.into(),
+                style,
+                color: theme.accent,
+                align: Align::Left,
+            });
             continue;
         }
-        status.push(Node::Label { rect: Rect::new(0.0, y, 62.0 * k, line_h), text: marker.into(), style, color: marker_color, align: Align::Left });
-        status.push(Node::Label { rect: Rect::new(68.0 * k, y, 80.0 * k, line_h), text: key.into(), style, color: theme.muted, align: Align::Left });
-        status.push(Node::Label { rect: Rect::new(154.0 * k, y, side_w - 154.0 * k, line_h), text: value, style, color: value_color, align: Align::Left });
+        status.push(Node::Label {
+            rect: Rect::new(0.0, y, 62.0 * k, line_h),
+            text: marker.into(),
+            style,
+            color: marker_color,
+            align: Align::Left,
+        });
+        status.push(Node::Label {
+            rect: Rect::new(68.0 * k, y, 80.0 * k, line_h),
+            text: key.into(),
+            style,
+            color: theme.muted,
+            align: Align::Left,
+        });
+        status.push(Node::Label {
+            rect: Rect::new(154.0 * k, y, side_w - 154.0 * k, line_h),
+            text: value,
+            style,
+            color: value_color,
+            align: Align::Left,
+        });
     }
     let (left, right) = ((card_x - SIDE_GAP - side_w).floor(), (card_x + card_w + SIDE_GAP_RIGHT).ceil());
     let (flow_at, status_at) = (place(flow.height, left), place(status.height, right));
@@ -515,7 +574,14 @@ mod tests {
     }
 
     fn greeter() -> LockModel {
-        LockModel { ask_user: Some(0), user: String::new(), focus: LockTarget::User, sessions: vec!["splice".into(), "Andere".into()], show_power: true, ..model() }
+        LockModel {
+            ask_user: Some(0),
+            user: String::new(),
+            focus: LockTarget::User,
+            sessions: vec!["splice".into(), "Andere".into()],
+            show_power: true,
+            ..model()
+        }
     }
 
     /// Where `target` lies on the monitor, in whichever scene has it.
@@ -583,14 +649,17 @@ mod tests {
         // One session is no choice.
         let single = LockModel { sessions: vec!["splice".into()], ..greeter() };
         assert_eq!(scenes(&single, &theme(), &mut Mono).len(), 2);
-        assert_eq!(focus_chain(true, 2, true), [
-            LockTarget::User,
-            LockTarget::Password,
-            LockTarget::Session(0),
-            LockTarget::Session(1),
-            LockTarget::Reboot,
-            LockTarget::Poweroff
-        ]);
+        assert_eq!(
+            focus_chain(true, 2, true),
+            [
+                LockTarget::User,
+                LockTarget::Password,
+                LockTarget::Session(0),
+                LockTarget::Session(1),
+                LockTarget::Reboot,
+                LockTarget::Poweroff
+            ]
+        );
         assert_eq!(focus_chain(false, 1, false), [LockTarget::Password]);
     }
 
@@ -637,12 +706,12 @@ mod tests {
         let shown = scenes(&wide, &deck(), &mut Mono);
         assert_eq!(shown.len(), scenes(&wide, &theme(), &mut Mono).len() + 2);
         let (flow, status) = (&shown[1], &shown[2]);
-        let card = shown[0].0.target_rect(&LockTarget::Card).unwrap().translated(shown[0].1 .0, shown[0].1 .1);
+        let card = shown[0].0.target_rect(&LockTarget::Card).unwrap().translated(shown[0].1.0, shown[0].1.1);
         // Left and right of the card, the status column further away, both centered on its height.
-        assert_eq!(flow.1 .0 + flow.0.width + SIDE_GAP, card.x);
-        assert_eq!(status.1 .0, card.right() + SIDE_GAP_RIGHT);
+        assert_eq!(flow.1.0 + flow.0.width + SIDE_GAP, card.x);
+        assert_eq!(status.1.0, card.right() + SIDE_GAP_RIGHT);
         let middle = card.y + card.h / 2.0;
-        assert!((flow.1 .1 + flow.0.height / 2.0 - middle).abs() <= 1.0 && (status.1 .1 + status.0.height / 2.0 - middle).abs() <= 1.0);
+        assert!((flow.1.1 + flow.0.height / 2.0 - middle).abs() <= 1.0 && (status.1.1 + status.0.height / 2.0 - middle).abs() <= 1.0);
         // On a monitor of 1440 pixels the texts are a third larger, and the columns still fit beside the card.
         let large = LockModel { output: (2560.0, 1440.0), ..greeter() };
         let big = scenes(&large, &deck(), &mut Mono);
@@ -652,9 +721,12 @@ mod tests {
         };
         assert_eq!(size_of(&shown[1].0), SIDE.size);
         assert_eq!(size_of(&big[1].0), SIDE.size * 1440.0 / 1080.0);
-        assert!(big[1].0.width > shown[1].0.width && big[1].1 .0 >= 0.0);
+        assert!(big[1].0.width > shown[1].0.width && big[1].1.0 >= 0.0);
         let labels = deck_labels(&wide);
-        assert!(labels.contains(&"fn".to_owned()) && labels.contains(&"Result".to_owned()) && labels.contains(&"1920x1080".to_owned()), "{labels:?}");
+        assert!(
+            labels.contains(&"fn".to_owned()) && labels.contains(&"Result".to_owned()) && labels.contains(&"1920x1080".to_owned()),
+            "{labels:?}"
+        );
         assert!(labels.contains(&"waiting for input".to_owned()), "{labels:?}");
         // What the status says follows the screen: a check running, a refused password.
         assert!(deck_labels(&LockModel { busy: true, ..wide.clone() }).contains(&"checking".to_owned()));
@@ -666,7 +738,14 @@ mod tests {
     /// The cyberdeck theme with three different accents, as a wallpaper gives them.
     fn colorful() -> Theme {
         let json = r##"{"version":1,"colors":{"primary":{"default":{"hex":"#8799ff"}},"secondary":{"default":{"hex":"#00a9fa"}},"tertiary":{"default":{"hex":"#c085ff"}},"error":{"default":{"hex":"#ff291a"}}}}"##;
-        let palette = Palette { background: Color::rgba(10, 10, 10, 255), surface: Color::rgba(20, 20, 20, 255), text: Color::rgba(240, 240, 240, 255), muted: Color::rgba(150, 150, 150, 255), accent: Color::rgba(90, 90, 90, 255), border: Color::rgba(60, 60, 60, 255) };
+        let palette = Palette {
+            background: Color::rgba(10, 10, 10, 255),
+            surface: Color::rgba(20, 20, 20, 255),
+            text: Color::rgba(240, 240, 240, 255),
+            muted: Color::rgba(150, 150, 150, 255),
+            accent: Color::rgba(90, 90, 90, 255),
+            border: Color::rgba(60, 60, 60, 255),
+        };
         Theme::new(palette, Some(json)).with_shape(Shape::Chamfer)
     }
 

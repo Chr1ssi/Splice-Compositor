@@ -17,10 +17,8 @@ pub fn run(requests: mpsc::Receiver<()>, updates: mpsc::Sender<Update>) {
     let mut sent = HashSet::new();
     while requests.recv().is_ok() {
         while requests.try_recv().is_ok() {}
-        let apps: Vec<Application> = scan(&desktop_dirs(), &Locale::system())
-            .into_iter()
-            .map(|app| Application { icon: launcher_icon(&app), ..app })
-            .collect();
+        let apps: Vec<Application> =
+            scan(&desktop_dirs(), &Locale::system()).into_iter().map(|app| Application { icon: launcher_icon(&app), ..app }).collect();
         let icons: Vec<String> = apps.iter().map(|app| app.icon.clone()).filter(|icon| !sent.contains(icon)).collect();
         if updates.send(Update::Applications(apps)).is_err() {
             return;
@@ -72,11 +70,7 @@ impl Locale {
             }
             parse_end = idx;
         }
-        Locale {
-            language: text[..parse_end].to_owned(),
-            territory: territory.to_owned(),
-            modifier: modifier.to_owned(),
-        }
+        Locale { language: text[..parse_end].to_owned(), territory: territory.to_owned(), modifier: modifier.to_owned() }
     }
 
     /// Whether there is a language to match with (Quickshell's `isValid`).
@@ -198,11 +192,7 @@ type Values = HashMap<String, (Locale, String)>;
 /// The `[Desktop Entry]` of the file `text` of `id`, with the localized values that fit `system` best. Other groups,
 /// the actions included, are not read.
 pub fn parse_entry(id: &str, text: &str, system: &Locale) -> Entry {
-    let mut entry = Entry {
-        app: Application { id: id.to_owned(), ..Application::default() },
-        hidden: false,
-        no_display: false,
-    };
+    let mut entry = Entry { app: Application { id: id.to_owned(), ..Application::default() }, hidden: false, no_display: false };
     let mut group = String::new();
     let mut values = Values::new();
     // Only `\n` splits lines, so a `\r` of a CRLF file stays at the end of the line. Then `[Desktop Entry]\r` is not a
@@ -283,9 +273,7 @@ pub fn desktop_dirs() -> Vec<PathBuf> {
 fn desktop_dirs_from(data_home: Option<String>, home: Option<String>, data_dirs: Option<String>) -> Vec<PathBuf> {
     // Quickshell takes `$HOME` as given when it is set at all, so an empty one yields `/.local/share`.
     let data_home = data_home.filter(|d| !d.is_empty()).or_else(|| home.map(|h| format!("{h}/.local/share")));
-    let data_dirs = data_dirs
-        .filter(|d| !d.is_empty())
-        .unwrap_or_else(|| "/usr/local/share:/usr/share".to_owned());
+    let data_dirs = data_dirs.filter(|d| !d.is_empty()).unwrap_or_else(|| "/usr/local/share:/usr/share".to_owned());
     data_home
         .into_iter()
         .chain(data_dirs.split(':').filter(|d| !d.is_empty()).map(str::to_owned))
@@ -328,10 +316,7 @@ fn scan_directory(dir: &Path, prefix: &str, system: &Locale, results: &mut Vec<E
     let Ok(read) = std::fs::read_dir(dir) else {
         return;
     };
-    let mut children: Vec<_> = read
-        .filter_map(Result::ok)
-        .filter(|child| !child.file_name().to_string_lossy().starts_with('.'))
-        .collect();
+    let mut children: Vec<_> = read.filter_map(Result::ok).filter(|child| !child.file_name().to_string_lossy().starts_with('.')).collect();
     // The order decides which of two files of one id wins within a directory, so it is fixed by name.
     children.sort_by_key(|a| a.file_name());
     for child in children {
@@ -391,10 +376,7 @@ mod tests {
 
     #[test]
     fn locale_parts_split_like_quickshell() {
-        assert_eq!(
-            Locale::parse("de_DE.UTF-8@euro"),
-            Locale { language: "de".into(), territory: "DE".into(), modifier: "euro".into() }
-        );
+        assert_eq!(Locale::parse("de_DE.UTF-8@euro"), Locale { language: "de".into(), territory: "DE".into(), modifier: "euro".into() });
         assert_eq!(Locale::parse("sr@latin"), Locale { language: "sr".into(), territory: String::new(), modifier: "latin".into() });
         assert_eq!(Locale::parse(""), Locale::default());
     }
@@ -470,10 +452,7 @@ mod tests {
 
         let apps = scan(&[home, sys, root.join("missing")], &Locale::default());
         let listed: Vec<(&str, &str)> = apps.iter().map(|a| (a.id.as_str(), a.name.as_str())).collect();
-        assert_eq!(
-            listed,
-            [("dotted.name", "Dotted"), ("kde-foo", "KdeFoo"), ("one", "HomeOne"), ("three", "Three")]
-        );
+        assert_eq!(listed, [("dotted.name", "Dotted"), ("kde-foo", "KdeFoo"), ("one", "HomeOne"), ("three", "Three")]);
         std::fs::remove_dir_all(&root)
     }
 

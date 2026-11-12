@@ -67,7 +67,13 @@ impl Content {
     /// A section title on one line at `y`, `width` wide; returns its height.
     pub fn heading(&mut self, theme: &Theme, measure: &mut impl Measure, y: f32, width: f32, text: &str) -> f32 {
         let height = measure.line_height(HEADING);
-        self.push(Node::Label { rect: Rect::new(0.0, y, width, height), text: text.to_owned(), style: HEADING, color: theme.muted, align: Align::Left });
+        self.push(Node::Label {
+            rect: Rect::new(0.0, y, width, height),
+            text: text.to_owned(),
+            style: HEADING,
+            color: theme.muted,
+            align: Align::Left,
+        });
         height
     }
 }
@@ -75,8 +81,13 @@ impl Content {
 #[derive(Clone, Debug, PartialEq)]
 pub enum ContentModel {
     /// Newest first, with how far the list is scrolled.
-    Notifications { items: Vec<NotificationView>, list_scroll: f32 },
-    Media { players: Vec<PlayerView> },
+    Notifications {
+        items: Vec<NotificationView>,
+        list_scroll: f32,
+    },
+    Media {
+        players: Vec<PlayerView>,
+    },
     Audio(AudioModel),
     Control(ControlModel),
     Calendar(CalendarModel),
@@ -218,7 +229,12 @@ mod tests {
         assert!(reachable(&panel, 0) && !reachable(&scrolled, 0));
         assert!(reachable(&scrolled, 5));
         // The title stays where it is.
-        let title = |s: &PanelScene| s.scene.nodes.iter().find_map(|n| match n { Node::Label { rect, text, .. } if text == "Media" => Some(*rect), _ => None });
+        let title = |s: &PanelScene| {
+            s.scene.nodes.iter().find_map(|n| match n {
+                Node::Label { rect, text, .. } if text == "Media" => Some(*rect),
+                _ => None,
+            })
+        };
         assert_eq!(title(&panel), title(&scrolled));
     }
 }

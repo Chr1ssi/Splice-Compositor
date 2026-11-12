@@ -7,8 +7,8 @@
 use std::collections::HashMap;
 
 use cosmic_text::{
-    Attrs, Buffer, Ellipsize, EllipsizeHeightLimit, Family, FontSystem, Metrics, PhysicalGlyph, Renderer, Shaping, Style,
-    SwashCache, SwashContent, UnderlineStyle, Weight, Wrap,
+    Attrs, Buffer, Ellipsize, EllipsizeHeightLimit, Family, FontSystem, Metrics, PhysicalGlyph, Renderer, Shaping, Style, SwashCache,
+    SwashContent, UnderlineStyle, Weight, Wrap,
 };
 use tiny_skia::Pixmap;
 
@@ -125,7 +125,8 @@ impl Renderer for Painter<'_> {
 
     fn glyph(&mut self, glyph: PhysicalGlyph, color: cosmic_text::Color) {
         let Some(image) = self.cache.get_image(self.system, glyph.cache_key) else { return };
-        let area = (glyph.x + image.placement.left, glyph.y - image.placement.top, image.placement.width as i32, image.placement.height as i32);
+        let area =
+            (glyph.x + image.placement.left, glyph.y - image.placement.top, image.placement.width as i32, image.placement.height as i32);
         let (r, g, b, a) = (color.r(), color.g(), color.b(), u32::from(color.a()));
         match image.content {
             SwashContent::Mask => blend(self.pixmap, self.clip, area, |i| [r, g, b, (a * u32::from(image.data[i]) / 255) as u8]),
@@ -179,7 +180,8 @@ impl Fonts {
         let sans = self.sans.as_deref();
         let base = attrs(style, sans);
         let align = matches!(lines, Lines::Centered(_)).then_some(cosmic_text::Align::Center);
-        let runs = spans.iter().flat_map(|span| runs(&span.text).map(move |(text, symbols)| (text, span_attrs(style, span, symbols, sans))));
+        let runs =
+            spans.iter().flat_map(|span| runs(&span.text).map(move |(text, symbols)| (text, span_attrs(style, span, symbols, sans))));
         buffer.set_rich_text(runs, &base, Shaping::Advanced, align);
         buffer.shape_until_scroll(&mut self.system, false);
         buffer
@@ -234,7 +236,17 @@ impl Fonts {
 
     /// Draw `text` broken at words to `width`, from `at`, each line aligned in the width.
     #[allow(clippy::too_many_arguments)]
-    pub fn draw_paragraph(&mut self, pixmap: &mut Pixmap, text: &str, style: TextStyle, color: Color, at: (f32, f32), (width, align): (f32, Align), scale: f32, clip: Clip) {
+    pub fn draw_paragraph(
+        &mut self,
+        pixmap: &mut Pixmap,
+        text: &str,
+        style: TextStyle,
+        color: Color,
+        at: (f32, f32),
+        (width, align): (f32, Align),
+        scale: f32,
+        clip: Clip,
+    ) {
         let lines = match align {
             Align::Left => Lines::Wrapped(width),
             Align::Center => Lines::Centered(width),
@@ -259,7 +271,17 @@ impl Fonts {
     }
 
     #[allow(clippy::too_many_arguments)]
-    fn draw(&mut self, pixmap: &mut Pixmap, spans: &[Span], style: TextStyle, lines: Lines, color: Color, at: (f32, f32), scale: f32, clip: Clip) {
+    fn draw(
+        &mut self,
+        pixmap: &mut Pixmap,
+        spans: &[Span],
+        style: TextStyle,
+        lines: Lines,
+        color: Color,
+        at: (f32, f32),
+        scale: f32,
+        clip: Clip,
+    ) {
         let line_height = self.line_height(style);
         let buffer = self.shape(spans, style, lines, scale, line_height);
         let origin = (at.0 * scale, at.1 * scale);

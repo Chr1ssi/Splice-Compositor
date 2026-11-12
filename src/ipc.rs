@@ -9,9 +9,9 @@ use std::{
     path::PathBuf,
 };
 
+use smithay::reexports::calloop::{Interest, LoopHandle, Mode, PostAction, generic::Generic};
 use splice_config::Action;
 use splice_ipc::{Chosen, Command, INVALID, OK, confirm_logout, parse_command};
-use smithay::reexports::calloop::{Interest, LoopHandle, Mode, PostAction, generic::Generic};
 
 use crate::State;
 
@@ -114,19 +114,10 @@ impl State {
         let Ok(watched) = socket.try_clone() else { return };
         let id = ipc.next_id;
         ipc.next_id += 1;
-        let registered = ipc.handle.insert_source(
-            Generic::new(watched, Interest::READ, Mode::Level),
-            move |_, _, state| Ok(state.ipc_readable(id)),
-        );
+        let registered =
+            ipc.handle.insert_source(Generic::new(watched, Interest::READ, Mode::Level), move |_, _, state| Ok(state.ipc_readable(id)));
         if registered.is_ok() {
-            ipc.clients.push(Client {
-                id,
-                socket,
-                input: Vec::new(),
-                output: Vec::new(),
-                snapshot: String::new(),
-                broken: false,
-            });
+            ipc.clients.push(Client { id, socket, input: Vec::new(), output: Vec::new(), snapshot: String::new(), broken: false });
             // The new client gets the current state right away.
             self.ipc_dirty = true;
         }
@@ -167,10 +158,7 @@ impl State {
         }
         while let Some(end) = client.input.iter().position(|c| *c == b'\n') {
             let line: Vec<u8> = client.input.drain(..=end).collect();
-            let valid = std::str::from_utf8(&line)
-                .ok()
-                .and_then(parse_command)
-                .is_some_and(|command| self.run_ipc_command(command, id));
+            let valid = std::str::from_utf8(&line).ok().and_then(parse_command).is_some_and(|command| self.run_ipc_command(command, id));
             client.output.extend_from_slice(if valid { OK } else { INVALID }.as_bytes());
         }
         alive &= !client.broken && client.write_pending();
@@ -252,14 +240,11 @@ impl State {
         let output = self.outputs.get(monitor).map(|e| e.id);
         let handler = self.logout_handler;
         let asked = output.is_some_and(|output| {
-            self.ipc
-                .as_mut()
-                .and_then(|ipc| ipc.clients.iter_mut().find(|c| Some(c.id) == handler && !c.broken))
-                .is_some_and(|client| {
-                    client.output.extend_from_slice(confirm_logout(output).as_bytes());
-                    client.broken = !client.write_pending();
-                    !client.broken
-                })
+            self.ipc.as_mut().and_then(|ipc| ipc.clients.iter_mut().find(|c| Some(c.id) == handler && !c.broken)).is_some_and(|client| {
+                client.output.extend_from_slice(confirm_logout(output).as_bytes());
+                client.broken = !client.write_pending();
+                !client.broken
+            })
         });
         if !asked {
             self.loop_signal.stop();

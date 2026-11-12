@@ -31,13 +31,7 @@ impl<T> Default for Workspace<T> {
 
 impl<T> Workspace<T> {
     pub fn new(number: usize, kind: Kind) -> Self {
-        Self {
-            number,
-            kind,
-            windows: Vec::new(),
-            focused: None,
-            scroll: 0,
-        }
+        Self { number, kind, windows: Vec::new(), focused: None, scroll: 0 }
     }
 }
 
@@ -46,11 +40,7 @@ impl<T: Clone + Eq> Workspace<T> {
         if let Some(index) = self.windows.iter().position(|id| id == window) {
             self.windows.remove(index);
             if self.focused.as_ref() == Some(window) {
-                self.focused = self
-                    .windows
-                    .get(index)
-                    .or_else(|| self.windows.last())
-                    .cloned();
+                self.focused = self.windows.get(index).or_else(|| self.windows.last()).cloned();
             }
         }
     }
@@ -74,12 +64,7 @@ pub struct Workspaces<T> {
 
 impl<T: Clone + Eq> Workspaces<T> {
     pub fn new(home: usize) -> Self {
-        Self {
-            active: home,
-            previous: None,
-            home,
-            entries: vec![Workspace::new(home, Kind::Home)],
-        }
+        Self { active: home, previous: None, home, entries: vec![Workspace::new(home, Kind::Home)] }
     }
 
     pub fn current(&self) -> &Workspace<T> {
@@ -148,21 +133,14 @@ impl<T: Clone + Eq> Workspaces<T> {
     }
 
     pub fn add_to(&mut self, number: usize, window: T) {
-        let kind = if number == GAMING {
-            Kind::Gaming
-        } else {
-            Kind::Extra
-        };
+        let kind = if number == GAMING { Kind::Gaming } else { Kind::Extra };
         let workspace = self.ensure(number, kind);
         workspace.focused = Some(window.clone());
         workspace.windows.push(window);
     }
 
     pub fn location(&self, window: &T) -> Option<usize> {
-        self.entries
-            .iter()
-            .find(|workspace| workspace.windows.contains(window))
-            .map(|workspace| workspace.number)
+        self.entries.iter().find(|workspace| workspace.windows.contains(window)).map(|workspace| workspace.number)
     }
 
     /// Change a workspace's number, merging into an existing one of that number.
@@ -172,10 +150,7 @@ impl<T: Clone + Eq> Workspaces<T> {
         }
         if let Some(index) = self.entries.iter().position(|entry| entry.number == old) {
             let moved = self.entries.remove(index);
-            self.insert(Workspace {
-                number: new,
-                ..moved
-            });
+            self.insert(Workspace { number: new, ..moved });
         }
         if self.active == old {
             self.active = new;
@@ -195,9 +170,7 @@ impl<T: Clone + Eq> Workspaces<T> {
         let active = self.active;
         // While a game is shown, the workspace we return to must survive, even
         // if it is an empty extra.
-        let returning = self
-            .previous
-            .filter(|_| self.get(active).is_some_and(|entry| entry.kind == Kind::Gaming));
+        let returning = self.previous.filter(|_| self.get(active).is_some_and(|entry| entry.kind == Kind::Gaming));
         self.entries.retain(|entry| {
             !entry.windows.is_empty()
                 || match entry.kind {
@@ -230,30 +203,13 @@ impl<T: Clone + Eq> Workspaces<T> {
         self.navigate_matching(direction, reorder, |_| true);
     }
 
-    pub fn navigate_matching(
-        &mut self,
-        direction: isize,
-        reorder: bool,
-        mut include: impl FnMut(&T) -> bool,
-    ) {
+    pub fn navigate_matching(&mut self, direction: isize, reorder: bool, mut include: impl FnMut(&T) -> bool) {
         let workspace = self.current_mut();
-        let indices: Vec<_> = workspace
-            .windows
-            .iter()
-            .enumerate()
-            .filter_map(|(i, id)| include(id).then_some(i))
-            .collect();
-        let Some(slot) = indices
-            .iter()
-            .position(|i| Some(&workspace.windows[*i]) == workspace.focused.as_ref())
-        else {
+        let indices: Vec<_> = workspace.windows.iter().enumerate().filter_map(|(i, id)| include(id).then_some(i)).collect();
+        let Some(slot) = indices.iter().position(|i| Some(&workspace.windows[*i]) == workspace.focused.as_ref()) else {
             return;
         };
-        let Some(next) = slot
-            .checked_add_signed(direction)
-            .and_then(|i| indices.get(i))
-            .copied()
-        else {
+        let Some(next) = slot.checked_add_signed(direction).and_then(|i| indices.get(i)).copied() else {
             return;
         };
         if reorder {
@@ -263,18 +219,9 @@ impl<T: Clone + Eq> Workspaces<T> {
         }
     }
 
-    pub fn can_navigate_matching(
-        &self,
-        direction: isize,
-        mut include: impl FnMut(&T) -> bool,
-    ) -> bool {
+    pub fn can_navigate_matching(&self, direction: isize, mut include: impl FnMut(&T) -> bool) -> bool {
         let workspace = self.current();
-        let indices: Vec<_> = workspace
-            .windows
-            .iter()
-            .enumerate()
-            .filter_map(|(index, id)| include(id).then_some(index))
-            .collect();
+        let indices: Vec<_> = workspace.windows.iter().enumerate().filter_map(|(index, id)| include(id).then_some(index)).collect();
         indices
             .iter()
             .position(|index| Some(&workspace.windows[*index]) == workspace.focused.as_ref())

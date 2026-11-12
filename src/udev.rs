@@ -10,7 +10,6 @@ use std::{
     time::{Duration, Instant},
 };
 
-use splice_config::{OutputConfig, OutputMode, OutputTransform};
 use smithay::{
     backend::{
         allocator::{
@@ -19,7 +18,7 @@ use smithay::{
             gbm::{GbmAllocator, GbmBufferFlags, GbmDevice},
         },
         drm::{
-            DrmDevice, DrmDeviceFd, DrmEvent, DrmNode, NodeType, DrmEventMetadata as EventMetadata, DrmEventTime as DrmTime, VrrSupport,
+            DrmDevice, DrmDeviceFd, DrmEvent, DrmEventMetadata as EventMetadata, DrmEventTime as DrmTime, DrmNode, NodeType, VrrSupport,
             compositor::{DrmCompositor, FrameFlags},
             exporter::gbm::GbmFramebufferExporter,
         },
@@ -35,19 +34,10 @@ use smithay::{
         session::{Event as SessionEvent, Session, libseat::LibSeatSession},
         udev::{UdevBackend, UdevEvent, primary_gpu},
     },
-    desktop::{
-        utils::{
-            OutputPresentationFeedback, surface_presentation_feedback_flags_from_states,
-            surface_primary_scanout_output,
-        },
-    },
+    desktop::utils::{OutputPresentationFeedback, surface_presentation_feedback_flags_from_states, surface_primary_scanout_output},
     input::keyboard::LedState,
     output::{Mode, Output, PhysicalProperties, Scale, Subpixel},
     reexports::{
-        wayland_protocols::wp::{
-            linux_dmabuf::zv1::server::zwp_linux_dmabuf_feedback_v1::TrancheFlags,
-            presentation_time::server::wp_presentation_feedback,
-        },
         calloop::{
             EventLoop, LoopHandle, RegistrationToken,
             timer::{TimeoutAction, Timer},
@@ -55,6 +45,9 @@ use smithay::{
         drm::control::{ModeTypeFlags, connector, crtc},
         input::{DeviceCapability, Libinput},
         rustix::fs::OFlags,
+        wayland_protocols::wp::{
+            linux_dmabuf::zv1::server::zwp_linux_dmabuf_feedback_v1::TrancheFlags, presentation_time::server::wp_presentation_feedback,
+        },
         wayland_server::protocol::wl_surface::WlSurface,
     },
     utils::{Clock, ClockSource, DeviceFd, Monotonic, Time, Transform},
@@ -66,18 +59,15 @@ use smithay::{
     },
 };
 use smithay_drm_extras::drm_scanner::{DrmScanEvent, DrmScanner};
+use splice_config::{OutputConfig, OutputMode, OutputTransform};
 
 use crate::{
     State,
     pacing::{RenderTimes, late_delay},
 };
 
-type GbmCompositor = DrmCompositor<
-    GbmAllocator<DrmDeviceFd>,
-    GbmFramebufferExporter<DrmDeviceFd>,
-    Option<OutputPresentationFeedback>,
-    DrmDeviceFd,
->;
+type GbmCompositor =
+    DrmCompositor<GbmAllocator<DrmDeviceFd>, GbmFramebufferExporter<DrmDeviceFd>, Option<OutputPresentationFeedback>, DrmDeviceFd>;
 
 /// How a frame may be put together. Besides the default (scan out on the primary, overlay and cursor planes), a
 /// buffer may go to the primary plane whatever its format and modifier: by default only one that matches the
@@ -92,9 +82,13 @@ enum Redraw {
     /// A redraw runs at the end of this loop iteration.
     Queued,
     /// A frame is on its way to the screen; `again` if something changed meanwhile.
-    WaitingForVBlank { again: bool },
+    WaitingForVBlank {
+        again: bool,
+    },
     /// The last frame was empty; a timer stands in for the vblank that will not come.
-    WaitingForEstimatedVBlank { again: bool },
+    WaitingForEstimatedVBlank {
+        again: bool,
+    },
 }
 
 /// Whether VRR applies to an output right now, and the facts behind that.
@@ -261,7 +255,15 @@ pub fn init(event_loop: &mut EventLoop<'static, State>, state: &mut State) -> Re
     tracing::info!("seat {seat}, primary GPU {primary:?}");
 
     state.session = Some(session.clone());
-    state.udev = Some(UdevData { session, libinput: libinput.clone(), primary, gpu: None, handle: handle.clone(), late_margin: late_margin(&state.config.render), devices: Vec::new() });
+    state.udev = Some(UdevData {
+        session,
+        libinput: libinput.clone(),
+        primary,
+        gpu: None,
+        handle: handle.clone(),
+        late_margin: late_margin(&state.config.render),
+        devices: Vec::new(),
+    });
 
     handle
         .insert_source(notifier, |event, _, state| match event {
@@ -333,7 +335,11 @@ fn now() -> Duration {
 }
 
 /// The mode to use for a connector: the requested one if the display has it, else its preferred one.
-fn pick_mode(modes: &[smithay::reexports::drm::control::Mode], wanted: Option<OutputMode>, name: &str) -> Option<smithay::reexports::drm::control::Mode> {
+fn pick_mode(
+    modes: &[smithay::reexports::drm::control::Mode],
+    wanted: Option<OutputMode>,
+    name: &str,
+) -> Option<smithay::reexports::drm::control::Mode> {
     if let Some(wanted) = wanted {
         let candidates = modes.iter().filter(|m| {
             let (w, h) = m.size();
@@ -349,11 +355,7 @@ fn pick_mode(modes: &[smithay::reexports::drm::control::Mode], wanted: Option<Ou
             None => tracing::warn!("{name}: mode {}x{} not offered by the display, using the preferred one", wanted.width, wanted.height),
         }
     }
-    modes
-        .iter()
-        .find(|m| m.mode_type().contains(ModeTypeFlags::PREFERRED))
-        .or_else(|| modes.first())
-        .copied()
+    modes.iter().find(|m| m.mode_type().contains(ModeTypeFlags::PREFERRED)).or_else(|| modes.first()).copied()
 }
 
 fn transform(config: OutputTransform) -> Transform {
@@ -512,7 +514,9 @@ impl Surface {
 impl State {
     /// Switch an output to another of the modes its display offers (`wlr-output-management`).
     pub fn set_output_mode(&mut self, output: &Output, mode: Mode) -> bool {
-        let Some(surface) = self.udev.as_mut().and_then(|u| u.gpu.as_mut()).and_then(|g| g.surfaces.values_mut().find(|s| s.output == *output)) else {
+        let Some(surface) =
+            self.udev.as_mut().and_then(|u| u.gpu.as_mut()).and_then(|g| g.surfaces.values_mut().find(|s| s.output == *output))
+        else {
             return false;
         };
         let Some(drm_mode) = surface.modes.iter().find(|m| Mode::from(**m) == mode).copied() else { return false };
@@ -583,10 +587,7 @@ impl State {
 
         // Clients may hand us GPU buffers: advertise what the renderer can import.
         let feedback = DmabufFeedbackBuilder::new(render_node.dev_id(), renderer.dmabuf_formats()).build()?;
-        self.dmabuf_global = Some(
-            self.dmabuf_state
-                .create_global_with_default_feedback::<State>(&self.display_handle, &feedback),
-        );
+        self.dmabuf_global = Some(self.dmabuf_state.create_global_with_default_feedback::<State>(&self.display_handle, &feedback));
 
         // Explicit sync (needed by NVIDIA's Vulkan/Xwayland paths) and presentation timing.
         if supports_syncobj_eventfd(&fd) {
@@ -603,16 +604,8 @@ impl State {
             .insert_source(notifier, move |event, metadata, state| state.on_drm_event(dev_id, event, metadata))
             .map_err(|e| e.error)?;
         tracing::info!("GPU {} ready (render node {:?})", path.display(), render_node);
-        self.udev.as_mut().unwrap().gpu = Some(Gpu {
-            dev_id,
-            drm,
-            gbm,
-            renderer,
-            render_node,
-            scanner: DrmScanner::new(),
-            surfaces: HashMap::new(),
-            notifier: token,
-        });
+        self.udev.as_mut().unwrap().gpu =
+            Some(Gpu { dev_id, drm, gbm, renderer, render_node, scanner: DrmScanner::new(), surfaces: HashMap::new(), notifier: token });
         Ok(())
     }
 
@@ -1116,21 +1109,11 @@ fn set_vrr(compositor: &mut GbmCompositor, connector: connector::Handle, on: boo
 /// clients towards buffers the display planes can scan out directly.
 fn surface_feedback(renderer: &GlesRenderer, compositor: &GbmCompositor, render_node: DrmNode) -> Option<SurfaceFeedback> {
     let render_formats = renderer.dmabuf_formats();
-    let scanout_formats: Vec<_> = compositor
-        .surface()
-        .plane_info()
-        .formats
-        .iter()
-        .filter(|format| render_formats.contains(format))
-        .copied()
-        .collect();
+    let scanout_formats: Vec<_> =
+        compositor.surface().plane_info().formats.iter().filter(|format| render_formats.contains(format)).copied().collect();
     let scanout_device = compositor.surface().device_fd().dev_id().ok()?;
     let builder = DmabufFeedbackBuilder::new(render_node.dev_id(), render_formats.iter().copied());
-    let render = builder
-        .clone()
-        .add_preference_tranche(render_node.dev_id(), None, render_formats.iter().copied())
-        .build()
-        .ok()?;
+    let render = builder.clone().add_preference_tranche(render_node.dev_id(), None, render_formats.iter().copied()).build().ok()?;
     let scanout = builder
         .add_preference_tranche(scanout_device, Some(TrancheFlags::Scanout), scanout_formats)
         .add_preference_tranche(render_node.dev_id(), None, render_formats.iter().copied())

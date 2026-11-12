@@ -168,9 +168,11 @@ impl State {
             .collect();
         let clear = self.clear_color();
         // The same output as last time: its texture holds the previous frame, and only the damage is drawn.
-        let kept = self.picking.as_mut().and_then(|p| p.frame.take()).filter(|f| {
-            &f.output == output && f.size == geometry.size && f.scale == scale && f.clear == clear
-        });
+        let kept = self
+            .picking
+            .as_mut()
+            .and_then(|p| p.frame.take())
+            .filter(|f| &f.output == output && f.size == geometry.size && f.scale == scale && f.clear == clear);
         let (mut frame, age) = match kept {
             Some(frame) => (frame, 1),
             None => {
@@ -249,9 +251,8 @@ impl State {
         add(at(mx + CELL - t, my, t, CELL), mark);
         for (index, pixel) in sample.pixels.iter().enumerate() {
             let (column, row) = (index as i32 % SIDE, index as i32 / SIDE);
-            let color = pixel.map_or([0.0, 0.0, 0.0, 1.0], |[r, g, b]| {
-                [f32::from(r) / 255.0, f32::from(g) / 255.0, f32::from(b) / 255.0, 1.0]
-            });
+            let color =
+                pixel.map_or([0.0, 0.0, 0.0, 1.0], |[r, g, b]| [f32::from(r) / 255.0, f32::from(g) / 255.0, f32::from(b) / 255.0, 1.0]);
             add(at(x + CELL * f64::from(column), y + CELL * f64::from(row), CELL, CELL), color);
         }
         let border = 2.0;

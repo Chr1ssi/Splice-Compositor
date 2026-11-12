@@ -5,28 +5,24 @@ use smithay::{
     delegate_compositor, delegate_data_control, delegate_data_device, delegate_dmabuf, delegate_output, delegate_seat, delegate_shm,
     delegate_xdg_shell,
     desktop::{PopupKind, Window, WindowSurfaceType, find_popup_root_surface, layer_map_for_output},
+    input::{Seat, SeatHandler, SeatState, keyboard::LedState, pointer::CursorImageStatus},
     output::Output,
-    input::{keyboard::LedState, pointer::CursorImageStatus, Seat, SeatHandler, SeatState},
     reexports::wayland_server::{
-        protocol::{wl_buffer, wl_output::WlOutput, wl_seat, wl_surface::WlSurface},
         Client,
+        protocol::{wl_buffer, wl_output::WlOutput, wl_seat, wl_surface::WlSurface},
     },
     utils::Serial,
     wayland::{
         buffer::BufferHandler,
-        compositor::{get_parent, is_sync_subsurface, CompositorClientState, CompositorHandler, CompositorState},
+        compositor::{CompositorClientState, CompositorHandler, CompositorState, get_parent, is_sync_subsurface},
         dmabuf::{DmabufGlobal, DmabufHandler, DmabufState, ImportNotifier},
         output::OutputHandler,
         selection::{
-            data_device::{
-                set_data_device_focus, ClientDndGrabHandler, DataDeviceHandler, DataDeviceState, ServerDndGrabHandler,
-            },
+            data_device::{ClientDndGrabHandler, DataDeviceHandler, DataDeviceState, ServerDndGrabHandler, set_data_device_focus},
             primary_selection::set_primary_focus,
             wlr_data_control::{DataControlHandler, DataControlState},
         },
-        shell::xdg::{
-            PopupSurface, PositionerState, ToplevelSurface, XdgShellHandler, XdgShellState,
-        },
+        shell::xdg::{PopupSurface, PositionerState, ToplevelSurface, XdgShellHandler, XdgShellState},
         shm::{ShmHandler, ShmState},
     },
 };
@@ -70,11 +66,7 @@ impl CompositorHandler for State {
                 root = parent;
             }
             self.place_pending(&root);
-            if let Some(window) = self
-                .space
-                .elements()
-                .find(|w| w.wl_surface().is_some_and(|s| *s == root))
-            {
+            if let Some(window) = self.space.elements().find(|w| w.wl_surface().is_some_and(|s| *s == root)) {
                 window.on_commit();
             }
         }
@@ -102,7 +94,12 @@ impl State {
         let Some(window) = self.space.elements().find(|w| w.wl_surface().is_some_and(|s| *s == root)) else { return };
         let Some(location) = self.space.element_location(window) else { return };
         // The output of the window's workspace; the space's own idea (`outputs_for_element`) as a fallback.
-        let by_layout = self.desktop.by_surface(&root).and_then(|m| self.monitor_of_window(m)).and_then(|monitor| self.outputs.get(monitor)).map(|e| e.output.clone());
+        let by_layout = self
+            .desktop
+            .by_surface(&root)
+            .and_then(|m| self.monitor_of_window(m))
+            .and_then(|monitor| self.outputs.get(monitor))
+            .map(|e| e.output.clone());
         let Some(output) = by_layout.or_else(|| self.space.outputs_for_element(window).first().cloned()) else { return };
         let Some(output_geo) = self.space.output_geometry(&output) else { return };
         let mut target = output_geo;

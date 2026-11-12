@@ -42,13 +42,24 @@ struct PamConv {
 
 #[link(name = "pam")]
 unsafe extern "C" {
-    fn pam_start_confdir(service: *const c_char, user: *const c_char, conv: *const PamConv, confdir: *const c_char, handle: *mut *mut c_void) -> c_int;
+    fn pam_start_confdir(
+        service: *const c_char,
+        user: *const c_char,
+        conv: *const PamConv,
+        confdir: *const c_char,
+        handle: *mut *mut c_void,
+    ) -> c_int;
     fn pam_authenticate(handle: *mut c_void, flags: c_int) -> c_int;
     fn pam_end(handle: *mut c_void, status: c_int) -> c_int;
 }
 
 /// Every prompt gets the password (`appdata`); messages are only read.
-unsafe extern "C" fn answer(count: c_int, messages: *mut *const PamMessage, responses: *mut *mut PamResponse, appdata: *mut c_void) -> c_int {
+unsafe extern "C" fn answer(
+    count: c_int,
+    messages: *mut *const PamMessage,
+    responses: *mut *mut PamResponse,
+    appdata: *mut c_void,
+) -> c_int {
     let Ok(count) = usize::try_from(count) else { return PAM_BUF_ERR };
     // SAFETY: PAM frees the array and the answers with free(), so they come from calloc and strdup. `messages`
     // holds `count` pointers to messages and `appdata` is the password given to pam_start below, alive until

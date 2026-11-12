@@ -25,17 +25,31 @@ pub enum Event {
     /// A new notification, or new contents for one with this id (`replaces_id`).
     Notification(Notification),
     /// The notification is gone (closed by its app, or after an action of a non-resident one).
-    Closed { id: u32 },
+    Closed {
+        id: u32,
+    },
     /// The MPRIS players, in the order they appeared.
-    Players { players: Vec<Player> },
+    Players {
+        players: Vec<Player>,
+    },
     /// The tray's items (StatusNotifierItem), in the order they registered.
-    Tray { items: Vec<TrayItem> },
+    Tray {
+        items: Vec<TrayItem>,
+    },
     /// The menu of a tray item, after `TrayMenu` or `TrayMenuShow`, or when it changed while shown.
-    TrayMenu { address: String, menu: MenuEntry },
+    TrayMenu {
+        address: String,
+        menu: MenuEntry,
+    },
     /// The applications of the desktop entries, after `Applications`; their icons follow one by one.
-    Applications { apps: Vec<Application> },
+    Applications {
+        apps: Vec<Application>,
+    },
     /// The picture of the icon `name` (sent once per run of the services process).
-    AppIcon { name: String, image: Image },
+    AppIcon {
+        name: String,
+        image: Image,
+    },
 }
 
 /// An application to launch, from its desktop entry (as Quickshell's `DesktopEntries` reads them).
@@ -281,30 +295,71 @@ pub struct Image {
 #[serde(tag = "command", rename_all = "kebab-case")]
 pub enum Command {
     /// Set a node's volume (cubic scale, clamped to 0.0 to 1.0) and unmute it.
-    SetVolume { id: u32, volume: f32 },
-    ToggleMute { id: u32 },
+    SetVolume {
+        id: u32,
+        volume: f32,
+    },
+    ToggleMute {
+        id: u32,
+    },
     /// Make the node the default output or microphone.
-    SetDefault { id: u32 },
-    BluetoothPower { on: bool },
-    BluetoothDiscover { on: bool },
-    DeviceConnect { path: String },
-    DeviceDisconnect { path: String },
+    SetDefault {
+        id: u32,
+    },
+    BluetoothPower {
+        on: bool,
+    },
+    BluetoothDiscover {
+        on: bool,
+    },
+    DeviceConnect {
+        path: String,
+    },
+    DeviceDisconnect {
+        path: String,
+    },
     /// Trust the device (so it connects by itself later) and pair it.
-    DevicePair { path: String },
+    DevicePair {
+        path: String,
+    },
     /// The user closed the notification (`NotificationClosed` with reason 2).
-    Dismiss { id: u32 },
+    Dismiss {
+        id: u32,
+    },
     /// The user chose one of the notification's actions.
-    Invoke { id: u32, action: String },
-    Player { bus: String, action: PlayerAction },
-    TrayActivate { address: String },
-    TraySecondaryActivate { address: String },
+    Invoke {
+        id: u32,
+        action: String,
+    },
+    Player {
+        bus: String,
+        action: PlayerAction,
+    },
+    TrayActivate {
+        address: String,
+    },
+    TraySecondaryActivate {
+        address: String,
+    },
     /// `delta` in eighths of a degree, as Qt's `angleDelta` (120 a notch, positive away from the user).
-    TrayScroll { address: String, delta: i32, horizontal: bool },
+    TrayScroll {
+        address: String,
+        delta: i32,
+        horizontal: bool,
+    },
     /// The item's menu is about to show: send it.
-    TrayMenu { address: String },
+    TrayMenu {
+        address: String,
+    },
     /// A submenu of it is about to show.
-    TrayMenuShow { address: String, id: i32 },
-    TrayMenuClick { address: String, id: i32 },
+    TrayMenuShow {
+        address: String,
+        id: i32,
+    },
+    TrayMenuClick {
+        address: String,
+        id: i32,
+    },
     /// The launcher opened: send the applications (and the icons not sent yet).
     Applications,
 }
@@ -344,11 +399,8 @@ mod base64 {
     }
 
     pub fn decode(text: &str) -> Option<Vec<u8>> {
-        let digits: Vec<u32> = text
-            .trim_end_matches('=')
-            .bytes()
-            .map(|b| ALPHABET.iter().position(|a| *a == b).map(|p| p as u32))
-            .collect::<Option<_>>()?;
+        let digits: Vec<u32> =
+            text.trim_end_matches('=').bytes().map(|b| ALPHABET.iter().position(|a| *a == b).map(|p| p as u32)).collect::<Option<_>>()?;
         let mut bytes = Vec::with_capacity(digits.len() * 3 / 4);
         for chunk in digits.chunks(4) {
             if chunk.len() == 1 {
@@ -416,11 +468,7 @@ pub struct LoginRequest {
 /// Without the password: a request that ends up in a log line must not carry it.
 impl std::fmt::Debug for LoginRequest {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("LoginRequest")
-            .field("user", &self.user)
-            .field("password", &"<hidden>")
-            .field("command", &self.command)
-            .finish()
+        f.debug_struct("LoginRequest").field("user", &self.user).field("password", &"<hidden>").field("command", &self.command).finish()
     }
 }
 
@@ -472,7 +520,13 @@ mod tests {
 
     #[test]
     fn messages_survive_the_pipe() {
-        let node = AudioNode { id: 7, kind: NodeKind::Stream, application: "Firefox".into(), audio: Some(Audio { volume: 0.8, muted: true }), ..AudioNode::default() };
+        let node = AudioNode {
+            id: 7,
+            kind: NodeKind::Stream,
+            application: "Firefox".into(),
+            audio: Some(Audio { volume: 0.8, muted: true }),
+            ..AudioNode::default()
+        };
         let status = Status { nodes: vec![node], default_sink: Some(7), bluetooth: Some(Bluetooth::default()), ..Status::default() };
         assert_eq!(status.default_audio(), Some(Audio { volume: 0.8, muted: true }));
         let notification = Notification {

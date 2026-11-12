@@ -7,6 +7,7 @@
 //! redraw in progress (like `screencopy.rs`, which this shares the rendering code with).
 use std::sync::{Arc, Mutex};
 
+use smithay::backend::allocator::Buffer as _;
 use smithay::{
     backend::{
         allocator::Fourcc,
@@ -45,7 +46,6 @@ use smithay::{
         shm::with_buffer_contents_mut,
     },
 };
-use smithay::backend::allocator::Buffer as _;
 
 use crate::{
     State,
@@ -229,14 +229,12 @@ impl State {
         self.ipc_dirty = true;
         use smithay::reexports::calloop::timer::{TimeoutAction, Timer};
         let check = Timer::from_duration(SCREENCOPY_ACTIVE);
-        let registered = self.loop_handle.insert_source(check, |_, _, state| {
-            match state.last_screencopy.map(|at| at.elapsed()) {
-                Some(elapsed) if elapsed < SCREENCOPY_ACTIVE => TimeoutAction::ToDuration(SCREENCOPY_ACTIVE - elapsed),
-                _ => {
-                    state.last_screencopy = None;
-                    state.ipc_dirty = true;
-                    TimeoutAction::Drop
-                }
+        let registered = self.loop_handle.insert_source(check, |_, _, state| match state.last_screencopy.map(|at| at.elapsed()) {
+            Some(elapsed) if elapsed < SCREENCOPY_ACTIVE => TimeoutAction::ToDuration(SCREENCOPY_ACTIVE - elapsed),
+            _ => {
+                state.last_screencopy = None;
+                state.ipc_dirty = true;
+                TimeoutAction::Drop
             }
         });
         if let Err(error) = registered {
@@ -335,13 +333,7 @@ impl State {
     }
 
     /// Answer the capture frames waiting on `output`, using the elements just drawn for outputs.
-    pub fn fulfill_image_captures(
-        &mut self,
-        renderer: &mut GlesRenderer,
-        output: &Output,
-        elements: &[OutputElement],
-        had_damage: bool,
-    ) {
+    pub fn fulfill_image_captures(&mut self, renderer: &mut GlesRenderer, output: &Output, elements: &[OutputElement], had_damage: bool) {
         let before = self.image_capture.sessions.len();
         self.image_capture.sessions.retain(|(resource, _)| resource.is_alive());
         if self.image_capture.sessions.len() != before {
@@ -396,7 +388,12 @@ impl State {
             let timestamp: std::time::Duration = Clock::<Monotonic>::new().now().into();
             match self.capture_frame(renderer, elements, &frame, size) {
                 Ok(readback) => {
-                    self.image_capture.readbacks.push(InFlight { answer: Answer::Image(frame), readback, captured_at: std::time::Instant::now(), timestamp });
+                    self.image_capture.readbacks.push(InFlight {
+                        answer: Answer::Image(frame),
+                        readback,
+                        captured_at: std::time::Instant::now(),
+                        timestamp,
+                    });
                 }
                 Err(error) => {
                     tracing::warn!("image capture failed: {error}");
@@ -407,7 +404,8 @@ impl State {
         self.readbacks_started(renderer);
         waiting.append(&mut self.image_capture.pending);
         // Frames still waiting for a change on this output get a redraw when their keepalive is due.
-        let due = waiting.iter().filter(|f| self.frame_belongs_to(f, output)).map(|f| KEEPALIVE.saturating_sub(f.requested.elapsed())).min();
+        let due =
+            waiting.iter().filter(|f| self.frame_belongs_to(f, output)).map(|f| KEEPALIVE.saturating_sub(f.requested.elapsed())).min();
         self.image_capture.pending = waiting;
         if let Some(due) = due {
             self.schedule_capture_redraw(output, due);
@@ -420,11 +418,12 @@ impl State {
             return;
         }
         let output = output.clone();
-        let _ = self.loop_handle.insert_source(Timer::from_duration(after.max(std::time::Duration::from_millis(20))), move |_, _, state| {
-            state.image_capture.timers.remove(&output.name());
-            state.queue_redraw_output(&output);
-            TimeoutAction::Drop
-        });
+        let _ =
+            self.loop_handle.insert_source(Timer::from_duration(after.max(std::time::Duration::from_millis(20))), move |_, _, state| {
+                state.image_capture.timers.remove(&output.name());
+                state.queue_redraw_output(&output);
+                TimeoutAction::Drop
+            });
     }
 
     fn capture_frame(
@@ -435,7 +434,8 @@ impl State {
         size: Size<i32, Physical>,
     ) -> Result<Readback, String> {
         // Shared memory goes through a read-back, GPU buffers are drawn into; both complete once the GPU is done.
-        let mut target = if get_dmabuf(&frame.buffer).is_err() { Some(self.take_capture_target(renderer, &frame.session, size)?) } else { None };
+        let mut target =
+            if get_dmabuf(&frame.buffer).is_err() { Some(self.take_capture_target(renderer, &frame.session, size)?) } else { None };
         let result = self.render_capture(renderer, elements, frame, size, target.as_mut());
         // A frame that failed may have left the texture half drawn: the next one starts with a new target.
         if let (Ok(_), Some(target)) = (&result, target) {
@@ -528,7 +528,12 @@ impl State {
 
     /// The session's offscreen target for frames of `size`, taken out while a frame is drawn into it; created
     /// when missing or resized.
-    fn take_capture_target(&mut self, renderer: &mut GlesRenderer, session: &Arc<SessionShared>, size: Size<i32, Physical>) -> Result<SessionTarget, String> {
+    fn take_capture_target(
+        &mut self,
+        renderer: &mut GlesRenderer,
+        session: &Arc<SessionShared>,
+        size: Size<i32, Physical>,
+    ) -> Result<SessionTarget, String> {
         let targets = &mut self.image_capture.targets;
         targets.retain(|t| t.owner.strong_count() > 0);
         if let Some(index) = targets.iter().position(|t| t.owner.as_ptr() == Arc::as_ptr(session)) {
@@ -570,7 +575,12 @@ impl State {
 
     /// A wlr-screencopy frame rendered at `timestamp` on the GPU: answered when the GPU is done.
     pub(crate) fn screencopy_in_flight(&mut self, copy: PendingCopy, readback: Readback, timestamp: std::time::Duration) {
-        self.image_capture.readbacks.push(InFlight { answer: Answer::Screencopy(copy), readback, captured_at: std::time::Instant::now(), timestamp });
+        self.image_capture.readbacks.push(InFlight {
+            answer: Answer::Screencopy(copy),
+            readback,
+            captured_at: std::time::Instant::now(),
+            timestamp,
+        });
     }
 
     /// Read-backs were started in a redraw: finish them there when the backend has no renderer outside its redraw,
@@ -650,7 +660,14 @@ const SCREENCOPY_ACTIVE: std::time::Duration = std::time::Duration::from_millis(
 // --- Sources ------------------------------------------------------------------------------
 
 impl GlobalDispatch<ExtOutputImageCaptureSourceManagerV1, (), State> for State {
-    fn bind(_: &mut State, _: &DisplayHandle, _: &Client, resource: New<ExtOutputImageCaptureSourceManagerV1>, _: &(), init: &mut DataInit<'_, State>) {
+    fn bind(
+        _: &mut State,
+        _: &DisplayHandle,
+        _: &Client,
+        resource: New<ExtOutputImageCaptureSourceManagerV1>,
+        _: &(),
+        init: &mut DataInit<'_, State>,
+    ) {
         init.init(resource, ());
     }
 }
@@ -674,7 +691,14 @@ impl Dispatch<ExtOutputImageCaptureSourceManagerV1, (), State> for State {
 }
 
 impl GlobalDispatch<ExtForeignToplevelImageCaptureSourceManagerV1, (), State> for State {
-    fn bind(_: &mut State, _: &DisplayHandle, _: &Client, resource: New<ExtForeignToplevelImageCaptureSourceManagerV1>, _: &(), init: &mut DataInit<'_, State>) {
+    fn bind(
+        _: &mut State,
+        _: &DisplayHandle,
+        _: &Client,
+        resource: New<ExtForeignToplevelImageCaptureSourceManagerV1>,
+        _: &(),
+        init: &mut DataInit<'_, State>,
+    ) {
         init.init(resource, ());
     }
 }
@@ -712,7 +736,14 @@ impl Dispatch<ExtImageCaptureSourceV1, Option<Source>, State> for State {
 // --- Sessions and frames ------------------------------------------------------------------
 
 impl GlobalDispatch<ExtImageCopyCaptureManagerV1, (), State> for State {
-    fn bind(_: &mut State, _: &DisplayHandle, _: &Client, resource: New<ExtImageCopyCaptureManagerV1>, _: &(), init: &mut DataInit<'_, State>) {
+    fn bind(
+        _: &mut State,
+        _: &DisplayHandle,
+        _: &Client,
+        resource: New<ExtImageCopyCaptureManagerV1>,
+        _: &(),
+        init: &mut DataInit<'_, State>,
+    ) {
         init.init(resource, ());
     }
 }
@@ -900,7 +931,12 @@ impl Dispatch<ExtImageCopyCaptureFrameV1, FrameData, State> for State {
                     frame.failed(FailureReason::BufferConstraints);
                     return;
                 }
-                state.image_capture.pending.push(PendingFrame { frame: frame.clone(), session: data.session.clone(), buffer, requested: std::time::Instant::now() });
+                state.image_capture.pending.push(PendingFrame {
+                    frame: frame.clone(),
+                    session: data.session.clone(),
+                    buffer,
+                    requested: std::time::Instant::now(),
+                });
                 // Only the output that answers the frame: a redraw of the others (a game's output
                 // when a different monitor is shared) would cost them a frame for nothing.
                 let output = match &data.session.source {

@@ -1,0 +1,3 @@
+# The widths the code was written to by hand: these two settings change the fewest lines.
+max_width = 140
+use_small_heuristics = "Max"

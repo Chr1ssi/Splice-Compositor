@@ -44,12 +44,7 @@ impl<T: Clone + Eq> Desk<T> {
     /// or the next free number for monitors not listed there.
     pub fn home_number(&self, monitor: usize) -> usize {
         let listed = &self.workspace_outputs;
-        let position = |index: usize| {
-            self.monitors[index]
-                .name
-                .as_ref()
-                .and_then(|name| listed.iter().position(|item| item == name))
-        };
+        let position = |index: usize| self.monitors[index].name.as_ref().and_then(|name| listed.iter().position(|item| item == name));
         if let Some(position) = position(monitor) {
             return position + 1;
         }
@@ -91,11 +86,8 @@ impl<T: Clone + Eq> Desk<T> {
 
     /// Create an extra workspace on `monitor` (or reuse its empty one) and return its number.
     pub fn create(&mut self, monitor: usize) -> Option<usize> {
-        if let Some(empty) = self.monitors[monitor]
-            .workspaces
-            .entries
-            .iter()
-            .find(|entry| entry.kind == Kind::Extra && entry.windows.is_empty())
+        if let Some(empty) =
+            self.monitors[monitor].workspaces.entries.iter().find(|entry| entry.kind == Kind::Extra && entry.windows.is_empty())
         {
             return Some(empty.number);
         }
@@ -212,10 +204,7 @@ impl<T: Clone + Eq> Desk<T> {
 
     /// Monitor and workspace number holding `window`.
     pub fn locate(&self, window: &T) -> Option<(usize, usize)> {
-        self.monitors
-            .iter()
-            .enumerate()
-            .find_map(|(index, m)| m.workspaces.location(window).map(|number| (index, number)))
+        self.monitors.iter().enumerate().find_map(|(index, m)| m.workspaces.location(window).map(|number| (index, number)))
     }
 
     pub fn remove_window(&mut self, window: &T) {
@@ -237,9 +226,7 @@ impl<T: Clone + Eq> Desk<T> {
     }
 
     pub fn monitor_at(&self, x: i32, y: i32) -> Option<usize> {
-        self.monitors.iter().position(|m| {
-            x >= m.area.x && x < m.area.x + m.area.width && y >= m.area.y && y < m.area.y + m.area.height
-        })
+        self.monitors.iter().position(|m| x >= m.area.x && x < m.area.x + m.area.width && y >= m.area.y && y < m.area.y + m.area.height)
     }
 
     /// Keep a pointer position on some monitor: positions already on one are unchanged,

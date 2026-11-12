@@ -21,50 +21,55 @@
 //! `splice-test-client lock <seconds>` (no window: asks to lock the session, prints `locked` or `finished`,
 //! then asks to unlock it either way and prints `unlock sent`). Every mode exits
 //! when the compositor asks a window to close.
-use std::{os::fd::AsFd, time::{Duration, Instant}};
+use std::{
+    os::fd::AsFd,
+    time::{Duration, Instant},
+};
 
 use wayland_client::{
     Connection, Dispatch, QueueHandle, delegate_noop,
     globals::{GlobalListContents, registry_queue_init},
     protocol::{
+        wl_buffer::{self, WlBuffer},
+        wl_callback::{self, WlCallback},
+        wl_compositor::WlCompositor,
         wl_keyboard::{self, WlKeyboard},
         wl_pointer::{self, WlPointer},
-        wl_buffer::{self, WlBuffer}, wl_compositor::WlCompositor, wl_registry::WlRegistry, wl_seat::WlSeat, wl_shm::{self, WlShm},
-        wl_shm_pool::WlShmPool, wl_surface::WlSurface, wl_region::WlRegion, wl_subcompositor::WlSubcompositor, wl_subsurface::WlSubsurface,
-        wl_callback::{self, WlCallback},
+        wl_region::WlRegion,
+        wl_registry::WlRegistry,
+        wl_seat::WlSeat,
+        wl_shm::{self, WlShm},
+        wl_shm_pool::WlShmPool,
+        wl_subcompositor::WlSubcompositor,
+        wl_subsurface::WlSubsurface,
+        wl_surface::WlSurface,
     },
-};
-use wayland_protocols_wlr::layer_shell::v1::client::{
-    zwlr_layer_shell_v1::{Layer, ZwlrLayerShellV1},
-    zwlr_layer_surface_v1::{self, KeyboardInteractivity, ZwlrLayerSurfaceV1},
 };
 use wayland_protocols::{
-    xdg::foreign::zv2::client::{
-        zxdg_exported_v2::{self, ZxdgExportedV2},
-        zxdg_exporter_v2::ZxdgExporterV2,
-        zxdg_imported_v2::ZxdgImportedV2,
-        zxdg_importer_v2::ZxdgImporterV2,
-    },
-    wp::commit_timing::v1::client::{wp_commit_timer_v1::WpCommitTimerV1, wp_commit_timing_manager_v1::WpCommitTimingManagerV1},
-    wp::fifo::v1::client::{wp_fifo_manager_v1::WpFifoManagerV1, wp_fifo_v1::WpFifoV1},
     ext::session_lock::v1::client::{
         ext_session_lock_manager_v1::ExtSessionLockManagerV1,
         ext_session_lock_v1::{self, ExtSessionLockV1},
     },
+    wp::commit_timing::v1::client::{wp_commit_timer_v1::WpCommitTimerV1, wp_commit_timing_manager_v1::WpCommitTimingManagerV1},
     wp::content_type::v1::client::{
         wp_content_type_manager_v1::WpContentTypeManagerV1,
         wp_content_type_v1::{self, WpContentTypeV1},
     },
-    wp::idle_inhibit::zv1::client::{
-        zwp_idle_inhibit_manager_v1::ZwpIdleInhibitManagerV1, zwp_idle_inhibitor_v1::ZwpIdleInhibitorV1,
+    wp::fifo::v1::client::{wp_fifo_manager_v1::WpFifoManagerV1, wp_fifo_v1::WpFifoV1},
+    wp::idle_inhibit::zv1::client::{zwp_idle_inhibit_manager_v1::ZwpIdleInhibitManagerV1, zwp_idle_inhibitor_v1::ZwpIdleInhibitorV1},
+    wp::keyboard_shortcuts_inhibit::zv1::client::{
+        zwp_keyboard_shortcuts_inhibit_manager_v1::ZwpKeyboardShortcutsInhibitManagerV1,
+        zwp_keyboard_shortcuts_inhibitor_v1::{self, ZwpKeyboardShortcutsInhibitorV1},
     },
     wp::pointer_constraints::zv1::client::{
         zwp_locked_pointer_v1::{self, ZwpLockedPointerV1},
         zwp_pointer_constraints_v1::{Lifetime, ZwpPointerConstraintsV1},
     },
-    wp::keyboard_shortcuts_inhibit::zv1::client::{
-        zwp_keyboard_shortcuts_inhibit_manager_v1::ZwpKeyboardShortcutsInhibitManagerV1,
-        zwp_keyboard_shortcuts_inhibitor_v1::{self, ZwpKeyboardShortcutsInhibitorV1},
+    xdg::foreign::zv2::client::{
+        zxdg_exported_v2::{self, ZxdgExportedV2},
+        zxdg_exporter_v2::ZxdgExporterV2,
+        zxdg_imported_v2::ZxdgImportedV2,
+        zxdg_importer_v2::ZxdgImporterV2,
     },
     xdg::{
         activation::v1::client::{
@@ -79,6 +84,10 @@ use wayland_protocols::{
             xdg_wm_base::{self, XdgWmBase},
         },
     },
+};
+use wayland_protocols_wlr::layer_shell::v1::client::{
+    zwlr_layer_shell_v1::{Layer, ZwlrLayerShellV1},
+    zwlr_layer_surface_v1::{self, KeyboardInteractivity, ZwlrLayerSurfaceV1},
 };
 
 #[derive(Default)]
@@ -131,7 +140,15 @@ impl Dispatch<WlCallback, ()> for App {
 }
 
 impl Dispatch<WlRegistry, GlobalListContents> for App {
-    fn event(_: &mut Self, _: &WlRegistry, _: wayland_client::protocol::wl_registry::Event, _: &GlobalListContents, _: &Connection, _: &QueueHandle<Self>) {}
+    fn event(
+        _: &mut Self,
+        _: &WlRegistry,
+        _: wayland_client::protocol::wl_registry::Event,
+        _: &GlobalListContents,
+        _: &Connection,
+        _: &QueueHandle<Self>,
+    ) {
+    }
 }
 
 impl Dispatch<XdgWmBase, ()> for App {
@@ -152,7 +169,14 @@ impl Dispatch<XdgSurface, usize> for App {
 }
 
 impl Dispatch<XdgToplevel, ()> for App {
-    fn event(state: &mut Self, toplevel: &XdgToplevel, event: wayland_protocols::xdg::shell::client::xdg_toplevel::Event, _: &(), _: &Connection, _: &QueueHandle<Self>) {
+    fn event(
+        state: &mut Self,
+        toplevel: &XdgToplevel,
+        event: wayland_protocols::xdg::shell::client::xdg_toplevel::Event,
+        _: &(),
+        _: &Connection,
+        _: &QueueHandle<Self>,
+    ) {
         use wayland_protocols::xdg::shell::client::xdg_toplevel::Event;
         match event {
             Event::Configure { width, height, .. } => {
@@ -167,7 +191,14 @@ impl Dispatch<XdgToplevel, ()> for App {
 }
 
 impl Dispatch<ZwpKeyboardShortcutsInhibitorV1, ()> for App {
-    fn event(state: &mut Self, _: &ZwpKeyboardShortcutsInhibitorV1, event: zwp_keyboard_shortcuts_inhibitor_v1::Event, _: &(), _: &Connection, _: &QueueHandle<Self>) {
+    fn event(
+        state: &mut Self,
+        _: &ZwpKeyboardShortcutsInhibitorV1,
+        event: zwp_keyboard_shortcuts_inhibitor_v1::Event,
+        _: &(),
+        _: &Connection,
+        _: &QueueHandle<Self>,
+    ) {
         match event {
             zwp_keyboard_shortcuts_inhibitor_v1::Event::Active => state.inhibitor_active = Some(true),
             zwp_keyboard_shortcuts_inhibitor_v1::Event::Inactive => state.inhibitor_active = Some(false),
@@ -177,7 +208,14 @@ impl Dispatch<ZwpKeyboardShortcutsInhibitorV1, ()> for App {
 }
 
 impl Dispatch<XdgActivationTokenV1, ()> for App {
-    fn event(state: &mut Self, _: &XdgActivationTokenV1, event: xdg_activation_token_v1::Event, _: &(), _: &Connection, _: &QueueHandle<Self>) {
+    fn event(
+        state: &mut Self,
+        _: &XdgActivationTokenV1,
+        event: xdg_activation_token_v1::Event,
+        _: &(),
+        _: &Connection,
+        _: &QueueHandle<Self>,
+    ) {
         if let xdg_activation_token_v1::Event::Done { token } = event {
             state.token = Some(token);
         }
@@ -185,7 +223,14 @@ impl Dispatch<XdgActivationTokenV1, ()> for App {
 }
 
 impl Dispatch<ZwlrLayerSurfaceV1, ()> for App {
-    fn event(state: &mut Self, surface: &ZwlrLayerSurfaceV1, event: zwlr_layer_surface_v1::Event, _: &(), _: &Connection, _: &QueueHandle<Self>) {
+    fn event(
+        state: &mut Self,
+        surface: &ZwlrLayerSurfaceV1,
+        event: zwlr_layer_surface_v1::Event,
+        _: &(),
+        _: &Connection,
+        _: &QueueHandle<Self>,
+    ) {
         if let zwlr_layer_surface_v1::Event::Configure { serial, .. } = event {
             surface.ack_configure(serial);
             state.configured.iter_mut().for_each(|c| *c = true);
@@ -285,7 +330,14 @@ struct Window {
 }
 
 /// A toplevel of whatever size the compositor gives it, redrawn in a new color every 50 ms.
-fn simple_window(app: &mut App, queue: &mut wayland_client::EventQueue<App>, compositor: &WlCompositor, shm: &WlShm, wm_base: &XdgWmBase, seconds: u64) {
+fn simple_window(
+    app: &mut App,
+    queue: &mut wayland_client::EventQueue<App>,
+    compositor: &WlCompositor,
+    shm: &WlShm,
+    wm_base: &XdgWmBase,
+    seconds: u64,
+) {
     let qh = queue.handle();
     app.configured = vec![false];
     let surface = compositor.create_surface(&qh, ());
@@ -296,7 +348,13 @@ fn simple_window(app: &mut App, queue: &mut wayland_client::EventQueue<App>, com
     while !app.configured[0] {
         queue.blocking_dispatch(app).unwrap();
     }
-    let file = std::fs::File::options().read(true).write(true).create(true).truncate(true).open(std::env::temp_dir().join(format!("splice-tc-{}", std::process::id()))).unwrap();
+    let file = std::fs::File::options()
+        .read(true)
+        .write(true)
+        .create(true)
+        .truncate(true)
+        .open(std::env::temp_dir().join(format!("splice-tc-{}", std::process::id())))
+        .unwrap();
     let end = Instant::now() + Duration::from_secs(seconds);
     let mut frame = 0u32;
     while Instant::now() < end {
@@ -309,7 +367,8 @@ fn simple_window(app: &mut App, queue: &mut wayland_client::EventQueue<App>, com
         file.set_len(length as u64).unwrap();
         // A gradient from left to right whose phase moves, so the picture has many colors and changes every frame.
         let phase = frame.wrapping_mul(7) as usize;
-        let row: Vec<u8> = (0..w as usize).flat_map(|x| [((x + phase) % 256) as u8, 0x40, 0xC0 - ((x * 128 / w as usize) as u8), 0xFF]).collect();
+        let row: Vec<u8> =
+            (0..w as usize).flat_map(|x| [((x + phase) % 256) as u8, 0x40, 0xC0 - ((x * 128 / w as usize) as u8), 0xFF]).collect();
         let pixels: Vec<u8> = row.iter().copied().cycle().take(length).collect();
         std::os::unix::fs::FileExt::write_all_at(&file, &pixels, 0).unwrap();
         let pool = shm.create_pool(file.as_fd(), length as i32, &qh, ());
@@ -352,7 +411,13 @@ fn subsurface_window(
     }
     let (w, h) = if app.toplevel_size.0 > 0 && app.toplevel_size.1 > 0 { app.toplevel_size } else { (256, 256) };
     let length = (w * h * 4) as usize;
-    let file = std::fs::File::options().read(true).write(true).create(true).truncate(true).open(std::env::temp_dir().join(format!("splice-tc-{}", std::process::id()))).unwrap();
+    let file = std::fs::File::options()
+        .read(true)
+        .write(true)
+        .create(true)
+        .truncate(true)
+        .open(std::env::temp_dir().join(format!("splice-tc-{}", std::process::id())))
+        .unwrap();
     file.set_len(length as u64).unwrap();
     // The first half of the file stays transparent for the toplevel, the content is written after it.
     file.set_len(2 * length as u64).unwrap();
@@ -385,7 +450,15 @@ struct FramesStyle {
     content_type: Option<(WpContentTypeManagerV1, wp_content_type_v1::Type)>,
 }
 
-fn frames_window(app: &mut App, queue: &mut wayland_client::EventQueue<App>, compositor: &WlCompositor, shm: &WlShm, wm_base: &XdgWmBase, seconds: u64, style: FramesStyle) {
+fn frames_window(
+    app: &mut App,
+    queue: &mut wayland_client::EventQueue<App>,
+    compositor: &WlCompositor,
+    shm: &WlShm,
+    wm_base: &XdgWmBase,
+    seconds: u64,
+    style: FramesStyle,
+) {
     let qh = queue.handle();
     app.configured = vec![false];
     let surface = compositor.create_surface(&qh, ());
@@ -404,7 +477,13 @@ fn frames_window(app: &mut App, queue: &mut wayland_client::EventQueue<App>, com
         queue.blocking_dispatch(app).unwrap();
     }
     let (w, h) = if app.toplevel_size.0 > 0 && app.toplevel_size.1 > 0 { app.toplevel_size } else { (200, 150) };
-    let file = std::fs::File::options().read(true).write(true).create(true).truncate(true).open(std::env::temp_dir().join(format!("splice-tc-{}", std::process::id()))).unwrap();
+    let file = std::fs::File::options()
+        .read(true)
+        .write(true)
+        .create(true)
+        .truncate(true)
+        .open(std::env::temp_dir().join(format!("splice-tc-{}", std::process::id())))
+        .unwrap();
     file.set_len((w * h * 4) as u64).unwrap();
     std::os::unix::fs::FileExt::write_all_at(&file, &vec![0x60u8; (w * h * 4) as usize], 0).unwrap();
     let pool = shm.create_pool(file.as_fd(), w * h * 4, &qh, ());
@@ -451,7 +530,13 @@ fn frames_window(app: &mut App, queue: &mut wayland_client::EventQueue<App>, com
 }
 
 /// A mapped window showing the first of two buffers to commit in turn (`fifo` and `timed` modes).
-fn shm_window(app: &mut App, queue: &mut wayland_client::EventQueue<App>, compositor: &WlCompositor, shm: &WlShm, wm_base: &XdgWmBase) -> (WlSurface, [WlBuffer; 2]) {
+fn shm_window(
+    app: &mut App,
+    queue: &mut wayland_client::EventQueue<App>,
+    compositor: &WlCompositor,
+    shm: &WlShm,
+    wm_base: &XdgWmBase,
+) -> (WlSurface, [WlBuffer; 2]) {
     let qh = queue.handle();
     app.configured = vec![false];
     let surface = compositor.create_surface(&qh, ());
@@ -463,7 +548,13 @@ fn shm_window(app: &mut App, queue: &mut wayland_client::EventQueue<App>, compos
         queue.blocking_dispatch(app).unwrap();
     }
     let (w, h) = if app.toplevel_size.0 > 0 && app.toplevel_size.1 > 0 { app.toplevel_size } else { (200, 150) };
-    let file = std::fs::File::options().read(true).write(true).create(true).truncate(true).open(std::env::temp_dir().join(format!("splice-tc-{}", std::process::id()))).unwrap();
+    let file = std::fs::File::options()
+        .read(true)
+        .write(true)
+        .create(true)
+        .truncate(true)
+        .open(std::env::temp_dir().join(format!("splice-tc-{}", std::process::id())))
+        .unwrap();
     file.set_len((w * h * 8) as u64).unwrap();
     std::os::unix::fs::FileExt::write_all_at(&file, &vec![0x60u8; (w * h * 8) as usize], 0).unwrap();
     let pool = shm.create_pool(file.as_fd(), w * h * 8, &qh, ());
@@ -475,7 +566,15 @@ fn shm_window(app: &mut App, queue: &mut wayland_client::EventQueue<App>, compos
 }
 
 /// A window with the given app id and title, for window rules; prints every size it is given.
-fn named_window(app: &mut App, queue: &mut wayland_client::EventQueue<App>, compositor: &WlCompositor, shm: &WlShm, wm_base: &XdgWmBase, seconds: u64, (app_id, title, fullscreen): (String, Option<String>, bool)) {
+fn named_window(
+    app: &mut App,
+    queue: &mut wayland_client::EventQueue<App>,
+    compositor: &WlCompositor,
+    shm: &WlShm,
+    wm_base: &XdgWmBase,
+    seconds: u64,
+    (app_id, title, fullscreen): (String, Option<String>, bool),
+) {
     let qh = queue.handle();
     app.configured = vec![false];
     let surface = compositor.create_surface(&qh, ());
@@ -492,7 +591,13 @@ fn named_window(app: &mut App, queue: &mut wayland_client::EventQueue<App>, comp
     while !app.configured[0] {
         queue.blocking_dispatch(app).unwrap();
     }
-    let file = std::fs::File::options().read(true).write(true).create(true).truncate(true).open(std::env::temp_dir().join(format!("splice-tc-{}", std::process::id()))).unwrap();
+    let file = std::fs::File::options()
+        .read(true)
+        .write(true)
+        .create(true)
+        .truncate(true)
+        .open(std::env::temp_dir().join(format!("splice-tc-{}", std::process::id())))
+        .unwrap();
     file.set_len(100 * 100 * 4).unwrap();
     let pool = shm.create_pool(file.as_fd(), 100 * 100 * 4, &qh, ());
     let buffer = pool.create_buffer(0, 100, 100, 400, wl_shm::Format::Xrgb8888, &qh, ());
@@ -512,7 +617,15 @@ fn named_window(app: &mut App, queue: &mut wayland_client::EventQueue<App>, comp
 }
 
 /// A parent window that exports itself and its dialog that imports it (`foreign` mode).
-fn foreign_windows(app: &mut App, queue: &mut wayland_client::EventQueue<App>, compositor: &WlCompositor, shm: &WlShm, wm_base: &XdgWmBase, seconds: u64, (exporter, importer, late): (ZxdgExporterV2, ZxdgImporterV2, bool)) {
+fn foreign_windows(
+    app: &mut App,
+    queue: &mut wayland_client::EventQueue<App>,
+    compositor: &WlCompositor,
+    shm: &WlShm,
+    wm_base: &XdgWmBase,
+    seconds: u64,
+    (exporter, importer, late): (ZxdgExporterV2, ZxdgImporterV2, bool),
+) {
     let qh = queue.handle();
     let (parent, _buffers) = shm_window(app, queue, compositor, shm, wm_base);
     let _exported = exporter.export_toplevel(&parent, &qh, ());
@@ -535,7 +648,13 @@ fn foreign_windows(app: &mut App, queue: &mut wayland_client::EventQueue<App>, c
     while !app.configured[index] {
         queue.blocking_dispatch(app).unwrap();
     }
-    let file = std::fs::File::options().read(true).write(true).create(true).truncate(true).open(std::env::temp_dir().join(format!("splice-tc-d{}", std::process::id()))).unwrap();
+    let file = std::fs::File::options()
+        .read(true)
+        .write(true)
+        .create(true)
+        .truncate(true)
+        .open(std::env::temp_dir().join(format!("splice-tc-d{}", std::process::id())))
+        .unwrap();
     file.set_len(100 * 100 * 4).unwrap();
     let pool = shm.create_pool(file.as_fd(), 100 * 100 * 4, &qh, ());
     let buffer = pool.create_buffer(0, 100, 100, 400, wl_shm::Format::Xrgb8888, &qh, ());
@@ -580,7 +699,15 @@ fn pump(app: &mut App, queue: &mut wayland_client::EventQueue<App>, timeout: i32
 
 /// Like a game with fifo presentation: a few updates queued ahead, each waiting on the barrier the one
 /// before it set. Each update asks for a frame callback, which fires once the update was applied and shown.
-fn fifo_window(app: &mut App, queue: &mut wayland_client::EventQueue<App>, compositor: &WlCompositor, shm: &WlShm, wm_base: &XdgWmBase, manager: &WpFifoManagerV1, seconds: u64) {
+fn fifo_window(
+    app: &mut App,
+    queue: &mut wayland_client::EventQueue<App>,
+    compositor: &WlCompositor,
+    shm: &WlShm,
+    wm_base: &XdgWmBase,
+    manager: &WpFifoManagerV1,
+    seconds: u64,
+) {
     let qh = queue.handle();
     let (surface, buffers) = shm_window(app, queue, compositor, shm, wm_base);
     let fifo = manager.get_fifo(&surface, &qh, ());
@@ -617,7 +744,15 @@ fn fifo_window(app: &mut App, queue: &mut wayland_client::EventQueue<App>, compo
 }
 
 /// Map the window, then commit an update meant for `delay` later and report when it was applied.
-fn timed_window(app: &mut App, queue: &mut wayland_client::EventQueue<App>, compositor: &WlCompositor, shm: &WlShm, wm_base: &XdgWmBase, manager: &WpCommitTimingManagerV1, delay: Duration) {
+fn timed_window(
+    app: &mut App,
+    queue: &mut wayland_client::EventQueue<App>,
+    compositor: &WlCompositor,
+    shm: &WlShm,
+    wm_base: &XdgWmBase,
+    manager: &WpCommitTimingManagerV1,
+    delay: Duration,
+) {
     let qh = queue.handle();
     let (surface, buffers) = shm_window(app, queue, compositor, shm, wm_base);
     let timer = manager.get_timer(&surface, &qh, ());
@@ -714,12 +849,14 @@ fn main() {
     if mode == "frames" {
         let style = FramesStyle {
             fullscreen: std::env::args().skip(3).any(|a| a == "fullscreen"),
-            content_type: std::env::args().skip(3).find_map(|a| match a.as_str() {
-                "game" => Some(wp_content_type_v1::Type::Game),
-                "video" => Some(wp_content_type_v1::Type::Video),
-                _ => None,
-            })
-            .map(|kind| (globals.bind(&qh, 1..=1, ()).expect("content type manager"), kind)),
+            content_type: std::env::args()
+                .skip(3)
+                .find_map(|a| match a.as_str() {
+                    "game" => Some(wp_content_type_v1::Type::Game),
+                    "video" => Some(wp_content_type_v1::Type::Video),
+                    _ => None,
+                })
+                .map(|kind| (globals.bind(&qh, 1..=1, ()).expect("content type manager"), kind)),
         };
         frames_window(&mut app, &mut queue, &compositor, &shm, &wm_base, seconds, style);
         return;
@@ -729,12 +866,24 @@ fn main() {
         // `layer <top|overlay> <w> <h> <RRGGBB> <seconds>` or `fullscreen <RRGGBB> <seconds>`: one solid surface.
         let args: Vec<String> = std::env::args().collect();
         let (layer_name, w, h, color, seconds) = if mode == "layer" {
-            (args[2].clone(), args[3].parse::<i32>().unwrap(), args[4].parse::<i32>().unwrap(), args[5].clone(), args[6].parse::<u64>().unwrap())
+            (
+                args[2].clone(),
+                args[3].parse::<i32>().unwrap(),
+                args[4].parse::<i32>().unwrap(),
+                args[5].clone(),
+                args[6].parse::<u64>().unwrap(),
+            )
         } else {
             (String::new(), 1280, 800, args[2].clone(), args[3].parse::<u64>().unwrap())
         };
         let rgb = u32::from_str_radix(&color, 16).unwrap();
-        let file = std::fs::File::options().read(true).write(true).create(true).truncate(true).open(std::env::temp_dir().join(format!("splice-tc-{}", std::process::id()))).unwrap();
+        let file = std::fs::File::options()
+            .read(true)
+            .write(true)
+            .create(true)
+            .truncate(true)
+            .open(std::env::temp_dir().join(format!("splice-tc-{}", std::process::id())))
+            .unwrap();
         file.set_len((w * h * 4) as u64).unwrap();
         let pixel = (0xff00_0000u32 | rgb).to_le_bytes();
         let pixels: Vec<u8> = (0..w * h).flat_map(|_| pixel).collect();
@@ -790,7 +939,13 @@ fn main() {
     let count = if mode == "urgent" { 2 } else { 1 };
     app.configured = vec![false; count];
     let (w, h) = (200i32, 150i32);
-    let file = std::fs::File::options().read(true).write(true).create(true).truncate(true).open(std::env::temp_dir().join(format!("splice-tc-{}", std::process::id()))).unwrap();
+    let file = std::fs::File::options()
+        .read(true)
+        .write(true)
+        .create(true)
+        .truncate(true)
+        .open(std::env::temp_dir().join(format!("splice-tc-{}", std::process::id())))
+        .unwrap();
     file.set_len((w * h * 4) as u64).unwrap();
     let pixels = vec![0x80u8; (w * h * 4) as usize];
     std::os::unix::fs::FileExt::write_all_at(&file, &pixels, 0).unwrap();

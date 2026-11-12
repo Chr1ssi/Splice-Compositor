@@ -2,12 +2,12 @@
 
 mod attention;
 mod barriers;
-mod floating_memory;
 mod blur;
 mod color_picker;
 mod cursor;
 mod desktop;
 mod effects;
+mod floating_memory;
 mod gamma;
 mod handlers;
 mod image_capture;
@@ -26,21 +26,21 @@ mod screenshot;
 mod session;
 mod shell;
 mod shell_calendar;
+mod shell_control;
 mod shell_greeter;
 mod shell_launcher;
 mod shell_lock;
-mod shell_control;
 mod shell_notifications;
 mod shell_panels;
 mod shell_services;
 mod shell_tray;
 mod shell_wallpaper;
 mod shutdown;
+mod state;
 mod udev;
 mod wallpaper;
-mod xwayland;
-mod state;
 mod winit;
+mod xwayland;
 
 use calloop::EventLoop;
 use tracing_subscriber::EnvFilter;
@@ -50,12 +50,8 @@ pub use state::State;
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     splice_config::migrate_legacy_state_dir();
     // Client modes (`--lock`, `--idle`) write to the terminal only; the compositor logs to a file too.
-    let client_mode = matches!(
-        std::env::args().nth(1).as_deref(),
-        Some(
-            "--lock" | "--idle" | "--theme-from-wallpaper" | "--theme-from-state"
-        )
-    );
+    let client_mode =
+        matches!(std::env::args().nth(1).as_deref(), Some("--lock" | "--idle" | "--theme-from-wallpaper" | "--theme-from-state"));
     let log_file = if client_mode {
         tracing_subscriber::fmt().with_env_filter(EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("info"))).init();
         None

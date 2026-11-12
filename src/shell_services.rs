@@ -9,12 +9,12 @@ use std::{
     time::{Duration, Instant},
 };
 
-use splice_shell_protocol::{Event, MAX_LINE, Status, decode, encode};
 use smithay::reexports::calloop::{
     Interest, Mode, PostAction,
     generic::Generic,
     timer::{TimeoutAction, Timer},
 };
+use splice_shell_protocol::{Event, MAX_LINE, Status, decode, encode};
 
 use crate::State;
 

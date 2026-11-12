@@ -79,7 +79,8 @@ fn main() -> std::process::ExitCode {
         tracing::error!("cannot start the bluetooth source: {error}");
     }
     let (bluetooth_commands, bluetooth_queue) = mpsc::channel();
-    let started = std::thread::Builder::new().name("bluetooth-commands".into()).spawn(move || bluetooth::run_commands(bluetooth_queue, busy, poke));
+    let started =
+        std::thread::Builder::new().name("bluetooth-commands".into()).spawn(move || bluetooth::run_commands(bluetooth_queue, busy, poke));
     if let Err(error) = started {
         tracing::error!("cannot control Bluetooth: {error}");
     }
@@ -96,7 +97,8 @@ fn main() -> std::process::ExitCode {
     }
     let (tray_commands, tray_queue) = mpsc::channel();
     let menu_updates = updates.clone();
-    let started = std::thread::Builder::new().name("tray-commands".into()).spawn(move || tray::run_commands(tray_queue, paths, menu_updates));
+    let started =
+        std::thread::Builder::new().name("tray-commands".into()).spawn(move || tray::run_commands(tray_queue, paths, menu_updates));
     if let Err(error) = started {
         tracing::error!("cannot control the tray: {error}");
     }

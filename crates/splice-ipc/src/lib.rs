@@ -116,8 +116,13 @@ pub enum Command {
     CastFollow,
     ThemeReload,
     Scratchpad,
-    NewWorkspace { output: u32 },
-    Workspace { output: u32, number: usize },
+    NewWorkspace {
+        output: u32,
+    },
+    Workspace {
+        output: u32,
+        number: usize,
+    },
 }
 
 /// Parse the syntax of a command line; whether the output or workspace exists is up to the caller.
@@ -138,10 +143,7 @@ pub fn parse_command(line: &str) -> Option<Command> {
         ["v1", "theme-reload"] => Some(Command::ThemeReload),
         ["v1", "scratchpad"] => Some(Command::Scratchpad),
         ["v1", "new-workspace", output] => Some(Command::NewWorkspace { output: output.parse().ok()? }),
-        ["v1", "workspace", output, number] => Some(Command::Workspace {
-            output: output.parse().ok()?,
-            number: number.parse().ok()?,
-        }),
+        ["v1", "workspace", output, number] => Some(Command::Workspace { output: output.parse().ok()?, number: number.parse().ok()? }),
         _ => None,
     }
 }
@@ -189,8 +191,7 @@ impl Snapshot {
             .outputs
             .iter()
             .map(|o| {
-                let workspaces: Vec<_> =
-                    o.workspaces.iter().map(|(n, occupied)| format!("{n}:{}", u8::from(*occupied))).collect();
+                let workspaces: Vec<_> = o.workspaces.iter().map(|(n, occupied)| format!("{n}:{}", u8::from(*occupied))).collect();
                 format!(
                     "{},{},{},{},{},{},{},{},{}",
                     o.id,
@@ -323,10 +324,7 @@ mod tests {
         }
         assert_eq!(parse_command("v1 scratchpad"), Some(Command::Scratchpad));
         assert_eq!(parse_command("v1 new-workspace 7"), Some(Command::NewWorkspace { output: 7 }));
-        assert_eq!(
-            parse_command("v1  workspace 7 3"),
-            Some(Command::Workspace { output: 7, number: 3 })
-        );
+        assert_eq!(parse_command("v1  workspace 7 3"), Some(Command::Workspace { output: 7, number: 3 }));
         for bad in ["", "lock", "v2 lock", "v1 workspace 7", "v1 workspace x 3", "v1 workspace 7 -1", "v1 lock now"] {
             assert_eq!(parse_command(bad), None, "accepted {bad:?}");
         }
