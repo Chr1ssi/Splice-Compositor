@@ -5,12 +5,12 @@ Needs `cargo build --workspace`. Run from the repository root with $DISPLAY set:
     PYTHONPATH=tests python3 tests/layer_focus_smoke.py
 """
 import subprocess, time, select
-from smoke_support import Compositor, wait
+from smoke_support import Bar, Compositor, wait
 
 CLIENT = "./target/debug/splice-test-client"
 
 comp = Compositor(windows=1)
-time.sleep(3)
+Bar(comp.sock).until_focused()
 client = subprocess.Popen([CLIENT, "layer", "overlay", "420", "300", "0000FF", "20", "exclusive"], env=comp.env(),
                           stdout=subprocess.PIPE, text=True)
 got = []

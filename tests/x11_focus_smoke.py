@@ -5,13 +5,13 @@ Needs Xwayland, xev and xdotool. Run from the repository root with $DISPLAY set:
     PYTHONPATH=tests python3 tests/x11_focus_smoke.py
 """
 import os, time
-from smoke_support import Compositor, wait
+from smoke_support import Bar, Compositor, wait
 
 events = os.path.join(os.environ.get("TMPDIR", "/tmp"), f"xev-{os.getpid()}.txt")
 comp = Compositor(extra_args=f"xev -event keyboard > {events} 2>&1 & ")
 log = lambda: open(comp.dir + "/log").read()
 assert wait(lambda: "new window" in log(), 15), "xev was not managed"
-time.sleep(1)
+Bar(comp.sock).until_focused()
 comp.key("a")
 time.sleep(0.5)
 comp.key("b")

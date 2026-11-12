@@ -329,6 +329,7 @@ impl State {
             capturing: self.capturing(),
             choosing: self.share_kinds().is_some(),
             picking: self.picked_color(),
+            focus: self.focused_app_id(),
             config_error: self.config_error.clone(),
             ..Default::default()
         };
@@ -347,6 +348,12 @@ impl State {
             });
         }
         snapshot
+    }
+
+    /// The app id of the window that has the keyboard (empty if it has none); `None` while no window has it.
+    fn focused_app_id(&self) -> Option<String> {
+        let surface = self.seat.get_keyboard()?.current_focus()?;
+        Some(self.desktop.by_surface(&surface)?.app_id.clone().unwrap_or_default())
     }
 
     /// Whether tiled windows of `monitor`'s workspace lie beyond the left and the right edge of its usable area.

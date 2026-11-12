@@ -11,10 +11,11 @@ mode = stat.S_IMODE(os.stat(comp.sock).st_mode)
 assert mode == 0o600, oct(mode)
 bar = Bar(comp.sock)
 bar.until(lambda s: s[0]["workspaces"].get(1))
-time.sleep(3)
-bar.poll()
+# Three columns on one screen scroll: the first is cut off on the left.
+bar.until(lambda s: s[0]["left"])
 print("initial:", bar.state)
-assert bar.state[0]["left"], "three columns on one screen scroll: the first is cut off on the left"
+# The newest window has the keyboard, and the socket says so.
+bar.until_focused("splice.test.simple")
 
 assert bar.send("new-workspace 1") == "v1 ok"
 bar.until(lambda s: s[0]["active"] == 2 and set(s[0]["workspaces"]) == {1, 2})

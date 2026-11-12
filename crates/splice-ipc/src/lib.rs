@@ -7,6 +7,7 @@
 //!   `v1 gaming <0|1>` (a game is shown fullscreen on some monitor), `v1 capture <0|1>` (something
 //!   records or streams the screen or a window), `v1 choosing <0|1>` (the user picks what to share),
 //!   `v1 picking 0` or `v1 picking 1 [#rrggbb]` (the color picker is on, with the color under the pointer),
+//!   `v1 focus 0` or `v1 focus 1 [app id]` (a window has the keyboard, with its app id if it has one),
 //!   `v1 config ok` or
 //!   `v1 config error <reason>` (the configuration file did not load)
 //! * `v1 cast-follow`: the compositor sends `v1 cast-target ...` (see `CastTarget`) now and on every change
@@ -187,6 +188,8 @@ pub struct Snapshot {
     pub choosing: bool,
     /// The color picker is on: `Some`, with the color under the pointer once it is known.
     pub picking: Option<Option<String>>,
+    /// A window has the keyboard: `Some`, with its app id (empty if it has none). Not a layer surface or the shell.
+    pub focus: Option<String>,
     /// Why the configuration file did not load (one line), if it did not.
     pub config_error: Option<String>,
 }
@@ -213,7 +216,7 @@ impl Snapshot {
             })
             .collect();
         format!(
-            "v1 state {}\nv1 scratchpad {} {}\nv1 locked {}\nv1 gaming {}\nv1 capture {}\nv1 choosing {}\nv1 picking {}\nv1 config {}\n",
+            "v1 state {}\nv1 scratchpad {} {}\nv1 locked {}\nv1 gaming {}\nv1 capture {}\nv1 choosing {}\nv1 picking {}\nv1 focus {}\nv1 config {}\n",
             outputs.join(";"),
             u8::from(self.scratchpad_visible),
             u8::from(self.scratchpad_occupied),
@@ -225,6 +228,12 @@ impl Snapshot {
                 None => "0".into(),
                 Some(None) => "1".into(),
                 Some(Some(color)) => format!("1 {color}"),
+            },
+            match self.focus.as_deref() {
+                None => "0".into(),
+                Some("") => "1".into(),
+                // An app id with a line break would break the protocol's lines.
+                Some(app_id) => format!("1 {}", app_id.replace('\n', " ")),
             },
             // A reason with a line break would break the protocol's lines.
             self.config_error.as_deref().map_or("ok".into(), |reason| format!("error {}", reason.replace('\n', " ")))
@@ -275,6 +284,8 @@ impl Snapshot {
                 ["v1", "picking", "0"] => snapshot.picking = None,
                 ["v1", "picking", "1"] => snapshot.picking = Some(None),
                 ["v1", "picking", "1", color] => snapshot.picking = Some(Some((*color).into())),
+                ["v1", "focus", "0"] => snapshot.focus = None,
+                ["v1", "focus", "1", app_id @ ..] => snapshot.focus = Some(app_id.join(" ")),
                 ["v1", "config", "ok"] => snapshot.config_error = None,
                 ["v1", "config", "error", reason @ ..] => snapshot.config_error = Some(reason.join(" ")),
                 _ => return None,
@@ -366,13 +377,18 @@ mod tests {
             capturing: false,
             choosing: false,
             picking: None,
+            focus: Some("org.example.App".into()),
             config_error: None,
         };
         let text = snapshot.encode();
         assert_eq!(
             text,
-            "v1 state 1,0,0,1920,1080,1,0,1,1:1|3:0|0:1\nv1 scratchpad 1 1\nv1 locked 0\nv1 gaming 1\nv1 capture 0\nv1 choosing 0\nv1 picking 0\nv1 config ok\n"
+            "v1 state 1,0,0,1920,1080,1,0,1,1:1|3:0|0:1\nv1 scratchpad 1 1\nv1 locked 0\nv1 gaming 1\nv1 capture 0\nv1 choosing 0\nv1 picking 0\nv1 focus 1 org.example.App\nv1 config ok\n"
         );
+        for focus in [None, Some(String::new()), Some("two words".into())] {
+            let focused = Snapshot { focus, ..Snapshot::default() };
+            assert_eq!(Snapshot::decode(&focused.encode()), Some(focused));
+        }
         let picking = Snapshot { picking: Some(Some("#a1b2c3".into())), ..Snapshot::default() };
         assert!(picking.encode().contains("\nv1 picking 1 #a1b2c3\n"));
         assert_eq!(Snapshot::decode(&picking.encode()), Some(picking));

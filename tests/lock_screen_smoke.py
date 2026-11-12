@@ -70,7 +70,7 @@ keys = open(comp.dir + "/client", "w")
 subprocess.Popen([CLIENT, "keys", "60"], env=comp.env(), stdout=keys)
 client = lambda: open(comp.dir + "/client").read()
 assert wait(lambda: "keys client ready" in client(), 10), "the keys client did not start"
-time.sleep(1)
+bar.until_focused()
 comp.key("a")
 assert wait(lambda: f"key {KEY_A} released" in client(), 5), "the window gets no keys: " + client()
 # The window's 200x150 picture, at the top left of its tile, and the desktop's background.

@@ -4,7 +4,7 @@ Needs `cargo build --workspace`. Run from the repository root with $DISPLAY set:
     PYTHONPATH=tests python3 tests/keys_smoke.py
 """
 import os, subprocess, tempfile, time
-from smoke_support import Compositor, wait
+from smoke_support import Bar, Compositor, wait
 
 CLIENT = "./target/debug/splice-test-client"
 KEY_A, KEY_SPACE = 30, 57
@@ -19,7 +19,7 @@ out = open(comp.dir + "/client", "w")
 subprocess.Popen([CLIENT, "keys", "30"], env=comp.env(), stdout=out)
 log = lambda: open(comp.dir + "/client").read()
 assert wait(lambda: "keys client ready" in log(), 10), "the keys client did not start"
-time.sleep(1)
+Bar(comp.sock).until_focused()
 comp.key("alt+space")
 comp.key("a")
 assert wait(lambda: f"key {KEY_A} released" in log(), 5), "the window gets no keys: " + log()

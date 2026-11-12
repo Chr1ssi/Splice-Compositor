@@ -124,7 +124,12 @@ class Compositor:
         clients = "sleep 1; " + extra_args + "".join(f"{WINDOW_CLIENT} & sleep 0.3; " for _ in range(windows)) + "wait"
         # Start with the X pointer in a corner where no window will be: a pointer left over
         # from an earlier run would otherwise move focus by hovering over a new window.
-        subprocess.run(["xdotool", "mousemove", "1279", "799"], check=False)
+        # Best effort, and bounded: on a busy machine xdotool was seen never to return here, which hung the test
+        # until run-smoke's timeout.
+        try:
+            subprocess.run(["xdotool", "mousemove", "1279", "799"], check=False, timeout=10)
+        except subprocess.TimeoutExpired:
+            pass
         self.log = open(f"{self.dir}/log", "w")
         self.process = subprocess.Popen([DEBUG_BINARY, *(argv if argv is not None else [clients])], env=env, stdout=self.log,
                                         stderr=subprocess.STDOUT)
@@ -169,6 +174,7 @@ class Bar:
         self.config_error = None
         self.capturing = False
         self.scratchpad = (False, False)  # visible, occupied
+        self.focus = None  # None, or the app id ("" without one) of the window that has the keyboard
         self.picking = None  # None, or the color under the pointer ("" until known) while the color picker is on
         self.replies = []
 
@@ -185,6 +191,8 @@ class Bar:
             elif text.startswith("v1 picking "):
                 fields = text.split()
                 self.picking = None if fields[2] == "0" else (fields[3] if len(fields) > 3 else "")
+            elif text.startswith("v1 focus "):
+                self.focus = None if text == "v1 focus 0" else text[len("v1 focus 1 "):]
             elif text.startswith("v1 scratchpad "):
                 self.scratchpad = tuple(flag == "1" for flag in text.split()[2:4])
             elif text.startswith("v1 locked"):
@@ -203,6 +211,13 @@ class Bar:
             self.poll()
             return self.state is not None and predicate(self.state)
         assert wait(check, timeout), f"condition not reached; state: {self.state}"
+
+    def until_focused(self, app_id=None, timeout=8):
+        """Wait until a window has the keyboard (the one with this app id, if given): keys reach it from then on."""
+        def check():
+            self.poll()
+            return self.focus is not None and app_id in (None, self.focus)
+        assert wait(check, timeout), f"no window got the keyboard; focus: {self.focus}"
 
     def send(self, command):
         before = len(self.replies)

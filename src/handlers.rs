@@ -270,6 +270,8 @@ impl SeatHandler for State {
         let client = focused.and_then(|surface| display.get_client(surface.id()).ok());
         set_data_device_focus(display, seat, client.clone());
         set_primary_focus(display, seat, client);
+        // The socket's clients hear which window has the keyboard.
+        self.ipc_dirty = true;
     }
     fn cursor_image(&mut self, _seat: &Seat<Self>, image: CursorImageStatus) {
         self.cursor_status = image;
