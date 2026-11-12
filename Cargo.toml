@@ -37,6 +37,10 @@ smithay = { version = "0.7", default-features = false, features = [
     "backend_egl",
     "backend_drm",
     "backend_gbm",
+    # Both exist since Mesa 21.3. Smithay otherwise probes for them with a C test whose warnings are errors,
+    # which fails in unoptimized builds here (nixpkgs' _FORTIFY_SOURCE wants -O): debug builds then lacked them.
+    "backend_gbm_has_fd_for_plane",
+    "backend_gbm_has_create_with_modifiers2",
     "backend_udev",
     "backend_libinput",
     "backend_session_libseat",
