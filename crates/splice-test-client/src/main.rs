@@ -364,7 +364,7 @@ fn simple_window(
         }
         let (w, h) = if app.toplevel_size.0 > 0 && app.toplevel_size.1 > 0 { app.toplevel_size } else { (256, 256) };
         let length = (w * h * 4) as usize;
-        file.set_len(length as u64).unwrap();
+        grow(&file, length as u64);
         // A gradient from left to right whose phase moves, so the picture has many colors and changes every frame.
         let phase = frame.wrapping_mul(7) as usize;
         let row: Vec<u8> =
@@ -386,6 +386,14 @@ fn simple_window(
         buffer.destroy();
         pool.destroy();
         frame = frame.wrapping_add(1);
+    }
+}
+
+/// Make `file` at least `length` bytes long, never shorter: the compositor may still read the buffer of the
+/// frame before, and a file cut below that buffer's size gives it a SIGBUS, for which it disconnects the client.
+fn grow(file: &std::fs::File, length: u64) {
+    if file.metadata().map_or(true, |m| m.len() < length) {
+        file.set_len(length).unwrap();
     }
 }
 
@@ -1080,6 +1088,11 @@ fn main() {
             let ready = unsafe { libc::poll(&mut pfd, 1, 100) };
             if ready > 0 {
                 let _ = guard.read();
+            }
+            // The compositor is gone: leave with it. Polling a closed connection returns at once, so staying
+            // would spin until `seconds` are over.
+            if pfd.revents & (libc::POLLHUP | libc::POLLERR) != 0 {
+                break;
             }
         }
     }
