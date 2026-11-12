@@ -190,7 +190,7 @@ impl State {
             CalendarTarget::Field(field) => {
                 view.form.focus = Some(field);
                 if let Some(cursor) = field_cursor {
-                    view.form.input_mut(field).cursor = cursor;
+                    view.form.input_mut(field).set_cursor(cursor);
                 }
             }
             CalendarTarget::Choice => {

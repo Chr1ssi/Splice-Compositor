@@ -123,7 +123,7 @@ pub fn scroll_to(scroll: f32, selected: usize, count: usize, card_height: f32) -
 
 /// Where the field's text starts and how far it is scrolled to the left (to keep the cursor in view).
 fn search_text(measure: &mut impl Measure, query: &Input, field_width: f32) -> (f32, f32) {
-    let cursor_x = measure.width(&query.text[..query.cursor], SEARCH_TEXT);
+    let cursor_x = measure.width(query.before_cursor(), SEARCH_TEXT);
     (20.0, (cursor_x - (field_width - 40.0) + 2.0).max(0.0))
 }
 
@@ -159,15 +159,21 @@ pub fn scene(model: &LauncherModel, theme: &Theme, measure: &mut impl Measure) -
     scene.push(Node::Rect { rect: field, radius: SEARCH_HEIGHT / 2.0, fill: theme.glass_surface(), border: Some((1.0, theme.border)) });
     let (start, scrolled) = search_text(measure, &model.query, field.w);
     let text_area = Rect::new(field.x + start, field.y, field.w - 2.0 * start, field.h);
-    let cursor_x = measure.width(&model.query.text[..model.query.cursor], SEARCH_TEXT);
+    let cursor_x = measure.width(model.query.before_cursor(), SEARCH_TEXT);
     scene.push(Node::Clip(Some(text_area)));
-    if model.query.text.is_empty() {
+    if model.query.text().is_empty() {
         let placeholder = tr("App suchen …").into();
         scene.push(Node::Label { rect: text_area, text: placeholder, style: SEARCH_TEXT, color: theme.muted, align: Align::Left });
     } else {
         // Wide enough not to be cut off with "…": the clip cuts it.
-        let line = Rect::new(text_area.x - scrolled, field.y, measure.width(&model.query.text, SEARCH_TEXT).ceil() + 2.0, field.h);
-        scene.push(Node::Label { rect: line, text: model.query.text.clone(), style: SEARCH_TEXT, color: theme.text, align: Align::Left });
+        let line = Rect::new(text_area.x - scrolled, field.y, measure.width(model.query.text(), SEARCH_TEXT).ceil() + 2.0, field.h);
+        scene.push(Node::Label {
+            rect: line,
+            text: model.query.text().to_owned(),
+            style: SEARCH_TEXT,
+            color: theme.text,
+            align: Align::Left,
+        });
     }
     let line_h = measure.line_height(SEARCH_TEXT);
     let cursor = Rect::new((text_area.x + cursor_x - scrolled).round(), field.y + ((field.h - line_h) / 2.0).round(), 2.0, line_h);

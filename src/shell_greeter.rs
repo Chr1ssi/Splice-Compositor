@@ -149,10 +149,11 @@ impl State {
         let lock = &mut self.shell.lock;
         let Some(greeter) = &lock.greeter else { return };
         let Some(session) = greeter.sessions.get(greeter.session) else { return };
-        if lock.checking.is_some() || greeter.user.text.is_empty() {
+        if lock.checking.is_some() || greeter.user.text().is_empty() {
             return;
         }
-        let request = LoginRequest { user: greeter.user.text.clone(), password: lock.password.clone(), command: session.command.clone() };
+        let request =
+            LoginRequest { user: greeter.user.text().to_owned(), password: lock.password.clone(), command: session.command.clone() };
         let events = greeter.events.clone();
         lock.message = None;
         lock.failed = false;

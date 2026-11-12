@@ -152,7 +152,7 @@ impl State {
     pub fn launcher_key(&mut self, sym: Keysym, modified: bool) {
         let Some(launcher) = &mut self.shell.launcher else { return };
         let query = &mut launcher.query;
-        let before = query.text.clone();
+        let before = query.text().to_owned();
         match sym.raw() {
             keysyms::KEY_Escape => return self.launcher_close(),
             keysyms::KEY_Down | keysyms::KEY_KP_Down | keysyms::KEY_Tab => return self.launcher_move(1),
@@ -172,7 +172,7 @@ impl State {
                 None => return,
             },
         }
-        if query.text != before {
+        if query.text() != before {
             // A new search starts at its first result.
             launcher.selected = 0;
             launcher.scroll = 0.0;
@@ -192,7 +192,7 @@ impl State {
                 let Some(fonts) = self.shell.fonts.as_mut() else { return };
                 let cursor = launcher::search_cursor_at(fonts, &query, output, field_x);
                 if let Some(launcher) = &mut self.shell.launcher {
-                    launcher.query.cursor = cursor;
+                    launcher.query.set_cursor(cursor);
                 }
                 self.shell_changed();
             }
@@ -219,7 +219,7 @@ impl State {
             // Its monitor is gone: nothing may hold the keyboard unseen.
             return self.launcher_close();
         };
-        let results = self.launcher_results(&launcher.query.text);
+        let results = self.launcher_results(launcher.query.text());
         let apps: Vec<AppView> = results
             .iter()
             .filter_map(|i| self.shell.apps.list.get(*i))

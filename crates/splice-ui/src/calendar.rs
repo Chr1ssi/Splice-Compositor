@@ -205,7 +205,7 @@ fn is_time(text: &str) -> bool {
 
 /// The event the form describes on `date`, or why there is none (as `submitEvent` checks it).
 pub fn new_event(form: &Form, calendars: &[String], date: Date) -> Result<NewEvent, CalendarError> {
-    let text = |field| form.input(field).text.trim().to_owned();
+    let text = |field| form.input(field).text().trim().to_owned();
     let (title, start, end) = (text(Field::Title), text(Field::Start), text(Field::End));
     let calendar = form.calendar.and_then(|index| calendars.get(index)).filter(|name| !name.is_empty());
     match calendar {
@@ -293,7 +293,7 @@ fn fitted_width(measure: &mut impl Measure, text: &str) -> f32 {
 
 /// How far a field `width` wide scrolls its line to the left: just enough that the cursor shows.
 fn scrolled(measure: &mut impl Measure, input: &Input, width: f32) -> f32 {
-    let cursor_x = measure.width(&input.text[..input.cursor], FIELD_TEXT);
+    let cursor_x = measure.width(input.before_cursor(), FIELD_TEXT);
     (cursor_x - (width - 2.0 * FIELD_PADDING) + 1.0).max(0.0)
 }
 
@@ -323,15 +323,15 @@ fn text_field(
 ) {
     field_box(content, theme, area, focused);
     let inner = Rect::new(area.x + FIELD_PADDING, area.y, area.w - 2.0 * FIELD_PADDING, area.h);
-    let cursor_x = measure.width(&input.text[..input.cursor], FIELD_TEXT);
+    let cursor_x = measure.width(input.before_cursor(), FIELD_TEXT);
     let scrolled = scrolled(measure, input, area.w);
     content.push(Node::Clip(Some(inner)));
-    if input.text.is_empty() {
+    if input.text().is_empty() {
         label(content, inner, placeholder.to_owned(), FIELD_TEXT, theme.muted.faded(0.8), Align::Left);
     } else {
         // Wide enough that the line is not cut off with "…": the clip cuts it.
-        let line = Rect::new(inner.x - scrolled, inner.y, measure.width(&input.text, FIELD_TEXT).ceil() + 1.0, inner.h);
-        label(content, line, input.text.clone(), FIELD_TEXT, theme.text, Align::Left);
+        let line = Rect::new(inner.x - scrolled, inner.y, measure.width(input.text(), FIELD_TEXT).ceil() + 1.0, inner.h);
+        label(content, line, input.text().to_owned(), FIELD_TEXT, theme.text, Align::Left);
     }
     if focused {
         let height = measure.line_height(FIELD_TEXT);

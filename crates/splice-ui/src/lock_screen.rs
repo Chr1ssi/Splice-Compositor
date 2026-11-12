@@ -178,7 +178,8 @@ fn field_text(
     placeholder: &str,
     focused: bool,
 ) {
-    let cursor_x = measure.width(&text[..cursor], FIELD_TEXT);
+    // The model's fields are public: a cursor that does not fit its text must not take the session down.
+    let cursor_x = measure.width(text.get(..cursor).unwrap_or(text), FIELD_TEXT);
     let scrolled = (cursor_x - area.w + 2.0).max(0.0);
     scene.push(Node::Clip(Some(area)));
     if text.is_empty() {

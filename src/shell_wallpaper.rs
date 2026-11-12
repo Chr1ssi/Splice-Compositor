@@ -268,7 +268,7 @@ impl State {
                 self.wallpaper_picker_filter();
                 // On the image in use (the saved one, else the first).
                 let Some(picker) = self.shell.picker.as_mut() else { return };
-                if picker.query.text.is_empty() {
+                if picker.query.text().is_empty() {
                     let current = picker.saved.clone().or_else(|| picker.entry(0).map(|e| e.url.clone()));
                     picker.selected = (0..picker.results.len()).find(|&i| picker.entry(i).map(|e| &e.url) == current.as_ref()).unwrap_or(0);
                 }
@@ -310,7 +310,7 @@ impl State {
     fn wallpaper_picker_filter(&mut self) {
         let Some(picker) = &mut self.shell.picker else { return };
         let names: Vec<String> = picker.entries.iter().flatten().map(|e| e.name.clone()).collect();
-        picker.results = wallpaper_picker::results(&names, &picker.query.text);
+        picker.results = wallpaper_picker::results(&names, picker.query.text());
         picker.tile_ids = picker.results.iter().map(|_| Id::new()).collect();
         picker.shown.clear();
         picker.selected = 0;
@@ -488,7 +488,7 @@ impl State {
     pub fn wallpaper_picker_key(&mut self, sym: Keysym, modified: bool) {
         let Some(picker) = &mut self.shell.picker else { return };
         let query = &mut picker.query;
-        let before = query.text.clone();
+        let before = query.text().to_owned();
         match sym.raw() {
             keysyms::KEY_Escape => return self.wallpaper_picker_close(),
             keysyms::KEY_Right | keysyms::KEY_KP_Right | keysyms::KEY_Down | keysyms::KEY_KP_Down | keysyms::KEY_Tab => {
@@ -510,7 +510,7 @@ impl State {
                 None => return,
             },
         }
-        if query.text != before {
+        if query.text() != before {
             self.wallpaper_picker_filter();
             self.wallpaper_picker_request();
         }
@@ -539,7 +539,7 @@ impl State {
                 let Some(fonts) = self.shell.fonts.as_mut() else { return };
                 let cursor = wallpaper_picker::search_cursor_at(fonts, &query, output, x);
                 if let Some(picker) = &mut self.shell.picker {
-                    picker.query.cursor = cursor;
+                    picker.query.set_cursor(cursor);
                 }
                 self.shell_changed();
             }

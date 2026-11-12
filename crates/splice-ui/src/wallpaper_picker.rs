@@ -195,7 +195,7 @@ fn field_rect(carousel: &Carousel, top: f32) -> Rect {
 
 /// Where the field's text starts and how far it is scrolled to the left (to keep the cursor in view).
 fn field_text(measure: &mut impl Measure, query: &Input, field_width: f32) -> f32 {
-    let cursor_x = measure.width(&query.text[..query.cursor], FIELD_TEXT);
+    let cursor_x = measure.width(query.before_cursor(), FIELD_TEXT);
     (cursor_x - (field_width - 2.0 * FIELD_PADDING) + 2.0).max(0.0)
 }
 
@@ -260,7 +260,7 @@ pub fn scene(model: &PickerModel, theme: &Theme, measure: &mut impl Measure) -> 
     let text_area = Rect::new(field.x + FIELD_PADDING, field.y, field.w - 2.0 * FIELD_PADDING, field.h);
     let scrolled = field_text(measure, &model.query, field.w);
     scene.push(Node::Clip(Some(text_area)));
-    if model.query.text.is_empty() {
+    if model.query.text().is_empty() {
         scene.push(Node::Label {
             rect: text_area,
             text: tr("Bilder filtern …").into(),
@@ -270,10 +270,16 @@ pub fn scene(model: &PickerModel, theme: &Theme, measure: &mut impl Measure) -> 
         });
     } else {
         // Wide enough not to be cut off with "…": the clip cuts it.
-        let line = Rect::new(text_area.x - scrolled, field.y, measure.width(&model.query.text, FIELD_TEXT).ceil() + 2.0, field.h);
-        scene.push(Node::Label { rect: line, text: model.query.text.clone(), style: FIELD_TEXT, color: theme.text, align: Align::Left });
+        let line = Rect::new(text_area.x - scrolled, field.y, measure.width(model.query.text(), FIELD_TEXT).ceil() + 2.0, field.h);
+        scene.push(Node::Label {
+            rect: line,
+            text: model.query.text().to_owned(),
+            style: FIELD_TEXT,
+            color: theme.text,
+            align: Align::Left,
+        });
     }
-    let cursor_x = measure.width(&model.query.text[..model.query.cursor], FIELD_TEXT);
+    let cursor_x = measure.width(model.query.before_cursor(), FIELD_TEXT);
     let line_h = measure.line_height(FIELD_TEXT);
     let cursor = Rect::new((text_area.x + cursor_x - scrolled).round(), field.y + ((field.h - line_h) / 2.0).round(), 2.0, line_h);
     scene.push(Node::Rect { rect: cursor, radius: 0.0, fill: theme.text, border: None });

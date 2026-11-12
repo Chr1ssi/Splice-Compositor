@@ -2,16 +2,39 @@
 
 use crate::{Measure, TextStyle};
 
-/// A line of text being edited, with the cursor as a byte offset at a character boundary.
+/// A line of text being edited, with the cursor as a byte offset at a character boundary. The fields are
+/// private so that this always holds: the text is cut at the cursor while drawing.
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct Input {
-    pub text: String,
-    pub cursor: usize,
+    text: String,
+    cursor: usize,
 }
 
 impl Input {
     pub fn new(text: &str) -> Self {
         Self { text: text.to_owned(), cursor: text.len() }
+    }
+
+    pub fn text(&self) -> &str {
+        &self.text
+    }
+
+    pub fn cursor(&self) -> usize {
+        self.cursor
+    }
+
+    /// The text left of the cursor.
+    pub fn before_cursor(&self) -> &str {
+        &self.text[..self.cursor]
+    }
+
+    /// Puts the cursor at `cursor`, or at the character boundary before it.
+    pub fn set_cursor(&mut self, cursor: usize) {
+        let mut cursor = cursor.min(self.text.len());
+        while !self.text.is_char_boundary(cursor) {
+            cursor -= 1;
+        }
+        self.cursor = cursor;
     }
 
     pub fn insert(&mut self, text: &str) {
@@ -88,5 +111,14 @@ mod tests {
         input.end();
         input.delete();
         assert_eq!(input.cursor, input.text.len());
+    }
+
+    #[test]
+    fn the_cursor_only_stands_between_characters() {
+        let mut input = Input::new("aä");
+        input.set_cursor(2);
+        assert_eq!((input.cursor(), input.before_cursor()), (1, "a"), "not inside the ä");
+        input.set_cursor(99);
+        assert_eq!(input.before_cursor(), "aä");
     }
 }

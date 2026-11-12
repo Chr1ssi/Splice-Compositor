@@ -207,7 +207,7 @@ impl State {
         lock.failed = false;
         lock.locks += 1;
         lock.focus = match &lock.greeter {
-            Some(greeter) if greeter.user.text.is_empty() => LockTarget::User,
+            Some(greeter) if greeter.user.text().is_empty() => LockTarget::User,
             _ => LockTarget::Password,
         };
         // The theme is read when the lock starts: its colors and its image. The login screen's image is its own.
@@ -369,8 +369,8 @@ impl State {
             time: now.as_ref().map(clock::lock_time).unwrap_or_default(),
             date: now.as_ref().map(|now| clock::lock_date(now, self.shell.time_language)).unwrap_or_default(),
             // `$USER` on the lock screen, the typed name on the login screen.
-            user: greeter.map_or_else(|| std::env::var("USER").unwrap_or_default(), |g| g.user.text.clone()),
-            ask_user: greeter.map(|g| g.user.cursor),
+            user: greeter.map_or_else(|| std::env::var("USER").unwrap_or_default(), |g| g.user.text().to_owned()),
+            ask_user: greeter.map(|g| g.user.cursor()),
             password_len: lock.password.chars().count(),
             busy: lock.checking.is_some(),
             message: lock.message.clone(),
