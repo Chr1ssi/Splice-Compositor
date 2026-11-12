@@ -86,6 +86,7 @@ libseat-dev libgbm-dev libdrm-dev libudev-dev libegl-dev libgles-dev`; für `spl
 ```sh
 cargo run -- "foot"       # nested (in X/Wayland); optionales Kommando nach dem Start
 cargo test --workspace    # Layout, Config, Protokoll
+nix flake check           # beide Pakete bauen, clippy, Unit-Tests (läuft auch in der CI)
 ```
 
 Die nested Smoke-Tests (`tests/*_smoke.py`) laufen unter NixOS gegen eigene Xvfb-Server, die die echte

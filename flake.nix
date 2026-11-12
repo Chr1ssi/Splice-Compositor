@@ -21,6 +21,15 @@
           splice-settings = settingsFor nixpkgs.legacyPackages.${system};
         });
 
+      # `nix flake check`: both packages build, clippy is silent and the unit tests pass. The nested smoke
+      # tests (`tests/run-smoke`) are not among them.
+      checks = forAllSystems (system:
+        let pkgs = nixpkgs.legacyPackages.${system};
+        in {
+          inherit (self.packages.${system}) splice splice-settings;
+          rust = pkgs.callPackage ./nix/checks.nix { inherit (self.packages.${system}) splice splice-settings; };
+        });
+
       devShells = forAllSystems (system:
         let
           pkgs = nixpkgs.legacyPackages.${system};

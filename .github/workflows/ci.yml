@@ -1,0 +1,25 @@
+# Runs what AGENTS.md asks for before a commit: both packages build, clippy is silent and the unit tests
+# pass (`nix flake check`, see nix/checks.nix). The nested smoke tests are not part of it.
+name: CI
+
+on:
+  push:
+    branches: [main, "hw/**"]
+  pull_request:
+
+permissions:
+  contents: read
+
+# A newer push to the same branch replaces the run in progress.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v7
+      - uses: cachix/install-nix-action@v31
+      - run: nix flake check -L
