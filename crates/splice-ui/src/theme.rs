@@ -1,8 +1,8 @@
-//! Colors and measures of the shell (splice-shell's `Theme.qml`): the wallpaper's generated colors
+//! Colors and measures of the shell: the wallpaper's generated colors
 //! (`theme.json`, Material roles) where there are some, else splice's `[appearance]` palette.
 use crate::Color;
 
-/// The colors splice's `[appearance]` section gives the shell (`SPLICE_COLOR_*` for Quickshell).
+/// The colors splice's `[appearance]` section gives the shell (`SPLICE_COLOR_*`).
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Palette {
     pub background: Color,

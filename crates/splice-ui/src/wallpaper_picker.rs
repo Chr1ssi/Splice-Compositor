@@ -1,4 +1,4 @@
-//! The wallpaper picker (splice-shell's `wallpaper.qml`): over the dimmed monitor a title, a carousel of the
+//! The wallpaper picker: over the dimmed monitor a title, a carousel of the
 //! images (the selected one wide in the middle, its neighbours as narrow strips on both sides, all leaning to the
 //! right), the selected one's name, a filter field and a footer with the position and the keys, or what went
 //! wrong. The tiles are not part of the scene: the compositor draws them leaning (`TileLook`, `LEAN`), so they

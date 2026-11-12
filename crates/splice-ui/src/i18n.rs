@@ -1,4 +1,4 @@
-//! The shell's texts in the system language (as splice-shell's `I18n.qml`). The German text in the code is the
+//! The shell's texts in the system language. The German text in the code is the
 //! key; English stands in for every language without a table of its own. The language is the first of the
 //! system's UI languages (`LANGUAGE`, then `LC_ALL`, `LC_MESSAGES`, `LANG`) that the shell knows; dates and
 //! times follow `LC_TIME` instead (see `clock`).

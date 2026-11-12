@@ -1,4 +1,4 @@
-//! The command center's content (`CommandCenter.qml`): tiles that switch Bluetooth and the night light, the local
+//! The command center's content: tiles that switch Bluetooth and the night light, the local
 //! IPv4 addresses (a click copies one), the Bluetooth devices to connect, disconnect or pair, with a search for
 //! new ones, and the way to the settings app.
 use crate::{

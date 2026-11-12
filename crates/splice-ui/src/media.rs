@@ -1,4 +1,4 @@
-//! The media panel's content (`MediaPanel.qml`): every MPRIS player with its cover, title, artist and the buttons
+//! The media panel's content: every MPRIS player with its cover, title, artist and the buttons
 //! for the previous track, play/pause and the next track; a button the player does not allow is disabled. Each
 //! player sits in a card.
 use crate::{

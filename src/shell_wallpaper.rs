@@ -1,6 +1,5 @@
-//! The wallpaper picker of the built-in shell (`wallpaper.qml`), for the wallpaper binding. Every opening reads
-//! the wallpaper directory and the saved choice afresh and forgets all of it when it closes, as the picker that
-//! Quickshell started on demand did. Pictures are decoded on worker threads, only for the tiles in view, the
+//! The wallpaper picker of the built-in shell, for the wallpaper binding. Every opening reads
+//! the wallpaper directory and the saved choice afresh and forgets all of it when it closes. Pictures are decoded on worker threads, only for the tiles in view, the
 //! selected one first; the tiles lean and slide on the GPU (the `tile` shader of `effects`), so a new selection
 //! paints nothing again but the texts. A choice is saved only once its image decodes; the theme follows from the
 //! own binary (`--theme-from-wallpaper`), as the picker ran it.

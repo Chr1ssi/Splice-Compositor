@@ -1,4 +1,4 @@
-//! A tray item's menu (`TrayMenu.qml` in the menu window of `bar.qml`): below the bar at the right edge, the
+//! A tray item's menu: below the bar at the right edge, the
 //! item's title with a way back out of submenus, and the entries: separators, check marks and radio buttons, an
 //! icon (a glyph for symbolic ones), the label with its mnemonic, and "›" before a submenu.
 use crate::{

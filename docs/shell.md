@@ -3,9 +3,8 @@
 Der Compositor zeichnet die Shell selbst: Bar, Powermenü, Hinweise oben rechts, Launcher, Wallpaper-Picker,
 Sperrbildschirm, Anmeldebildschirm, Benachrichtigungen und Tray. Sie ist an, solange `builtin_shell = true` in der
 obersten Ebene der Config steht (Standard; gilt nach Neustart). Mit `builtin_shell = false` zeichnet der Compositor
-keine Shell, also auch keine Bar und keinen Sperrbildschirm; das ist nur für die nested Tests gedacht. Maße,
-Farben und Texte stammen von der früheren Quickshell-Shell (`bar.qml`, `BarButton.qml`, `BarIsland.qml`,
-`Theme.qml`, `I18n.qml`), die es nicht mehr gibt. Die Schrift ist die Systemschrift (die Familie, die fontconfig für
+keine Shell, also auch keine Bar und keinen Sperrbildschirm; das ist nur für die nested Tests gedacht. Maße
+und Farben stehen in `crates/splice-ui/src/theme.rs`, die Texte in `i18n.rs`. Die Schrift ist die Systemschrift (die Familie, die fontconfig für
 „Sans Serif“ wählt, `fc-match`); Nerd-Font-Symbole in Texten setzt die Shell immer aus „IosevkaTerm Nerd Font
 Propo“, das dafür installiert sein muss. Die Panels gliedern ihren Inhalt in abgerundete Karten (Radien in
 `crates/splice-ui/src/theme.rs`).
@@ -84,13 +83,13 @@ Propo“, das dafür installiert sein muss. Die Panels gliedern ihren Inhalt in 
   schließt das Panel.
 - **Audio-Panel**: Standardausgang und -mikrofon mit Regler (ziehen) und Prozentknopf (stumm), die übrigen hinter
   „Anderen Ausgang wählen“/„Anderes Mikrofon wählen“ (ein Klick macht sie zum Standard), dazu die Anwendungen, die
-  spielen. WirePlumbers Smart-Filter (der NixOS-Mikrofonfilter) fehlen in der Liste, wie bei Quickshell.
+  spielen. WirePlumbers Smart-Filter (der NixOS-Mikrofonfilter) fehlen in der Liste.
 - **Medien-Panel**: alle MPRIS-Player mit Cover, Titel, Interpret und Zurück/Abspielen/Weiter; was ein Player nicht
   erlaubt, ist ausgegraut. Cover kommen aus `file://`-Adressen; Cover aus dem Netz (`https://`) lädt die Shell nicht.
 - **Kalender-Panel** (Klick auf die Uhr): Monat mit „‹“/„›“, Tage mit bis zu drei Punkten in den Farben ihrer
   Termine, die Termine des gewählten Tages und die nächsten acht, „Kalender-App öffnen“ (`foot … splice-calendar app`).
   Die Termine liefert `splice-calendar events <Monatserster> <8. des Folgemonats>` (khal), die Kalender
-  `splice-calendar calendars`, jeweils in einem eigenen Thread; jedes Öffnen beginnt wie bei Quickshell neu beim
+  `splice-calendar calendars`, jeweils in einem eigenen Thread; jedes Öffnen beginnt neu beim
   heutigen Tag. „+“ öffnet das Formular (Titel, Start, Ende, Ort, Kalender) für `splice-calendar create`; Felder und
   Kalenderauswahl sind abgerundete Kästen im Stil der Shell (Akzentrand beim Fokus, die offene Liste liegt undurchsichtig
   darüber).
@@ -98,7 +97,7 @@ Propo“, das dafür installiert sein muss. Die Panels gliedern ihren Inhalt in 
   Karte in der Mitte des Monitors unter dem Zeiger mit Suchfeld; jedes getippte Wort muss in Name, generischem
   Namen, Kommentar, Id oder Schlüsselwörtern vorkommen, Namen mit der Suche am Anfang stehen vorn. Pfeile und Tab
   wählen, Enter oder ein Klick startet (mit `Path=` als Verzeichnis, mit `Terminal=true` im Terminal der
-  Konfiguration plus `-e`), Escape schließt. Die Einträge liest der Dienstprozess wie Quickshells `DesktopEntries`
+  Konfiguration plus `-e`), Escape schließt. Die Einträge liest der Dienstprozess
   (XDG-Verzeichnisse, `Name[de]` nach `LC_MESSAGES`/`LANG`, `Hidden`, `NoDisplay`, Exec-Zitate und Feldcodes) beim
   Start und bei jedem Öffnen neu, die Symbole danach einzeln aus dem Icon-Theme. Klicks neben die Karte gehen an
   die Fenster, die Tastatur bleibt beim Launcher.
@@ -110,18 +109,17 @@ Propo“, das dafür installiert sein muss. Die Panels gliedern ihren Inhalt in 
   wird ein Bild erst, wenn es sich laden lässt; dann speichert er es als `file://`-Adresse in
   `$XDG_STATE_HOME/splice/wallpaper.json`, das Wallpaper wechselt sofort, und das Farbschema erzeugt
   `--theme-from-wallpaper` im Hintergrund. Jedes Öffnen liest Ordner und Auswahl neu und vergisst beim Schließen
-  alles, wie der Quickshell-Picker, der nur bei Bedarf lief.
-- **Sperrbildschirm** (Sperren-Binding, `--lock`, swayidle): Der Compositor sperrt selbst, statt `lock.qml`
-  zu starten. Kein Client zeigt sich dahinter, bekommt eine Taste (außer den Programm-Bindings mit
+  alles.
+- **Sperrbildschirm** (Sperren-Binding, `--lock`, swayidle): Der Compositor sperrt selbst, ohne einen
+  Sperr-Client zu starten. Kein Client zeigt sich dahinter, bekommt eine Taste (außer den Programm-Bindings mit
   `allow_when_locked`), einen Klick oder das Mausrad, und Aufnahmen ganzer Monitore zeigen nur den
   Sperrbildschirm. Ein anderer
   Bildschirmsperrer wird abgewiesen (`finished`) und kann die Sperre weder übernehmen noch aufheben. Das Passwort
   prüft PAM (Dienst `splice-lock`, mit `$SPLICE_PAM_DIR` aus einem anderen Verzeichnis) mit
   `splice-shell-services --authenticate`, einem eigenen Prozess je Versuch: Stirbt ein PAM-Modul, endet nur dieser
-  Versuch; hängt es, wartet der Sperrbildschirm wie `lock.qml`, bis es endet, und nimmt so lange keine Taste an.
-  Entsperrt wird nur bei sauberem Ende mit `success` für den laufenden Versuch. Wie bei `lock.qml`
-  heißt jedes andere Ergebnis außer „Zu viele Versuche“ „Falsches Passwort“ (Quickshell überschreibt seine
-  Fehlermeldung sofort damit). Das Bild folgt `LoginScreen.qml`: auf jedem Monitor das Bild des Themes (`source`
+  Versuch; hängt es, wartet der Sperrbildschirm, bis es endet, und nimmt so lange keine Taste an.
+  Entsperrt wird nur bei sauberem Ende mit `success` für den laufenden Versuch. Jedes
+  andere Ergebnis außer „Zu viele Versuche“ heißt „Falsches Passwort“. Das Bild: auf jedem Monitor das Bild des Themes (`source`
   in `theme.json`, beim Sperren gelesen wie die Farben), in einem Worker-Thread auf den Monitor zugeschnitten und
   abgedunkelt, bis dahin die Hintergrundfarbe; auf dem Monitor mit Workspace 1 Uhr, Datum (ausgeschriebene Namen)
   und die Karte mit Initiale, `$USER`, Passwortfeld (Punkte, rot nach einem abgelehnten Passwort) und Knopf, der
@@ -134,18 +132,18 @@ Propo“, das dafür installiert sein muss. Die Panels gliedern ihren Inhalt in 
   Tab geht wie bei Qt durch Felder und Knöpfe, Enter im Benutzerfeld zum Passwort, Enter oder Leertaste auf einem
   Knopf drückt ihn. Er liegt von Anfang an hinter der eigenen Sperre: keine Bindings (außer Programm-Bindings mit
   `allow_when_locked`), kein Client erreichbar. Die Anmeldung läuft über greetd (`$GREETD_SOCK`) mit
-  `splice-shell-services --login`, einem eigenen Prozess je Versuch, wie Quickshells `Greetd`: jede Frage bekommt
+  `splice-shell-services --login`, einem eigenen Prozess je Versuch: jede Frage bekommt
   das Passwort, Fehlermeldungen von PAM erscheinen, „Sitzung startet …“, dann endet der Compositor mit Code 0, und
   greetd startet die Sitzung. Eine liegengebliebene Sitzung („a session is already being configured“) bricht er ab
-  und beginnt neu. Dienstprozess und Nachtlicht laufen hier nicht. `--greeter "<Befehl>"` startet wie bisher den
-  Befehl (`greeter.qml`).
-- **Nachtlicht**: steht in `$XDG_STATE_HOME/splice/night-light` „1“, läuft `gammastep -O 4000` wie bei der
-  Quickshell-Bar (nur auf echter Hardware); umschalten lässt es sich erst mit dem Commandcenter.
+  und beginnt neu. Dienstprozess und Nachtlicht laufen hier nicht. `--greeter "<Befehl>"` startet stattdessen den
+  Befehl als Anmeldebildschirm.
+- **Nachtlicht**: steht in `$XDG_STATE_HOME/splice/night-light` „1“, läuft `gammastep -O 4000`
+  (nur auf echter Hardware); umschalten lässt es sich erst mit dem Commandcenter.
 
 ## Was noch fehlt
 
-In den Panels führt Tab noch nicht von Knopf zu Knopf
-(bei Quickshell erreichte Tab jeden Knopf); im Kalenderformular wechselt Tab nur zwischen den vier Feldern. Die
+In den Panels führt Tab noch nicht von Knopf zu Knopf;
+im Kalenderformular wechselt Tab nur zwischen den vier Feldern. Die
 Textfelder (Kalenderformular, Suche des Launchers, Filter des Pickers) kennen Tippen, Löschen, Pfeile, Pos1/Ende, Klicks und gehaltene
 Tasten (mit `repeat_delay`/`repeat_rate` aus `[input]`), aber keine Auswahl und keine Zwischenablage, und der
 Cursor blinkt nicht. Der Launcher sortiert Namen ohne Groß-/Kleinschreibung statt nach ICU-Sortierregeln wie
@@ -168,12 +166,12 @@ wie bei Qt blau.
 
 - `splice-shell-services` (`crates/splice-shell-services`, eigenes Programm neben dem Compositor): fragt die
   Dienste ab, damit ein hängender oder abstürzender Dienst nie Bild oder Eingabe einfriert. PipeWire
-  (Ausgänge, Mikrofone und Anwendungsströme mit Lautstärke, kubisch wie bei `wpctl` und Quickshell, und die beiden
+  (Ausgänge, Mikrofone und Anwendungsströme mit Lautstärke, kubisch wie bei `wpctl`, und die beiden
   Standards aus der `default`-Metadaten), MPRIS auf dem
   Session-Bus und BlueZ auf dem System-Bus laufen in je einem Thread und verbinden sich bei Ausfall nach drei
-  Sekunden neu. Lautstärke und Stummschaltung setzt es mit `wpctl` (WirePlumber), wie das Audio-Panel der
-  Quickshell-Shell; schnelles Scrollen fasst es zu einem Aufruf zusammen.
-- Benachrichtigungen im Dienstprozess: `org.freedesktop.Notifications` (Fähigkeiten wie bei Quickshell:
+  Sekunden neu. Lautstärke und Stummschaltung setzt es mit `wpctl` (WirePlumber);
+  schnelles Scrollen fasst es zu einem Aufruf zusammen.
+- Benachrichtigungen im Dienstprozess: `org.freedesktop.Notifications` (Fähigkeiten:
   `actions`, `body`, `body-markup`, `icon-static`, `persistence`). Bilder kommen aus `image-data`, `image-path`,
   dem App-Symbol oder dem Symbol des `desktop-entry`; Symbole sucht er im Icon-Theme aus GTKs `settings.ini`,
   dessen Vorfahren, `hicolor` und `pixmaps` (SVG über resvg). Er dekodiert sie in einem eigenen Thread und
@@ -185,22 +183,22 @@ wie bei Qt blau.
   (`PR_SET_PDEATHSIG`). Statusänderungen protokolliert er mit `RUST_LOG=splice_compositor::shell_services=debug`.
   Eine Lautstärke, die die Bar verlangt hat, zeigt sie, bis ein Bericht sie bestätigt (höchstens eine Sekunde):
   Berichte von vor dem Befehl würden sonst zurückspringen lassen, und die nächste Raste zählte vom alten Wert.
-- `crates/splice-ui/src/notifications.rs`: die Karte (`NotificationCard.qml`) und die Zentrale
-  (`NotificationCenter.qml` im Panelrahmen von `bar.qml`); `src/shell_notifications.rs` hält Liste, Toasts und
+- `crates/splice-ui/src/notifications.rs`: die Karte und die Zentrale
+  (im Panelrahmen); `src/shell_notifications.rs` hält Liste, Toasts und
   Zentrale. cosmic-text 0.19 lässt beim Kürzen der letzten erlaubten Zeile das Leerzeichen des Umbruchs vor ihr
   stehen; `text.rs` beginnt solche Folgezeilen beim ersten Wort (Workaround, bis cosmic-text das selbst richtig
   macht).
 
-- `crates/splice-ui/src/calendar.rs`: Inhalt des Kalender-Panels (`CalendarPanelInteractive.qml`) mit den
+- `crates/splice-ui/src/calendar.rs`: Inhalt des Kalender-Panels mit den
   Formularfeldern; `src/shell_calendar.rs` ruft `splice-calendar` auf, hält Monat, Termine und Formular und nimmt die
   Tasten der Felder.
 
-- `crates/splice-ui/src/launcher.rs` (Suche, Sortierung, Karte nach `shell.qml`), `src/shell_launcher.rs` (Öffnen,
-  Tasten, Starten), `crates/splice-shell-services/src/apps.rs` (Desktop-Einträge nach Quickshells
-  `desktopentry.cpp`). Hält die Shell die Tastatur, wiederholt der Compositor gehaltene Tasten selbst
+- `crates/splice-ui/src/launcher.rs` (Suche, Sortierung, Karte), `src/shell_launcher.rs` (Öffnen,
+  Tasten, Starten), `crates/splice-shell-services/src/apps.rs` (Desktop-Einträge).
+  Hält die Shell die Tastatur, wiederholt der Compositor gehaltene Tasten selbst
   (`shell_key_pressed`), wie es Clients für sich tun.
 
-- `crates/splice-ui/src/wallpaper_picker.rs` (Maße des Karussells nach `wallpaper.qml`, Texte, Treffer auf schrägen
+- `crates/splice-ui/src/wallpaper_picker.rs` (Maße des Karussells, Texte, Treffer auf schrägen
   Kacheln), `src/shell_wallpaper.rs` (Ordner lesen, Bilder in Worker-Threads dekodieren, höchstens zwei zugleich, nur
   für die sichtbaren Kacheln und auf die Größe der breiten Kachel verkleinert, Speichern, Theme). Die Kacheln zeichnet
   die GPU: ein Shader (`tile` in `src/effects.rs`) richtet jeden Punkt wieder gerade und malt dort Fläche, Bild,
@@ -208,8 +206,8 @@ wie bei Qt blau.
   Frame; so malt die CPU nur die Texte neu.
 
 - `crates/splice-ui/src/lock_screen.rs` (Uhr und Karte), `src/shell_lock.rs` (Passwort, Prüfung, Hintergrund), `own_lock`/`own_unlock` in `src/session.rs` (eigene
-  Sperrzustände neben denen von `ext-session-lock`), `crates/splice-shell-services/src/pam.rs` (die Prüfung wie
-  Quickshells `PamContext`: nur `pam_authenticate`, jede Frage bekommt das Passwort).
+  Sperrzustände neben denen von `ext-session-lock`), `crates/splice-shell-services/src/pam.rs` (die Prüfung:
+  nur `pam_authenticate`, jede Frage bekommt das Passwort).
 - `src/shell_greeter.rs` (Sitzungen, Anmeldung, Knöpfe des Anmeldebildschirms), `crates/splice-shell-services/src/login.rs`
   (greetds IPC: JSON mit vorangestellter Länge).
 
@@ -234,21 +232,21 @@ nicht erlaubtes Zurück.
 `tests/calendar_smoke.py`: Platzhalter für `splice-calendar` und `foot`: die Uhr öffnet das Panel (Termine des Monats
 und Kalender abgefragt), ein Termin ohne Titel wird nicht angelegt, getippter Titel und gewählter Kalender gehen an
 `splice-calendar create`, danach lädt es neu; Monat vor und zurück, Kalender-App öffnen schließt das Panel.
-`tests/launcher_smoke.py`: Test-Apps wie in splice-shells Launcher-Test: Suche über Schlüsselwörter, Symbol aus
+`tests/launcher_smoke.py`: harmlose Test-Apps: Suche über Schlüsselwörter, Symbol aus
 `Icon=`, Start mit Argumenten und Verzeichnis, Pfeil und Terminal-App, keine Treffer, gehaltene Rücktaste, Escape,
 Klick auf eine Zeile.
-`tests/wallpaper_picker_smoke.py`: Bilder wie in splice-shells Picker-Test (Leerzeichen, `#` und `%` im Namen) und
+`tests/wallpaper_picker_smoke.py`: Bilder mit Leerzeichen, `#` und `%` im Namen und
 ein kaputtes: Filter und Enter speichern, Wallpaper und Theme folgen; Start auf dem Bild in Gebrauch, das kaputte wird
 abgelehnt, keine Treffer, Escape, Klick daneben, Klick auf Nachbar und gewähltes, gehaltener Pfeil endet am letzten,
 Mausrad.
-`tests/lock_screen_smoke.py`: PAM mit eigenem Dienstverzeichnis (`pam_exec`, kein echtes Konto, wie splice-shells
-Test von `lock.qml`): `--lock` bestätigt, Fenster und Ecken verdeckt (Aufnahme mit grim), Befehle abgewiesen; falsches
+`tests/lock_screen_smoke.py`: PAM mit eigenem Dienstverzeichnis (`pam_exec`, kein echtes Konto):
+`--lock` bestätigt, Fenster und Ecken verdeckt (Aufnahme mit grim), Befehle abgewiesen; falsches
 Passwort, eine Prüfung, die mittendrin stirbt, und ein fremder Sperrer (`splice-test-client lock`) entsperren nicht,
 das Fenster bekommt keine Taste, der Rand des Felds wird rot; das richtige Passwort entsperrt mit einem Klick auf den
 Knopf. Ein Fenster unter dem ruhenden Zeiger verliert ihn beim Sperren; das Bild eines erst danach geschriebenen
 `theme.json` erscheint abgedunkelt.
-`tests/greeter_smoke.py`: `--greeter` mit zwei Monitoren gegen nachgebautes greetd (`tests/fake_greetd.py` aus
-splice-shell): Karte nur auf dem ersten, Bindings tun nichts, falsches Passwort (`create_session`, `response wrong`,
+`tests/greeter_smoke.py`: `--greeter` mit zwei Monitoren gegen nachgebautes greetd (`tests/fake_greetd.py`):
+Karte nur auf dem ersten, Bindings tun nichts, falsches Passwort (`create_session`, `response wrong`,
 roter Rand), Tab und Enter wählen die zweite Sitzung, das richtige Passwort startet sie ohne Feldcodes, der
 Compositor endet mit 0; „Ausschalten“ ruft `systemctl poweroff` (ein Platzhalter vorn im `PATH`).
 `tests/notifications_smoke.py`: auf eigenem Session-Bus Toast mit Ablaufzeit und Festhalten, „×“, Aktion und

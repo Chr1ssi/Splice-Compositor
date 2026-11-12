@@ -1,7 +1,6 @@
 //! `splice-shell-services --login`: one login through greetd for the compositor's login screen (`--greeter`), in a
 //! process of its own per attempt, like `--authenticate`. The request (`LoginRequest`) comes as JSON on stdin;
-//! what greetd answers goes to stdout as `LoginEvent` lines. Like Quickshell's `Greetd` (which greeter.qml used):
-//! every prompt gets the password, error messages that ask nothing are shown, and once greetd accepts, the
+//! what greetd answers goes to stdout as `LoginEvent` lines. Every prompt gets the password, error messages that ask nothing are shown, and once greetd accepts, the
 //! session is started with the command of the chosen `.desktop` file.
 //!
 //! greetd's IPC (`$GREETD_SOCK`): JSON messages, each after its length as a 32-bit integer in native byte order.
@@ -70,7 +69,7 @@ fn login(request: &LoginRequest) -> Result<(), String> {
     let stream = &mut stream;
     let create = json!({ "type": "create_session", "username": request.user });
     let mut answer = ask(stream, &create)?;
-    // Like Quickshell: a session left over (an attempt whose process died) is cancelled and begun anew.
+    // A session left over (an attempt whose process died) is cancelled and begun anew.
     if answer["type"] == "error" && answer["description"] == "a session is already being configured" {
         ask(stream, &json!({ "type": "cancel_session" }))?;
         answer = ask(stream, &create)?;
@@ -93,7 +92,7 @@ fn login(request: &LoginRequest) -> Result<(), String> {
             Some("success") => break,
             Some("error") if answer["error_type"] == "auth_error" => {
                 tell(&LoginEvent::Wrong);
-                // As Quickshell does; greetd may answer with an error, as the failed session is over.
+                // greetd may answer with an error, as the failed session is over.
                 let _ = ask(stream, &json!({ "type": "cancel_session" }));
                 return Ok(());
             }

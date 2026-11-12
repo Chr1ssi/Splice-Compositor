@@ -1,4 +1,4 @@
-//! The calendar panel's content (`CalendarPanelInteractive.qml`): a month to page through, the selected day's events
+//! The calendar panel's content: a month to page through, the selected day's events
 //! and the next ones from `splice-calendar` (khal), a form that creates an event on the selected day, and a button
 //! that opens the calendar app. The form's fields and calendar choice are rounded boxes in the shell's theme.
 use crate::{

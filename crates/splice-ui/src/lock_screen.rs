@@ -1,4 +1,4 @@
-//! The lock screen and the login screen (as splice-shell's `lock.qml` and `greeter.qml` with `LoginScreen.qml`): on
+//! The lock screen and the login screen: on
 //! the primary monitor the clock and the date at 16 % of its height and the card with avatar, name (or a field for
 //! it), password field, button and message at 52 %, all centered; the login screen adds the sessions to choose from
 //! at the bottom left and restart and shut down at the bottom right. The background (an image cut to the monitor,

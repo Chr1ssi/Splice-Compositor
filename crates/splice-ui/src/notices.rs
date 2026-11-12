@@ -1,4 +1,4 @@
-//! The cards at the top right of the first monitor (the toast column of `bar.qml`): what to do while an app
+//! The cards at the top right of the first monitor: what to do while an app
 //! asks what to share, the color under the pointer while the color picker is on, why the configuration
 //! file did not load, and the newest notifications (toasts).
 use crate::{

@@ -1,4 +1,4 @@
-//! The bar at the top of every monitor (`bar.qml`): rounded islands with the workspaces on the left, media
+//! The bar at the top of every monitor: rounded islands with the workspaces on the left, media
 //! and clock in the middle, recording, status and power on the right.
 use crate::{
     Align, Color, Measure, Node, Rect, Scene, Shape, TextStyle, Theme,
@@ -7,7 +7,7 @@ use crate::{
     theme::{BAR_HEIGHT, BAR_MARGIN, ISLAND_HEIGHT},
 };
 
-/// Height of a button (`BarButton.qml`).
+/// Height of a button.
 pub const BUTTON_HEIGHT: f32 = 26.0;
 pub(crate) const BUTTON_TEXT: TextStyle = TextStyle::new(14.0);
 /// Space between the buttons of an island.
@@ -168,7 +168,7 @@ fn volume_segments(volume: f32) -> String {
     "▮".repeat(filled) + &"▯".repeat(8 - filled)
 }
 
-/// The volume after `steps` wheel notches over the audio button (5 % each, as the Quickshell bar).
+/// The volume after `steps` wheel notches over the audio button (5 % each).
 pub fn scrolled_volume(volume: f32, steps: f32) -> f32 {
     (volume + steps * 0.05).clamp(0.0, 1.0)
 }
@@ -248,7 +248,7 @@ pub fn scene(model: &BarModel, theme: &Theme, measure: &mut impl Measure) -> Sce
     scene
 }
 
-/// Draw an island at `x` with its content (`BarIsland.qml`) and return its width.
+/// Draw an island at `x` with its content and return its width.
 fn island(scene: &mut Scene<BarTarget>, model: &BarModel, theme: &Theme, x: f32, content: Content, measure: &mut impl Measure) -> f32 {
     let width = content.width(measure);
     let rect = Rect::new(x, BAR_MARGIN, width, ISLAND_HEIGHT);
@@ -395,7 +395,7 @@ mod tests {
     }
 
     #[test]
-    fn islands_sit_like_in_the_quickshell_bar() {
+    fn islands_sit_at_the_edges_and_in_the_middle() {
         let scene = scene(&model(), &theme(), &mut Mono);
         let islands = islands(&scene);
         // Workspaces: two buttons and "+", 26 wide with 2 between, 4 of padding each side.

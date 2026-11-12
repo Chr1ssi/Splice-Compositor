@@ -3,8 +3,7 @@
 //! pixels (`paint`, with the fonts of `text`), the theme, the texts in the system language (`i18n`) and the
 //! clock. The compositor fills the models, uploads the pixels and routes input to the scenes' targets.
 //!
-//! Sizes and colors started as those of splice-shell's Quickshell bar (`bar.qml`, `BarButton.qml`, `BarIsland.qml`,
-//! `Theme.qml`); the panels group their content in rounded cards (`theme` has the radii), and text is set in the
+//! The panels group their content in rounded cards (`theme` has the radii), and text is set in the
 //! system's sans-serif font.
 pub mod audio;
 pub mod bar;

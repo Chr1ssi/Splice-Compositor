@@ -1,6 +1,6 @@
 //! PipeWire's outputs, microphones and application streams with their volume and mute, and which output and
 //! microphone are the default (`default.audio.sink` and `default.audio.source` of the `default` metadata), as the
-//! Quickshell bar's audio panel lists them: microphones without WirePlumber's smart filters (the NixOS mic filter
+//! audio panel lists them: microphones without WirePlumber's smart filters (the NixOS mic filter
 //! puts itself in front of the default microphone and never becomes the default), streams only with an
 //! application name.
 use std::{cell::RefCell, rc::Rc, sync::mpsc::Sender};
@@ -112,7 +112,7 @@ fn shown(kind: NodeKind, smart_filter: bool, application: &str) -> bool {
     }
 }
 
-/// The volume on the cubic scale of `wpctl` and Quickshell: the mean of the channels' cube roots.
+/// The volume on the cubic scale of `wpctl`: the mean of the channels' cube roots.
 pub fn volume(channels: &[f32]) -> Option<f32> {
     if channels.is_empty() {
         return None;

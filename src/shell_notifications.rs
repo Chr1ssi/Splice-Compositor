@@ -1,4 +1,4 @@
-//! Notifications in the built-in shell, as splice-shell's Quickshell bar kept them: a list (newest first) behind
+//! Notifications in the built-in shell: a list (newest first) behind
 //! the bell, which opens the notification center (see `shell_panels`), and toasts at the top right of the first
 //! monitor.
 //!
@@ -68,7 +68,7 @@ impl State {
         let note = Note { view, urgency: notification.urgency, expire_timeout: notification.expire_timeout };
         let gaming = self.game_shown();
         let notes = &mut self.shell.notes;
-        // Replaced contents keep their place and their toast's time, as Quickshell's updated notification does.
+        // Replaced contents keep their place and their toast's time.
         if let Some(existing) = notes.list.iter_mut().find(|n| n.view.id == note.view.id) {
             *existing = note;
         } else {

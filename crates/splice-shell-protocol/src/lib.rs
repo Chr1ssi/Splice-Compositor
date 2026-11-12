@@ -13,7 +13,7 @@ pub const IMAGE_SIZE: u32 = 128;
 /// Tray and menu icons are scaled to fit this many pixels each way (they show 18 logical pixels large).
 pub const ICON_SIZE: u32 = 36;
 /// Covers are scaled down to just cover this many pixels (the media panel shows them 150 logical pixels high
-/// across its width, cut to fit), as Quickshell's `sourceSize`.
+/// across its width, cut to fit).
 pub const COVER_SIZE: (u32, u32) = (400, 200);
 /// Application icons are scaled to fit this many pixels each way (the launcher shows them 32 logical pixels large).
 pub const APP_ICON_SIZE: u32 = 64;
@@ -52,7 +52,7 @@ pub enum Event {
     },
 }
 
-/// An application to launch, from its desktop entry (as Quickshell's `DesktopEntries` reads them).
+/// An application to launch, from its desktop entry.
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
 #[serde(default)]
 pub struct Application {
@@ -119,7 +119,7 @@ pub struct AudioNode {
 
 #[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Audio {
-    /// 0.0 to 1.0 on the cubic scale `wpctl` and Quickshell show (the cube root of PipeWire's channel volume).
+    /// 0.0 to 1.0 on the cubic scale `wpctl` shows (the cube root of PipeWire's channel volume).
     pub volume: f32,
     pub muted: bool,
 }
@@ -423,16 +423,16 @@ mod base64 {
 }
 
 /// How a password check of `splice-shell-services --authenticate` ended: one word on its stdout. Only `Success`
-/// unlocks; the rest are what `PamContext` told lock.qml.
+/// unlocks; the rest say why the check did not succeed.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum AuthOutcome {
     Success,
     /// PAM said the password is wrong.
     Wrong,
     MaxTries,
-    /// PAM did not start (`PamError.StartFailed`).
+    /// PAM did not start.
     StartFailed,
-    /// PAM could not check (`PamError.TryAuthFailed`).
+    /// PAM could not check.
     TryFailed,
 }
 
@@ -476,7 +476,7 @@ impl std::fmt::Debug for LoginRequest {
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "event", rename_all = "kebab-case")]
 pub enum LoginEvent {
-    /// An error message of PAM that asks nothing (greeter.qml showed those).
+    /// An error message of PAM that asks nothing (the login screen shows those).
     Message { text: String },
     /// greetd refused the password (`auth_error`).
     Wrong,

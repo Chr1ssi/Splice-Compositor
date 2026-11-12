@@ -1,4 +1,4 @@
-//! The power menu (`bar.qml`): a card in the middle of a dimmed monitor with tiles for lock, log out, restart
+//! The power menu: a card in the middle of a dimmed monitor with tiles for lock, log out, restart
 //! and shut down. The last three count down five seconds around their icon before they happen.
 use std::f32::consts::{FRAC_PI_2, PI};
 

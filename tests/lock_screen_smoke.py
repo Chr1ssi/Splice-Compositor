@@ -1,4 +1,4 @@
-"""The built-in shell's lock screen (as splice-shell's test of lock.qml): `--lock` gets its confirmation once the lock
+"""The built-in shell's lock screen: `--lock` gets its confirmation once the lock
 screen shows, nothing behind it shows (in a capture of the monitor neither) or gets a key, a wrong password keeps the
 session locked, so does a check that dies on the way and a screen locker that asks to take over and to unlock; the
 right password unlocks (Return, or a click on the button). The card shows on the monitor; a refused password turns

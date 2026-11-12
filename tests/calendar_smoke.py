@@ -1,7 +1,7 @@
 """The built-in shell's calendar panel against a stand-in for the splice-calendar helper (and for foot): opened by the
 clock, it asks for the month's events and the calendars; paging asks for the next month; the form checks its fields,
 creates an event on the selected day (typed into its fields, in the calendar chosen from its list) and reloads; the
-button opens the calendar app and closes the panel. Clicked at the places of the Quickshell panel on 1280x800.
+button opens the calendar app and closes the panel. Clicked at the places the panel has on 1280x800.
 
 Needs `cargo build --workspace`. Run from the repository root with $DISPLAY set:
     PYTHONPATH=tests python3 tests/calendar_smoke.py

@@ -1,4 +1,4 @@
-//! The MPRIS players on the session bus, as Quickshell's `Mpris.players` lists them: in the order they appeared, with
+//! The MPRIS players on the session bus, in the order they appeared, with
 //! title, artists, cover and what they allow. The bar shows the first one that plays; the media panel all of them.
 use std::{collections::HashMap, sync::mpsc, time::Duration};
 
@@ -122,7 +122,7 @@ fn player(connection: &Connection, name: &str, covers: &mut HashMap<String, Opti
         .map(|artists| artists.join(", "))
         .unwrap_or_default();
     let playing = player.get_property::<String>("PlaybackStatus").is_ok_and(|status| status == "Playing");
-    // As Quickshell: nothing is allowed without CanControl; play/pause asks for what the toggle would do.
+    // Nothing is allowed without CanControl; play/pause asks for what the toggle would do.
     let control = flag("CanControl");
     let url = text("mpris:artUrl");
     let cover = if url.is_empty() { None } else { covers.entry(url.clone()).or_insert_with(|| icons::load_cover(&url)).clone() };

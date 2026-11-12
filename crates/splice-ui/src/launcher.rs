@@ -1,4 +1,4 @@
-//! The application launcher (`shell.qml`): a glass card in the middle of the monitor with a search field, the
+//! The application launcher: a glass card in the middle of the monitor with a search field, the
 //! applications whose texts contain every word typed (those whose name starts with the search first), and a
 //! footer with the count and the keys.
 use crate::{

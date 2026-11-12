@@ -1,10 +1,9 @@
-//! The built-in shell's lock screen (as splice-shell's `lock.qml`): the compositor locks the session itself
+//! The built-in shell's lock screen: the compositor locks the session itself
 //! (`own_lock` in `session`), so no client draws, reaches or ends the lock, and only a password that PAM
 //! accepts unlocks it.
 //!
 //! Each check runs `splice-shell-services --authenticate` in a process of its own, the password on its stdin:
-//! a PAM module that crashes ends that attempt, never the lock (one that hangs keeps it waiting, as lock.qml
-//! did). The session unlocks only when that process exits cleanly and answers `success` for the attempt still
+//! a PAM module that crashes ends that attempt, never the lock (one that hangs keeps it waiting). The session unlocks only when that process exits cleanly and answers `success` for the attempt still
 //! being checked.
 //!
 //! The picture: the theme's image (`source` of `theme.json`), cut to each monitor's size on a worker thread
@@ -211,7 +210,7 @@ impl State {
             Some(greeter) if greeter.user.text.is_empty() => LockTarget::User,
             _ => LockTarget::Password,
         };
-        // lock.qml read the theme when it started: its colors and its image. The login screen's image is its own.
+        // The theme is read when the lock starts: its colors and its image. The login screen's image is its own.
         lock.source = match &lock.greeter {
             Some(greeter) => greeter.background.clone(),
             None => {
@@ -328,7 +327,7 @@ impl State {
     }
 
     /// A check answered: only `success` for the current attempt, while the lock screen holds the session,
-    /// unlocks. Like lock.qml shows it, every other outcome but too many tries reads as a wrong password.
+    /// unlocks. Every other outcome but too many tries reads as a wrong password.
     fn lock_checked(&mut self, attempt: u64, outcome: Option<AuthOutcome>) {
         let lock = &mut self.shell.lock;
         // An answer for an earlier attempt or an earlier lock counts for nothing; the login screen never unlocks.
@@ -369,7 +368,7 @@ impl State {
             output: (geo.size.w as f32, geo.size.h as f32),
             time: now.as_ref().map(clock::lock_time).unwrap_or_default(),
             date: now.as_ref().map(|now| clock::lock_date(now, self.shell.time_language)).unwrap_or_default(),
-            // lock.qml showed `$USER`.
+            // `$USER` on the lock screen, the typed name on the login screen.
             user: greeter.map_or_else(|| std::env::var("USER").unwrap_or_default(), |g| g.user.text.clone()),
             ask_user: greeter.map(|g| g.user.cursor),
             password_len: lock.password.chars().count(),

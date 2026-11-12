@@ -1,4 +1,4 @@
-//! The tray (StatusNotifierItem), as Quickshell's `SystemTray` serves it: the shell is the watcher
+//! The tray (StatusNotifierItem): the shell is the watcher
 //! (`org.kde.StatusNotifierWatcher`, taken over once another one leaves) and its host. Items come with their status,
 //! icon (the icon theme's, the item's own `IconThemePath`, or its pixmaps; the attention icon while it needs
 //! attention) and menu (DBusMenu), which is read when it is about to show.
@@ -374,7 +374,7 @@ fn call_item<B: serde::Serialize + zbus::zvariant::DynamicType>(
 fn read_menu(bus: &Connection, item: &ItemPaths, id: i32) -> Option<MenuEntry> {
     let menu = proxy(bus, &item.service, item.menu.as_deref()?, MENU).ok()?;
     if let Err(error) = menu.call::<_, _, bool>("AboutToShow", &(id,)) {
-        // As Quickshell: the menu shows anyway.
+        // The menu shows anyway.
         tracing::debug!("AboutToShow failed: {error}");
     }
     type Layout = (i32, HashMap<String, OwnedValue>, Vec<OwnedValue>);
@@ -406,7 +406,7 @@ fn entry((id, properties, children): (i32, HashMap<String, OwnedValue>, Vec<Owne
             let layout = <(i32, HashMap<String, OwnedValue>, Vec<OwnedValue>)>::try_from(structure).ok()?;
             Some(entry(layout))
         })
-        // Hidden entries are left out, as Quickshell lists only the visible ones.
+        // Hidden entries are left out.
         .filter(|(_, visible)| *visible)
         .map(|(child, _)| child)
         .collect();

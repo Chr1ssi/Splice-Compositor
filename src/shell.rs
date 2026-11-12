@@ -1,12 +1,12 @@
 //! The built-in shell (`builtin_shell = true`): the bar on every monitor, the power menu and the notices at the
-//! top right, drawn by the compositor itself (`splice-ui`) instead of splice-shell's Quickshell bar.
+//! top right, drawn by the compositor itself (`splice-ui`).
 //!
 //! Pictures are painted on the CPU only when what they show changes, and uploaded as textures; a frame only
 //! places them. What they show comes from the same state the bar protocol sends (so `ipc_dirty` says when
 //! to look again), plus pointer hover, the clock and the power menu's countdown.
 //!
 //! In front-to-back order the power menu covers everything, the notices sit behind the clients' `Overlay`
-//! layer and the bar behind fullscreen windows and the clients' `Top` layer, as their Quickshell windows did.
+//! layer and the bar behind fullscreen windows and the clients' `Top` layer.
 use std::time::{Duration, Instant};
 
 use smithay::{
@@ -738,7 +738,7 @@ impl State {
     }
 
     /// A key pressed for the shell (`shell_key`), repeated while it is held if the keymap repeats it, at the
-    /// configured delay and rate: clients repeat keys themselves, and the Quickshell windows did.
+    /// configured delay and rate: clients repeat keys themselves, so the shell does too.
     pub fn shell_key_pressed(&mut self, keycode: Keycode, sym: Keysym, modified: bool, repeats: bool) {
         self.shell.presses += 1;
         self.shell.repeating = None;

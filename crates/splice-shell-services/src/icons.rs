@@ -4,7 +4,7 @@
 //! Icons are looked up as the icon theme specification says, in a simple form: the user's theme
 //! (`gtk-icon-theme-name` of GTK's `settings.ini`, which Qt's qt6ct is usually set to as well), the themes it
 //! inherits, `hicolor`, then the `pixmaps` directories. Of a theme's directories the scalable ones win, else the
-//! size closest to the 64 pixels Quickshell asked for.
+//! size closest to 64 pixels.
 use std::{
     collections::HashSet,
     path::{Path, PathBuf},
@@ -45,7 +45,7 @@ pub fn from_raw(raw: &Raw) -> Option<Image> {
     image::RgbaImage::from_raw(width, height, rgba).map(|image| fit(image, IMAGE_SIZE))
 }
 
-/// The StatusNotifierItem pixmap (ARGB32 in network byte order) that best fits `size`, as Quickshell picks it: the
+/// The StatusNotifierItem pixmap (ARGB32 in network byte order) that best fits `size`: the
 /// smallest at least that large, else the largest; scaled to fit `size`.
 pub fn from_argb_pixmaps(pixmaps: &[(i32, i32, Vec<u8>)], size: u32) -> Option<Image> {
     let size = size as i32;

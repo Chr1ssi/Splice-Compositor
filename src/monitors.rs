@@ -38,7 +38,7 @@ impl State {
 
     /// Copy the outputs' current geometry (mode, scale, transform, position) into the desk.
     pub fn sync_monitor_areas(&mut self) {
-        // The built-in bar reserves the top like the Quickshell bar's exclusive zone did.
+        // The built-in bar reserves the top of every monitor.
         let bar = self.shell_reserved_top();
         for (entry, monitor) in self.outputs.iter().zip(&mut self.desktop.desk.monitors) {
             if let Some(geo) = self.space.output_geometry(&entry.output) {

@@ -1,4 +1,4 @@
-//! The panels the bar's buttons open (the details panel of `bar.qml`): a glass card below the bar, at the right
+//! The panels the bar's buttons open: a glass card below the bar, at the right
 //! edge for audio, command center and notifications, in the middle for media and calendar, with a title and
 //! the panel's content in an area that scrolls when the monitor is too low for it.
 use crate::{

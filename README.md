@@ -31,7 +31,7 @@ Aufbau:
 - `crates/splice-shell-services`, `crates/splice-shell-protocol` – Dienstprozess der eingebauten Shell (PipeWire, MPRIS,
   BlueZ, Benachrichtigungsdienst) und seine Nachrichten
 - `crates/splice-ui` – Bilder der eingebauten Shell (Bar, Powermenü, Hinweise; `builtin_shell = true`, siehe `docs/shell.md`)
-- `crates/splice-ipc` – Steuerprotokoll `v1` des Bar-Sockets (Befehle, Zustands-Snapshot)
+- `crates/splice-ipc` – Steuerprotokoll `v1` des Sockets `$SPLICE_SOCKET` (Befehle, Zustands-Snapshot)
 - `vendor/smithay` – smithay 0.7.0 mit kleinen Patches (Layer-Shell-Toleranz, X11-Fokus; `vendor/README.md`)
 - `src/` – Compositor; `udev.rs` ist das Hardware-Backend (DRM/GBM/libinput/libseat),
   `winit.rs` der nested Entwicklungsmodus (`desktop.rs` bildet das Modell auf Smithays `Space` ab)
@@ -106,14 +106,14 @@ damit nicht die installierten Portale der echten Sitzung anspringen.
 Einzeln, in `nix develop .#smoke` und mit gesetztem `$DISPLAY` (z. B. Xvfb):
 
 ```sh
-PYTHONPATH=tests python3 tests/ipc_smoke.py           # Bar-Socket (braucht X)
+PYTHONPATH=tests python3 tests/ipc_smoke.py           # Steuer-Socket (braucht X)
 PYTHONPATH=tests python3 tests/multimonitor_smoke.py  # Multi-Monitor mit virtuellen Ausgängen
 PYTHONPATH=tests python3 tests/globals_smoke.py       # angebotene Wayland-Protokolle
 PYTHONPATH=tests python3 tests/session_smoke.py       # Sperre, Idle, Monitor-Power (eingebauter Sperrbildschirm/swayidle/wlopm)
 PYTHONPATH=tests python3 tests/xwayland_smoke.py      # X11-Clients (xterm, xeyes)
 PYTHONPATH=tests python3 tests/screencopy_smoke.py    # Aufnahme mit grim
 PYTHONPATH=tests python3 tests/clipboard_smoke.py     # Kopieren/Einfügen (wl-clipboard)
-PYTHONPATH=tests python3 tests/layer_smoke.py         # Layer-Shell-Client mit Größe 0 (Quickshell-Marker)
+PYTHONPATH=tests python3 tests/layer_smoke.py         # Layer-Shell-Client, der kurz Größe 0 meldet
 PYTHONPATH=tests python3 tests/x11_focus_smoke.py     # Tastatur in X11-Fenstern (xev)
 PYTHONPATH=tests python3 tests/scroll_clip_smoke.py   # herausgescrollte Fenster erscheinen nicht auf dem Nachbarmonitor
 PYTHONPATH=tests python3 tests/edge_markers_smoke.py  # Randstreifen, wenn Fenster über den Rand hinausragen

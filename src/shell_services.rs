@@ -1,6 +1,6 @@
 //! The built-in shell's services process (`splice-shell-services`): started with the shell, read without ever
 //! blocking, and started again (after a growing pause) whenever it ends. Until it reports, and while it is down,
-//! the bar shows what the Quickshell bar showed without the services.
+//! the bar shows only what needs no services.
 use std::{
     io::{self, Read, Write},
     os::{fd::AsRawFd, unix::process::CommandExt},
@@ -151,7 +151,7 @@ impl State {
         let services = &mut self.shell.services;
         services.stdin = Some(stdin);
         services.started = Some(Instant::now());
-        // Read before the launcher first opens, as Quickshell read the entries at its start.
+        // Read before the launcher first opens.
         if self.builtin_launcher() {
             self.services_send(splice_shell_protocol::Command::Applications);
         }

@@ -1,6 +1,6 @@
-//! The audio panel's content (`AudioPanel.qml`): the default output and microphone with their volume, the others
-//! behind a button to choose another, and the applications that play. A device's row (`AudioDeviceControl.qml`)
-//! has its name (choosing it, where it can be chosen), its level (which mutes it) and a slider (`VolumeSlider.qml`);
+//! The audio panel's content: the default output and microphone with their volume, the others
+//! behind a button to choose another, and the applications that play. A device's row
+//! has its name (choosing it, where it can be chosen), its level (which mutes it) and a slider;
 //! each device sits in a card of its own.
 use crate::{
     Align, Measure, Node, Rect, Scene, TextStyle, Theme,

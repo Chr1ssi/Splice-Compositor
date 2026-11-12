@@ -1,7 +1,7 @@
 //! `splice-shell-services --authenticate`: one password check through PAM for the compositor's lock screen, in a
 //! process of its own per attempt, so a module that hangs or crashes takes nothing with it but this attempt. The
-//! password comes on stdin; the outcome is one word on stdout (`splice_shell_protocol::AuthOutcome`). Like
-//! Quickshell's `PamContext` (which lock.qml used): service `splice-lock` of `$SPLICE_PAM_DIR` (else `/etc/pam.d`),
+//! password comes on stdin; the outcome is one word on stdout (`splice_shell_protocol::AuthOutcome`). The check uses
+//! service `splice-lock` of `$SPLICE_PAM_DIR` (else `/etc/pam.d`),
 //! the user this process runs as, only `pam_authenticate`, and every prompt answered with the password.
 use std::{
     ffi::{CStr, CString, c_char, c_int, c_void},

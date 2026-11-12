@@ -1,4 +1,4 @@
-//! The built-in login screen (`splice-compositor --greeter` without a command; as splice-shell's `greeter.qml`): the
+//! The built-in login screen (`splice-compositor --greeter` without a command): the
 //! lock screen's card with a field for the user, the sessions to choose from and restart and shut down, shown
 //! behind the compositor's own lock from the start, so nothing but it can be reached.
 //!
@@ -41,7 +41,7 @@ pub struct Greeter {
 }
 
 /// The sessions of `.desktop` files `(file name, contents)`, sorted by file name: each one's first `Name=` and
-/// `Exec=` line, without the field codes (`%U`) of the command, as greeter.qml read them.
+/// `Exec=` line, without the field codes (`%U`) of the command.
 fn sessions(mut files: Vec<(String, String)>) -> Vec<Session> {
     files.sort_by(|a, b| a.0.cmp(&b.0));
     files
@@ -175,7 +175,7 @@ impl State {
         }
     }
 
-    /// What the login of `attempt` told (`None`: it ended), as greeter.qml followed greetd.
+    /// What the login of `attempt` told (`None`: it ended).
     fn greeter_event(&mut self, attempt: u64, event: Option<LoginEvent>) {
         let lock = &mut self.shell.lock;
         let Some(greeter) = lock.greeter.as_mut() else { return };

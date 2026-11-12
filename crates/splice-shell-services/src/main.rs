@@ -4,8 +4,7 @@
 //!
 //! Every source runs on its own thread and reconnects on its own: `audio` (PipeWire's default output), `media`
 //! (MPRIS players on the session bus), `bluetooth` (BlueZ on the system bus) and `notifications` (the
-//! notification service), and `apps` reads the desktop entries for the launcher when asked. Volume commands run `wpctl`, which WirePlumber turns into the device's route volume as
-//! the Quickshell panel's commands did.
+//! notification service), and `apps` reads the desktop entries for the launcher when asked. Volume commands run `wpctl`, which WirePlumber turns into the device's route volume.
 mod apps;
 mod audio;
 mod bluetooth;

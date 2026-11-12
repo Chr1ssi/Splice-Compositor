@@ -1,4 +1,4 @@
-"""The built-in shell's wallpaper picker (as splice-shell's test of the Quickshell picker): the wallpaper binding opens
+"""The built-in shell's wallpaper picker: the wallpaper binding opens
 it on the image in use, the filter narrows the images, Return saves the choice as a file URL once the image loads
 (the wallpaper follows, the theme is generated from it) and closes; an image that does not load is refused and the
 picker stays; no match saves nothing; Escape and a click beside the tiles close it; a click on a neighbour selects

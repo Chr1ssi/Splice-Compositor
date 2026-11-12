@@ -1,7 +1,7 @@
 """A layer-shell client that commits a zero width without both anchors must survive.
 
 Quickshell does this briefly when it recreates a panel, and the compositor used to disconnect the
-whole client for it (killing the bar). Speaks the wire protocol directly, so no client library is
+whole client for it. Speaks the wire protocol directly, so no client library is
 needed. Run from the repository root with $DISPLAY set: PYTHONPATH=tests python3 tests/layer_smoke.py
 """
 import os, re, socket, struct, time

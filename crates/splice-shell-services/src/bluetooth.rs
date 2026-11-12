@@ -1,4 +1,4 @@
-//! BlueZ's first adapter (as Quickshell's `Bluetooth.defaultAdapter`): whether it is on and searching, and its
+//! BlueZ's first adapter: whether it is on and searching, and its
 //! devices (alias, pairing, connection, battery). Commands switch it, search, and connect, disconnect or pair a
 //! device; while such a call runs the device counts as busy. BlueZ may come and go; without it there is no adapter.
 use std::{

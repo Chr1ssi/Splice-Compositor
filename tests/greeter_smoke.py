@@ -1,4 +1,4 @@
-"""The built-in login screen (`splice-compositor --greeter` without a command; as splice-shell's test of greeter.qml)
+"""The built-in login screen (`splice-compositor --greeter` without a command)
 against a stand-in for greetd (`tests/fake_greetd.py`): the card shows on the primary monitor only, bindings do
 nothing, a wrong password is refused (the field turns red), Tab and Return pick the second session, the right
 password starts it (field codes left out) and the compositor ends with code 0, as greetd needs. The shut down button

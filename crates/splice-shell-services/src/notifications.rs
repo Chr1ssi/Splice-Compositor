@@ -1,7 +1,7 @@
-//! The freedesktop notification service (`org.freedesktop.Notifications`, as splice-shell's Quickshell bar served it):
+//! The freedesktop notification service (`org.freedesktop.Notifications`):
 //! notifications go to the compositor, which shows them; its users' choices come back as `Dismiss` and `Invoke`.
 //!
-//! The name is requested in the queue: while another daemon (dunst, the Quickshell bar) holds it, this one waits
+//! The name is requested in the queue: while another daemon (dunst) holds it, this one waits
 //! and takes over when it leaves. Pictures are decoded on a worker thread, so a large one never holds up the bus;
 //! closings go through the same thread and never overtake their notification.
 use std::{
@@ -161,7 +161,7 @@ fn serve(updates: &mpsc::Sender<Update>, commands: &mpsc::Receiver<Command>) -> 
                 let resident = known.lock().unwrap_or_else(|e| e.into_inner()).get(&id).copied();
                 let Some(resident) = resident else { continue };
                 emit(&connection, "ActionInvoked", &(id, action.as_str()));
-                // Like Quickshell: an action ends a notification unless it asked to stay.
+                // An action ends a notification unless it asked to stay.
                 if !resident {
                     known.lock().unwrap_or_else(|e| e.into_inner()).remove(&id);
                     emit(&connection, "NotificationClosed", &(id, DISMISSED));

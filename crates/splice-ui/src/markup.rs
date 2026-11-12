@@ -93,7 +93,7 @@ fn entity(name: &str) -> Option<char> {
     }
 }
 
-/// A menu label with its mnemonic (`_File`: "File" with the "F" underlined), as Quickshell shows DBusMenu labels.
+/// A menu label with its mnemonic (`_File`: "File" with the "F" underlined).
 pub fn mnemonic(label: &str) -> Vec<Span> {
     let mut spans: Vec<Span> = Vec::new();
     let mut push = |text: &str, underline: bool| match spans.last_mut() {

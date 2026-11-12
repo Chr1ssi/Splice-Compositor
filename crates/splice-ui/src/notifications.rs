@@ -1,5 +1,5 @@
-//! Notifications: the card (`NotificationCard.qml`) that toasts and the notification center show, and the
-//! notification center itself (`NotificationCenter.qml` in the panel frame of `bar.qml`).
+//! Notifications: the card that toasts and the notification center show, and the
+//! notification center itself.
 use crate::{
     Align, Measure, Node, Rect, Scene, Shape, TextStyle, Theme,
     bar::{BUTTON_HEIGHT, button_shape},
@@ -148,7 +148,7 @@ pub fn card(
 
 const LIST_SPACING: f32 = 8.0;
 
-/// The notification center's content (`NotificationCenter.qml`), `width` wide: the count with "Clear all", and
+/// The notification center's content, `width` wide: the count with "Clear all", and
 /// the list, which scrolls by itself once its cards need more than 470 pixels. Also how far the list can scroll.
 pub fn center(
     items: &[NotificationView],
