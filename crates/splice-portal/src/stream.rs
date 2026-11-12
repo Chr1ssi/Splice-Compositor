@@ -93,11 +93,21 @@ pub struct StreamHandle {
 }
 
 impl StreamHandle {
+    /// End the stream and wait until its thread is gone.
     pub fn stop(mut self) {
-        let _ = self.stop.send(());
-        if let Some(thread) = self.thread.take() {
+        let thread = self.thread.take();
+        drop(self);
+        if let Some(thread) = thread {
             let _ = thread.join();
         }
+    }
+}
+
+impl Drop for StreamHandle {
+    /// A handle nobody stopped (its session was closed while the user still chose, or started again) must not
+    /// leave the capture running. Without waiting: this may run on the bus's own thread.
+    fn drop(&mut self) {
+        let _ = self.stop.send(());
     }
 }
 
@@ -788,11 +798,16 @@ fn run(
                 }
                 let len = (size.0 * size.1 * 4) as usize;
                 let raw_fd = libc::memfd_create(c"splice-screencast".as_ptr(), libc::MFD_CLOEXEC);
-                if raw_fd < 0 || libc::ftruncate(raw_fd, len as libc::off_t) != 0 {
+                if raw_fd < 0 {
                     tracing::warn!("cannot allocate a frame buffer: {}", std::io::Error::last_os_error());
                     return;
                 }
+                // Owned at once, so that it is closed if it cannot be sized.
                 let fd = std::os::fd::OwnedFd::from_raw_fd(raw_fd);
+                if libc::ftruncate(raw_fd, len as libc::off_t) != 0 {
+                    tracing::warn!("cannot allocate a frame buffer: {}", std::io::Error::last_os_error());
+                    return;
+                }
                 data.type_ = spa_sys::SPA_DATA_MemFd;
                 data.flags = spa_sys::SPA_DATA_FLAG_READWRITE;
                 data.fd = i64::from(raw_fd);

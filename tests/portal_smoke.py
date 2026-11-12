@@ -232,6 +232,25 @@ try:
     assert out.startswith("ua{sv} 0"), out
     busctl("org.freedesktop.impl.portal.desktop.splice", third, "org.freedesktop.impl.portal.Session", "Close")
 
+    # A session closed while its chooser is open: the stream the choice still starts ends with it.
+    def stream_nodes():
+        listed = subprocess.run(["pw-cli", "ls", "Node"], env=pw_env, capture_output=True, text=True, timeout=10)
+        return listed.stdout.count("splice-screencast")
+
+    assert wait(lambda: stream_nodes() == 0, 10), "the streams of the closed sessions are still there"
+    session = "/org/freedesktop/portal/desktop/session/test/orphan"
+    busctl(*PORTAL[:2], PORTAL[2], "CreateSession", "oosa{sv}", "/req/o1", session, "orphan", "0")
+    busctl(*PORTAL[:2], PORTAL[2], "SelectSources", "oosa{sv}", "/req/o2", session, "orphan", "1", "types", "u", "3")
+    start = subprocess.Popen(["busctl", f"--address={bus_address}", "--user", "call", *PORTAL, "Start", "oossa{sv}", "/req/o3", session, "orphan", "", "0"],
+                             env=pw_env, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+    time.sleep(1.5)
+    closed = busctl("org.freedesktop.impl.portal.desktop.splice", session, "org.freedesktop.impl.portal.Session", "Close")
+    assert closed.returncode == 0, closed.stderr
+    comp.key("Return")
+    start.communicate(timeout=30)
+    assert wait(lambda: stream_nodes() == 0, 10), "a stream outlived its closed session"
+    print("a session closed in the chooser leaves no stream")
+
     # Escape cancels the chooser: response 1.
     def cancel():
         comp.key("Escape")
