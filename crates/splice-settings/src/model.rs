@@ -404,6 +404,19 @@ mod tests {
         }
     }
 
+    /// The defaults here are a copy of the compositor's: writing one into an empty file must change nothing.
+    #[test]
+    fn every_default_is_the_compositors() {
+        let read = |text: &str| format!("{:#?}", splice_config::Config::parse(text).unwrap());
+        let unset = read("");
+        for setting in SETTINGS {
+            let Some(value) = default_value(setting) else { continue };
+            let mut doc = Document::parse("").unwrap();
+            doc.set(setting.path, value);
+            assert_eq!(read(&doc.text()), unset, "{} = {} is not the compositor's default", setting.path, setting.default);
+        }
+    }
+
     #[test]
     fn the_extremes_of_every_range_are_accepted_and_beyond_them_rejected() {
         for setting in SETTINGS {
