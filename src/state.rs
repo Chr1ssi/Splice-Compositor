@@ -402,6 +402,9 @@ impl State {
         };
         self.config_error = None;
         self.ipc_dirty = true;
+        for note in &new.outdated {
+            tracing::warn!("configuration: {note}");
+        }
         let xkb = XkbConfig {
             layout: &new.keyboard.layout,
             variant: &new.keyboard.variant,

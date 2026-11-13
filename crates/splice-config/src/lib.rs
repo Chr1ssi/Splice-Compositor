@@ -1,5 +1,6 @@
 //! Configuration for Splice: `~/.config/splice/config.toml` (or `$SPLICE_CONFIG`).
 mod keys;
+mod outdated;
 mod rules;
 mod sections;
 pub mod session;
@@ -108,6 +109,10 @@ pub struct Config {
     /// The compositor draws the shell (bar, launcher, power menu, notices, lock screen, ...) itself, with
     /// `splice-shell-services`. Off, it draws none of it (nested tests). Read at startup.
     pub builtin_shell: bool,
+    /// What the file still says in a way that is outdated (`outdated.rs`), for the user to fix: one line per
+    /// key. Those keys were read as far as they still mean something.
+    #[serde(skip)]
+    pub outdated: Vec<String>,
 }
 
 /// Where the generated theme lives (`SPLICE_THEME_STATE`, else `$XDG_STATE_HOME/splice/theme.json`).
@@ -176,6 +181,7 @@ impl Default for Config {
             xwayland: true,
             outputs: Vec::new(),
             builtin_shell: true,
+            outdated: Vec::new(),
         }
     }
 }
@@ -362,7 +368,15 @@ fn non_empty(list: &[String]) -> bool {
 
 impl Config {
     pub fn parse(text: &str) -> Result<Self> {
-        let config: Self = toml::from_str(text)?;
+        Self::parse_with(text, outdated::OUTDATED)
+    }
+
+    fn parse_with(text: &str, outdated: &[(&str, outdated::Fate)]) -> Result<Self> {
+        let mut table: toml::Table = toml::from_str(text)?;
+        let notes = outdated::apply(&mut table, outdated);
+        // Read from the text wherever that is possible: only then does an error name its line.
+        let mut config: Self = if notes.is_empty() { toml::from_str(text)? } else { table.try_into()? };
+        config.outdated = notes;
         let mut seen = HashSet::new();
         for output in &config.workspace_outputs {
             if output.trim().is_empty() || !seen.insert(output) {
@@ -582,6 +596,19 @@ mod tests {
         assert!(config.allowed_when_locked(Action::Program(0)));
         assert!(!config.allowed_when_locked(Action::Program(1)));
         assert!(!config.allowed_when_locked(Action::Terminal));
+    }
+
+    #[test]
+    fn an_outdated_key_does_not_cost_the_rest_of_the_file() {
+        let text = "terminal = ['kitty']\nold_terminal = true\n[appearance]\ngaps = 3\n";
+        assert!(Config::parse(text).is_err(), "unknown keys are errors");
+        let outdated = [("old_terminal", outdated::Fate::Removed), ("appearance.gaps", outdated::Fate::Renamed("gaps_inner"))];
+        let config = Config::parse_with(text, &outdated).unwrap();
+        assert_eq!((config.terminal.as_slice(), config.appearance.gaps_inner), (&["kitty".to_owned()][..], 3));
+        assert_eq!(config.outdated.len(), 2);
+        // What is wrong apart from that is still an error, and a current file has nothing to report.
+        assert!(Config::parse_with("old_terminal = true\nterminal = []\n", &outdated).is_err());
+        assert!(Config::parse_with("terminal = ['kitty']\n", &outdated).unwrap().outdated.is_empty());
     }
 
     #[test]

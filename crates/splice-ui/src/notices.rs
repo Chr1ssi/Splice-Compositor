@@ -22,7 +22,10 @@ pub struct NoticesModel {
     pub choosing: bool,
     /// The color picker is on, with the color under the pointer once it has one (`#rrggbb`).
     pub picking: Option<Option<String>>,
+    /// What is wrong with the configuration file, on one line.
     pub config_error: Option<String>,
+    /// `config_error` names outdated settings of a file that was loaded, not an error that kept it from loading.
+    pub config_outdated: bool,
     /// Newest first.
     pub toasts: Vec<NotificationView>,
     pub hover: Option<NoticeTarget>,
@@ -117,7 +120,11 @@ pub fn scene(model: &NoticesModel, theme: &Theme, measure: &mut impl Measure) ->
     if let Some(error) = &model.config_error {
         let title = TextStyle::new(15.0).bold(true);
         let (body, note) = (TextStyle::new(14.0), TextStyle::new(12.0));
-        let note_text = tr("Bis zur Korrektur gilt die zuletzt geladene Konfiguration, beim Start die Standardwerte.");
+        let (title_text, note_text) = if model.config_outdated {
+            (tr("Konfiguration veraltet"), tr("Die Konfiguration gilt; bitte die genannten Einstellungen anpassen."))
+        } else {
+            (tr("Konfiguration fehlerhaft"), tr("Bis zur Korrektur gilt die zuletzt geladene Konfiguration, beim Start die Standardwerte."))
+        };
         let row_h = measure.line_height(title).max(crate::bar::BUTTON_HEIGHT);
         let body_h = measure.paragraph_height(error, body, inner);
         let note_h = measure.paragraph_height(note_text, note, inner);
@@ -125,15 +132,7 @@ pub fn scene(model: &NoticesModel, theme: &Theme, measure: &mut impl Measure) ->
         let close = Rect::new(width - PADDING - 24.0, PADDING, 24.0, crate::bar::BUTTON_HEIGHT);
         let mut nodes = vec![
             Node::Rect { rect: Rect::new(0.0, 0.0, width, height), radius: RADIUS, fill: theme.glass(), border: Some((2.0, theme.accent)) },
-            label(
-                PADDING,
-                PADDING,
-                inner - close.w - 8.0,
-                measure.line_height(title),
-                tr("Konfiguration fehlerhaft").into(),
-                title,
-                theme.text,
-            ),
+            label(PADDING, PADDING, inner - close.w - 8.0, measure.line_height(title), title_text.into(), title, theme.text),
         ];
         let mut button: Scene<NoticeTarget> = Scene::new(width, height);
         button_shape(&mut button, theme, close, "×", false, false, false, model.hover == Some(NoticeTarget::DismissConfigError));
@@ -197,10 +196,23 @@ mod tests {
             choosing: false,
             picking: None,
             config_error: None,
+            config_outdated: false,
             toasts: Vec::new(),
             hover: None,
             language: Language::English,
         }
+    }
+
+    #[test]
+    fn outdated_settings_are_not_called_an_error() {
+        let titles = |outdated| {
+            let model =
+                NoticesModel { config_error: Some("old is now called new: rename it".into()), config_outdated: outdated, ..model() };
+            let scene = scene(&model, &theme(), &mut Mono).expect("card");
+            let has = |wanted: &str| scene.nodes.iter().any(|n| matches!(n, Node::Label { text, .. } if text == wanted));
+            (has("Configuration error"), has("Configuration outdated"))
+        };
+        assert_eq!((titles(false), titles(true)), ((true, false), (false, true)));
     }
 
     #[test]

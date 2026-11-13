@@ -474,13 +474,23 @@ impl State {
         })
     }
 
+    /// What to tell the user about the configuration file, and whether that is only about outdated settings
+    /// of a file that was loaded.
+    fn config_notice(&self) -> Option<(String, bool)> {
+        let outdated = || (!self.config.outdated.is_empty()).then(|| (self.config.outdated.join(" · "), true));
+        self.config_error.clone().map(|error| (error, false)).or_else(outdated)
+    }
+
     fn notices_model(&self, output: &Output) -> Option<NoticesModel> {
         // The panels on the right and a tray menu would show them through their glass.
         if matches!(self.panel_on(output), Some(bar::Panel::Notifications | bar::Panel::Audio)) || self.tray_menu_on(output) {
             return None;
         }
         let geo = self.space.output_geometry(output)?;
-        let config_error = self.config_error.clone().filter(|error| Some(error) != self.shell.dismissed_config_error.as_ref());
+        let (config_error, config_outdated) = match self.config_notice() {
+            Some((notice, outdated)) if Some(&notice) != self.shell.dismissed_config_error.as_ref() => (Some(notice), outdated),
+            _ => (None, false),
+        };
         let hover = match self.shell.hover {
             Some(ShellHit::Notices(target)) => Some(target),
             _ => None,
@@ -490,6 +500,7 @@ impl State {
             choosing: self.share_kinds().is_some(),
             picking: self.picked_color(),
             config_error,
+            config_outdated,
             toasts: self.toast_views(),
             hover,
             language: self.shell.language,
@@ -665,7 +676,7 @@ impl State {
             Some(ShellHit::Power(None)) => self.power_cancel(),
             Some(ShellHit::Power(Some(target))) => self.power_activate(target),
             Some(ShellHit::Notices(NoticeTarget::DismissConfigError)) => {
-                self.shell.dismissed_config_error = self.config_error.clone();
+                self.shell.dismissed_config_error = self.config_notice().map(|(notice, _)| notice);
                 self.shell.dirty = true;
             }
             Some(ShellHit::Notices(NoticeTarget::Toast(CardTarget::Dismiss(id)))) => self.notification_dismiss(id),

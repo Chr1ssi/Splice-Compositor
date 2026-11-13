@@ -20,7 +20,8 @@ Propo“, das dafür installiert sein muss. Die Panels gliedern ihren Inhalt in 
   daneben oder „Abbrechen“ stoppen ihn, Tab/Enter/Leertaste bedienen es. Das Exit-Binding öffnet es mit dem
   Countdown zum Abmelden. Solange es offen ist, gehören ihm die Tasten (außer den Bindings).
 - **Hinweise** oben rechts auf dem ersten Monitor: Auswahl beim Teilen, Farbpipette mit Farbfeld,
-  fehlerhafte Konfiguration (mit Schließen-Knopf).
+  fehlerhafte Konfiguration und veraltete Einstellungen einer Konfiguration, die trotzdem gilt (beides mit
+  Schließen-Knopf).
 - Theme aus `theme.json` (sonst `[appearance]`), neu geladen mit dem Config-Reload/Theme-Reload des Pickers.
 - **Stil** `[appearance] style = "cyberdeck"` (Standard `default`): Alle Flächen der Shell, die sonst gerundet sind
   (Bar-Inseln, Panels, Launcher, Karten, Knöpfe), bekommen stattdessen abgeschrägte Ecken oben links und unten rechts

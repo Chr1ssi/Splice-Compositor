@@ -87,6 +87,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     if let Some(error) = &config_error {
         tracing::error!("configuration not loaded, using the defaults: {error}");
     }
+    for note in &config.outdated {
+        tracing::warn!("configuration: {note}");
+    }
     // Inside another compositor or X server we run nested; on a bare seat we drive the hardware.
     // SPLICE_BACKEND=winit|drm overrides the guess.
     let nested = match std::env::var("SPLICE_BACKEND").as_deref() {

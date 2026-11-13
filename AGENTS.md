@@ -23,7 +23,9 @@ latency** (especially for gaming). Primary target is **NixOS**.
   `unwrap`/`expect` on anything that depends on clients, hardware or the environment;
   a misbehaving client must never be able to kill the compositor.
 - **Ease of use.** Sensible defaults, a small config surface, clear error messages.
-  Keep the config schema stable (existing `config.toml` files must keep loading) and the bar
+  Keep the config schema stable (existing `config.toml` files must keep loading): an option that is
+  renamed or removed goes into the list in `crates/splice-config/src/outdated.rs`, since an unknown key
+  otherwise makes the whole file fall back to the defaults. Keep the bar
   protocol (`splice-ipc`) compatible with its clients unless the user decides otherwise.
 - **Effects stay selective.** Rounded corners, transparency, shadows, animations and
   blur exist already (`docs/effects.md`). New effects need a clear benefit, must be
