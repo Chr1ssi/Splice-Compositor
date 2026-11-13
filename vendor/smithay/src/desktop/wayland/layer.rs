@@ -318,12 +318,11 @@ impl LayerMap {
                 let mut size = data.size;
                 size.w = size.w.min(source.size.w);
                 size.h = size.h.min(source.size.h);
-                // MyWM patch: a zero size without both anchors is invalid; show 1px until it is fixed.
                 if size.w == 0 {
-                    size.w = 1;
+                    size.w = source.size.w / 2;
                 }
                 if size.h == 0 {
-                    size.h = 1;
+                    size.h = source.size.h / 2;
                 }
                 if data.anchor.anchored_horizontally() {
                     size.w = source.size.w;

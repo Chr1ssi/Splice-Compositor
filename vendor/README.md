@@ -5,10 +5,6 @@
 `vendor/smithay` is the unmodified crates.io release of smithay 0.7.0 plus the
 changes in `smithay.patch`:
 
-- Layer shell: a surface that commits a zero size without anchoring both edges (Quickshell does
-  this briefly when it recreates a panel) is no longer a protocol error that disconnects the
-  client. `LayerMap::arrange` shows such a surface at 1px until
-  the client sends a proper size.
 - `X11Surface::set_x11_input_focus`: the X11 half of `KeyboardTarget::enter/leave`. Our keyboard
   focus is a plain `wl_surface`, so without it Xwayland never gets an X11 input focus and Wine/Proton
   games (which wait for `WM_TAKE_FOCUS`) receive no keys.
