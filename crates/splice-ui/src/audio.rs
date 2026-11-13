@@ -1,7 +1,7 @@
 //! The audio panel's content: the default output and microphone with their volume, the others
-//! behind a button to choose another, and the applications that play. A device's row
-//! has its name (choosing it, where it can be chosen), its level (which mutes it) and a slider;
-//! each device sits in a card of its own.
+//! listed below once the default's name is clicked (and hidden again by another click), and the
+//! applications that play. A device's row has its name (choosing it, or showing the others), its
+//! level (which mutes it) and a slider; each device sits in a card of its own.
 use crate::{
     Align, Measure, Node, Rect, Scene, TextStyle, Theme,
     bar::{BUTTON_HEIGHT, button_shape},
@@ -51,6 +51,8 @@ const CARD_PADDING: f32 = 8.0;
 const NAME_HEIGHT: f32 = 32.0;
 /// Space left of a name.
 const NAME_INSET: f32 = 12.0;
+/// The width of the mark at the end of a name that shows or hides the other devices.
+const MARK_WIDTH: f32 = 24.0;
 
 /// The volume a press at `x` on a slider at `rect` means (where the handle's middle would be).
 pub fn slider_value(rect: Rect, x: f32) -> f32 {
@@ -79,7 +81,8 @@ fn button(
     }
 }
 
-/// A device's card at `y`; returns its height.
+/// A device's card at `y`; returns its height. A click on the name does `action`; `mark` (if not
+/// empty) stands at the name's end.
 #[allow(clippy::too_many_arguments)]
 fn control(
     content: &mut Content,
@@ -88,7 +91,8 @@ fn control(
     y: f32,
     width: f32,
     selected: bool,
-    selectable: bool,
+    action: Option<AudioTarget>,
+    mark: &str,
     hover: Option<&PanelTarget>,
     language: Language,
 ) -> f32 {
@@ -98,14 +102,18 @@ fn control(
     let level_rect =
         Rect::new(width - CARD_PADDING - LEVEL_WIDTH, y + CARD_PADDING + (NAME_HEIGHT - BUTTON_HEIGHT) / 2.0, LEVEL_WIDTH, BUTTON_HEIGHT);
     let row = Rect::new(CARD_PADDING, y + CARD_PADDING, level_rect.x - 4.0 - CARD_PADDING, NAME_HEIGHT);
-    let select = PanelTarget::Audio(AudioTarget::Select(node.id));
-    if selectable {
-        if hover == Some(&select) {
+    if let Some(action) = action.map(PanelTarget::Audio) {
+        if hover == Some(&action) {
             content.push(Node::Rect { rect: row, radius: ROW_RADIUS, fill: theme.surface, border: None });
         }
-        content.target(row, select);
+        content.target(row, action);
     }
-    let label = Rect::new(row.x + NAME_INSET, row.y, (row.w - NAME_INSET).max(0.0), row.h);
+    let mark_width = if mark.is_empty() { 0.0 } else { MARK_WIDTH };
+    let label = Rect::new(row.x + NAME_INSET, row.y, (row.w - NAME_INSET - mark_width).max(0.0), row.h);
+    if !mark.is_empty() {
+        let rect = Rect::new(row.right() - MARK_WIDTH, row.y, MARK_WIDTH, row.h);
+        content.push(Node::Label { rect, text: mark.to_owned(), style: TEXT, color: theme.muted, align: Align::Center });
+    }
     content.push(Node::Label { rect: label, text: name, style: TEXT.bold(selected), color: theme.text, align: Align::Left });
     let level = match node.audio {
         Some((_, true)) => language.tr("Stumm").to_owned(),
@@ -148,41 +156,29 @@ pub fn content(
     let mut content = Content::default();
     let mut y = 0.0;
     let devices = [
-        (
-            tr("Ausgabe"),
-            tr("Kein Ausgabegerät"),
-            &model.outputs,
-            model.default_output,
-            model.outputs_expanded,
-            AudioTarget::ToggleOutputs,
-            (tr("Anderen Ausgang wählen"), tr("Andere Ausgänge ausblenden")),
-        ),
-        (
-            tr("Mikrofon"),
-            tr("Kein Eingabegerät"),
-            &model.inputs,
-            model.default_input,
-            model.inputs_expanded,
-            AudioTarget::ToggleInputs,
-            (tr("Anderes Mikrofon wählen"), tr("Andere Eingänge ausblenden")),
-        ),
+        (tr("Ausgabe"), tr("Kein Ausgabegerät"), &model.outputs, model.default_output, model.outputs_expanded, AudioTarget::ToggleOutputs),
+        (tr("Mikrofon"), tr("Kein Eingabegerät"), &model.inputs, model.default_input, model.inputs_expanded, AudioTarget::ToggleInputs),
     ];
-    for (title, none, nodes, current, expanded, toggle, (choose, hide)) in devices {
+    for (title, none, nodes, current, expanded, toggle) in devices {
         y += content.heading(theme, measure, y, width, title) + SPACING;
         let current = current.and_then(|id| nodes.iter().find(|n| n.id == id));
+        let others: Vec<&NodeView> = nodes.iter().filter(|n| Some(n.id) != current.map(|c| c.id)).collect();
         match current {
             None => y += text(&mut content, measure, y, width, none, TEXT, theme.muted) + SPACING,
-            Some(node) => y += control(&mut content, theme, node, y, width, true, false, hover, language) + SPACING,
+            // The default's name shows and hides the others, where there are any.
+            Some(node) => {
+                let (action, mark) = match (others.is_empty(), expanded) {
+                    (true, _) => (None, ""),
+                    (false, false) => (Some(toggle), "▾"),
+                    (false, true) => (Some(toggle), "▴"),
+                };
+                y += control(&mut content, theme, node, y, width, true, action, mark, hover, language) + SPACING;
+            }
         }
-        let others: Vec<&NodeView> = nodes.iter().filter(|n| Some(n.id) != current.map(|c| c.id)).collect();
-        if !others.is_empty() {
-            let label = if expanded { format!("▴ {hide}") } else { format!("▾ {choose}") };
-            button(&mut content, theme, Rect::new(0.0, y, width, BUTTON_HEIGHT), &label, false, true, PanelTarget::Audio(toggle), hover);
-            y += BUTTON_HEIGHT + SPACING;
-            if expanded {
-                for node in others {
-                    y += control(&mut content, theme, node, y, width, false, true, hover, language) + SPACING;
-                }
+        // Without a default there is no name to click: the devices are listed right away.
+        if expanded || current.is_none() {
+            for node in others {
+                y += control(&mut content, theme, node, y, width, false, Some(AudioTarget::Select(node.id)), "", hover, language) + SPACING;
             }
         }
         // The column's last spacing gives way to the space between sections.
@@ -193,7 +189,7 @@ pub fn content(
         y += text(&mut content, measure, y, width, tr("Keine aktiven Anwendungen"), TEXT, theme.muted) + SPACING;
     }
     for node in &model.applications {
-        y += control(&mut content, theme, node, y, width, false, false, hover, language) + SPACING;
+        y += control(&mut content, theme, node, y, width, false, None, "", hover, language) + SPACING;
     }
     content.height = y - SPACING;
     content
@@ -229,7 +225,7 @@ mod tests {
     }
 
     #[test]
-    fn the_defaults_show_and_the_others_wait_behind_a_button() {
+    fn the_defaults_show_and_the_others_wait_behind_their_name() {
         let model = AudioModel {
             outputs: vec![node(1, "Kopfhörer"), node(2, "Lautsprecher")],
             inputs: vec![node(3, "Mikro")],
@@ -240,17 +236,18 @@ mod tests {
         let content = content(&model, None, &theme(), &mut Mono, 360.0, Language::German);
         let shown = texts(&content);
         assert!(shown.contains(&"✓ Kopfhörer".into()) && shown.contains(&"50 %".into()), "{shown:?}");
-        assert!(shown.contains(&"▾ Anderen Ausgang wählen".into()));
+        assert!(shown.contains(&"▾".into()) && has(&content, AudioTarget::ToggleOutputs));
         assert!(!shown.iter().any(|t| t.contains("Lautsprecher")));
         // The default cannot be chosen again; its level and slider work.
         assert!(!has(&content, AudioTarget::Select(1)) && has(&content, AudioTarget::Mute(1)) && has(&content, AudioTarget::Slider(1)));
-        // A single microphone needs no button to choose another one.
-        assert!(!shown.iter().any(|t| t.contains("Mikrofon wählen")));
+        // A single microphone has no others to show.
+        assert!(!has(&content, AudioTarget::ToggleInputs) && shown.iter().filter(|t| *t == "▾").count() == 1);
         assert!(shown.contains(&"Keine aktiven Anwendungen".into()));
 
         let expanded = content_of(AudioModel { outputs_expanded: true, ..model });
-        assert!(has(&expanded, AudioTarget::Select(2)));
-        assert!(texts(&expanded).contains(&"▴ Andere Ausgänge ausblenden".into()));
+        // The name that showed them hides them again.
+        assert!(has(&expanded, AudioTarget::Select(2)) && has(&expanded, AudioTarget::ToggleOutputs));
+        assert!(texts(&expanded).contains(&"▴".into()));
     }
 
     fn content_of(model: AudioModel) -> Content {

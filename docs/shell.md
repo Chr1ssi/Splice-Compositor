@@ -82,8 +82,8 @@ Propo“, das dafür installiert sein muss. Die Panels gliedern ihren Inhalt in 
   Das Nachtlicht hält `gammastep -O 4000` am Laufen, solange es an ist, und merkt sich die Wahl in
   `$XDG_STATE_HOME/splice/night-light`. Die letzte Zeile „Einstellungen“ startet `splice-settings` (aus dem `PATH`) und
   schließt das Panel.
-- **Audio-Panel**: Standardausgang und -mikrofon mit Regler (ziehen) und Prozentknopf (stumm), die übrigen hinter
-  „Anderen Ausgang wählen“/„Anderes Mikrofon wählen“ (ein Klick macht sie zum Standard), dazu die Anwendungen, die
+- **Audio-Panel**: Standardausgang und -mikrofon mit Regler (ziehen) und Prozentknopf (stumm), die übrigen zeigt und
+  verbirgt ein Klick auf den Namen des aktuellen Geräts (ein Klick auf eines macht es zum Standard), dazu die Anwendungen, die
   spielen. WirePlumbers Smart-Filter (der NixOS-Mikrofonfilter) fehlen in der Liste.
 - **Medien-Panel**: alle MPRIS-Player mit Cover, Titel, Interpret und Zurück/Abspielen/Weiter; was ein Player nicht
   erlaubt, ist ausgegraut. Cover kommen aus `file://`-Adressen; Cover aus dem Netz (`https://`) lädt die Shell nicht.

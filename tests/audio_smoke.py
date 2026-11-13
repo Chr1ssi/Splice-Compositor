@@ -18,11 +18,11 @@ AUDIO_BUTTON = (1200, 22)
 PANEL_X = 1280 - 8 - 400 + 20  # the panel's content
 SLIDER_X = PANEL_X + 12  # the slider, inside the device's card; its track is 336 wide
 # Middles of the targets on 1280x800 with DejaVu Sans (the panel's title and headings set the heights): the default
-# output's level button, its slider, the button to show the other outputs and, once shown, the first of them.
+# output's name and level button (a click on the name shows the other outputs), its slider and, once shown, the
+# first of the other outputs.
 ROW = 149
 SLIDER = 182
-EXPAND = 222
-OTHER = 265
+OTHER = 233
 
 work = tempfile.mkdtemp()
 os.makedirs(f"{work}/session")
@@ -115,7 +115,7 @@ try:
     print("mute OK")
     # Another output, chosen as the default; the list folds up again.
     collapsed = pixel(comp, PANEL_X + 100, OTHER)
-    mouse("mousemove", str(PANEL_X + 180), str(EXPAND), "click", "1")
+    mouse("mousemove", str(PANEL_X + 100), str(ROW), "click", "1")
     assert wait(lambda: pixel(comp, PANEL_X + 100, OTHER) != collapsed), "the other outputs were not listed"
     mouse("mousemove", str(PANEL_X + 100), str(OTHER), "click", "1")
     assert wait(lambda: default_sink() not in (None, first), 5), default_sink()
