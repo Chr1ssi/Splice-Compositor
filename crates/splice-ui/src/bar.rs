@@ -114,10 +114,10 @@ enum Content {
 }
 
 impl Button {
-    /// A button as wide as its text plus 16 pixels (`implicitWidth`). A selected button's text is bold, so it is
-    /// measured bold.
+    /// A button as wide as its text plus 16 pixels (`implicitWidth`). A selected button's text is bold; the button
+    /// is always as wide as that, so that selecting it moves nothing in a font whose bold is wider.
     fn fit(measure: &mut impl Measure, text: String, icons: bool, target: BarTarget, selected: bool) -> Self {
-        let width = measure.width(&text, BUTTON_TEXT.icons(icons).bold(selected)).ceil() + 16.0;
+        let width = measure.width(&text, BUTTON_TEXT.icons(icons).bold(true)).ceil() + 16.0;
         Self { text, width, icons, selected, marked: false, tint: None, target }
     }
 
@@ -180,21 +180,26 @@ pub fn scene(model: &BarModel, theme: &Theme, measure: &mut impl Measure) -> Sce
     let tr = |text| model.language.tr(text);
     let deck = theme.shape == Shape::Chamfer;
 
+    let label = |number: u32| match number {
+        0 => "G".to_owned(),
+        number if deck => format!("{number:02}"),
+        number => number.to_string(),
+    };
+    // All as wide as the widest label set bold (an occupied or selected one is), and 26 pixels at least.
+    let widest = model.workspaces.iter().map(|w| measure.width(&label(w.number), BUTTON_TEXT.bold(true))).fold(0.0, f32::max);
+    let width = (widest.ceil() + 12.0).max(26.0);
     let mut workspaces: Vec<Button> = model
         .workspaces
         .iter()
         .map(|w| {
-            let text = match w.number {
-                0 => "G".to_owned(),
-                number if deck => format!("{number:02}"),
-                number => number.to_string(),
-            };
-            Button::fixed(text, 26.0, BarTarget::Workspace(w.number)).selected(model.active == Some(w.number)).marked(w.occupied)
+            Button::fixed(label(w.number), width, BarTarget::Workspace(w.number))
+                .selected(model.active == Some(w.number))
+                .marked(w.occupied)
         })
         .collect();
-    workspaces.push(Button::fixed("+".into(), 26.0, BarTarget::NewWorkspace));
+    workspaces.push(Button::fixed("+".into(), width, BarTarget::NewWorkspace));
     if model.scratchpad_occupied {
-        workspaces.push(Button::fixed("S".into(), 26.0, BarTarget::Scratchpad).selected(model.scratchpad_visible).marked(true));
+        workspaces.push(Button::fixed("S".into(), width, BarTarget::Scratchpad).selected(model.scratchpad_visible).marked(true));
     }
 
     let mut middle = Vec::new();
@@ -458,15 +463,14 @@ mod tests {
     }
 
     #[test]
-    fn a_selected_button_is_measured_bold() {
-        // 19 characters of 7 pixels, 16 of padding; open, the bold text is wider and so is the island.
+    fn a_button_is_as_wide_as_its_bold_text_whether_selected_or_not() {
+        // 19 characters of 7 pixels set bold, 16 of padding: opening the calendar does not widen the clock.
         let wide = |open_panel| {
             let scene = scene(&BarModel { open_panel, ..model() }, &theme(), &mut BoldWider);
             scene.target_rect(&BarTarget::Panel(Panel::Calendar)).expect("clock").w
         };
-        assert_eq!(wide(None), 19.0 * 7.0 + 16.0);
-        assert_eq!(wide(Some(Panel::Calendar)), (19.0_f32 * 7.0 * 1.2).ceil() + 16.0);
-        assert_eq!(wide(Some(Panel::Audio)), 19.0 * 7.0 + 16.0);
+        assert_eq!(wide(None), (19.0_f32 * 7.0 * 1.2).ceil() + 16.0);
+        assert_eq!(wide(Some(Panel::Calendar)), wide(None));
     }
 
     #[test]
@@ -559,5 +563,20 @@ mod tests {
         let lit = |r: Rect| scene.nodes.iter().any(|n| matches!(n, Node::Rect { rect, .. } if *rect == r));
         assert!(mark(first) && !lit(first));
         assert!(!mark(second) && lit(second));
+    }
+
+    #[test]
+    fn a_wider_bold_keeps_the_workspace_numbers_whole_and_the_buttons_in_place() {
+        let deck = theme().with_shape(Shape::Chamfer);
+        let closed = scene(&model(), &deck, &mut BoldWider);
+        // "01" set bold is 16.8 wide; the label has the button's width less 12.
+        for target in [BarTarget::Workspace(1), BarTarget::Workspace(2), BarTarget::NewWorkspace] {
+            assert_eq!(closed.target_rect(&target).unwrap().w, 17.0 + 12.0);
+        }
+        // Opening a panel sets its button bold and moves none.
+        let open = scene(&BarModel { open_panel: Some(Panel::Audio), ..model() }, &deck, &mut BoldWider);
+        for target in [Panel::Control, Panel::Notifications, Panel::Audio].map(BarTarget::Panel).into_iter().chain([BarTarget::Power]) {
+            assert_eq!(open.target_rect(&target), closed.target_rect(&target));
+        }
     }
 }
