@@ -1528,6 +1528,7 @@ where
                     // In that case, we set the X11Surface's override-redirect state to false here
                     // to prevent `set_mapped` and `configure` from failing.
                     surface.state.lock().unwrap().override_redirect = false;
+                    surface.read_initial_net_state()?;
 
                     drop(_guard);
                     state.map_window_request(xwm_id, surface);

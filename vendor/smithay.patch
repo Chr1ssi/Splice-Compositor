@@ -73,6 +73,33 @@ diff -ru a/src/xwayland/xwm/surface.rs b/src/xwayland/xwm/surface.rs
      /// Sets the window as activated or not.
      ///
      /// Allows the client to reflect this state in their UI.
+@@ -864,6 +920,26 @@
+         Ok(())
+     }
+ 
++    /// Reads the `_NET_WM_STATE` the client set itself. The property is the client's only while the
++    /// window is withdrawn: EWMH has the window manager honor it when the window asks to be mapped.
++    pub(super) fn read_initial_net_state(&self) -> Result<(), ConnectionError> {
++        let conn = self.conn.upgrade().ok_or(ConnectionError::UnknownError)?;
++        let atoms = match conn
++            .get_property(false, self.window, self.atoms._NET_WM_STATE, AtomEnum::ATOM, 0, 1024)?
++            .reply_unchecked()
++        {
++            Ok(atoms) => atoms,
++            Err(ConnectionError::ParseError(_)) => return Ok(()),
++            Err(err) => return Err(err),
++        };
++
++        let mut state = self.state.lock().unwrap();
++        state.net_state = atoms
++            .and_then(|atoms| Some(atoms.value32()?.collect()))
++            .unwrap_or_default();
++        Ok(())
++    }
++
+     fn read_window_property_string(&self, atom: impl Into<Atom>) -> Result<Option<String>, ConnectionError> {
+         let conn = self.conn.upgrade().ok_or(ConnectionError::UnknownError)?;
+         let reply = match conn
 diff -ru a/src/xwayland/xwm/mod.rs b/src/xwayland/xwm/mod.rs
 --- a/src/xwayland/xwm/mod.rs
 +++ b/src/xwayland/xwm/mod.rs
@@ -85,6 +112,14 @@ diff -ru a/src/xwayland/xwm/mod.rs b/src/xwayland/xwm/mod.rs
  
          Ok(())
      }
+@@ -1525,6 +1528,7 @@
+                     // In that case, we set the X11Surface's override-redirect state to false here
+                     // to prevent `set_mapped` and `configure` from failing.
+                     surface.state.lock().unwrap().override_redirect = false;
++                    surface.read_initial_net_state()?;
+ 
+                     drop(_guard);
+                     state.map_window_request(xwm_id, surface);
 diff -ru a/src/xwayland/mod.rs b/src/xwayland/mod.rs
 --- a/src/xwayland/mod.rs	2026-11-02 16:11:30.343861372 +0100
 +++ b/src/xwayland/mod.rs	2026-11-02 16:11:30.344861395 +0100

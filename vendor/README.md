@@ -18,6 +18,9 @@ changes in `smithay.patch`:
   (`X11Sockets::prepare`) and handed to Xwayland later, so that the compositor starts it when the first X11
   client connects (the connection waits in the socket's backlog). `XWayland::spawn` is now `prepare` plus
   `spawn_with_sockets`.
+- `X11Surface::read_initial_net_state`, called on a map request: reads the `_NET_WM_STATE` the client set
+  before mapping, so that `is_fullscreen()` and friends are true for a window that wants to open that way
+  (EWMH; SDL does it). smithay only followed the client message, which a client may send once it is mapped.
 - `#![allow(warnings)]` in `src/lib.rs` so the vendored code does not clutter our build.
 
 The root `Cargo.toml` redirects `smithay` here with `[patch.crates-io]`.

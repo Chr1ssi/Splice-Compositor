@@ -920,6 +920,26 @@ impl X11Surface {
         Ok(())
     }
 
+    /// Reads the `_NET_WM_STATE` the client set itself. The property is the client's only while the
+    /// window is withdrawn: EWMH has the window manager honor it when the window asks to be mapped.
+    pub(super) fn read_initial_net_state(&self) -> Result<(), ConnectionError> {
+        let conn = self.conn.upgrade().ok_or(ConnectionError::UnknownError)?;
+        let atoms = match conn
+            .get_property(false, self.window, self.atoms._NET_WM_STATE, AtomEnum::ATOM, 0, 1024)?
+            .reply_unchecked()
+        {
+            Ok(atoms) => atoms,
+            Err(ConnectionError::ParseError(_)) => return Ok(()),
+            Err(err) => return Err(err),
+        };
+
+        let mut state = self.state.lock().unwrap();
+        state.net_state = atoms
+            .and_then(|atoms| Some(atoms.value32()?.collect()))
+            .unwrap_or_default();
+        Ok(())
+    }
+
     fn read_window_property_string(&self, atom: impl Into<Atom>) -> Result<Option<String>, ConnectionError> {
         let conn = self.conn.upgrade().ok_or(ConnectionError::UnknownError)?;
         let reply = match conn

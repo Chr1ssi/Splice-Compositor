@@ -33,6 +33,13 @@ assert looped.process.poll() is None, "the compositor died"
 assert looped.stop()
 print("window transient for itself OK")
 
+# A window that asks for fullscreen before it is mapped never gets a tile's size on the way there.
+first = Compositor(extra_args="python3 tests/x11_fullscreen_first.py & ")
+assert wait(lambda: "fullscreen-first " in log(first), 20), "the client reported nothing\n" + log(first)[-1500:]
+assert "fullscreen-first OK" in log(first), [line for line in log(first).splitlines() if "fullscreen-first" in line]
+assert first.stop()
+print("fullscreen before the map OK")
+
 # Xwayland runs only once an X11 client connects: the sockets exist from the start, the server does not.
 lazy = Compositor()
 import re

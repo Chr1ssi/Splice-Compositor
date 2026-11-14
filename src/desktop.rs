@@ -237,7 +237,13 @@ impl State {
 
     /// Register a mapped X11 window. Its class is known already, so it is placed right away.
     pub fn add_x11_window(&mut self, x11: X11Surface) {
+        // A client that wants to open fullscreen says so before it maps the window. Laid out as a tile first, a
+        // game that sizes its picture once would keep the tile's size in the fullscreen window.
+        let fullscreen = x11.is_fullscreen();
         let id = self.push_window(Window::new_x11_window(x11));
+        if let Some(m) = self.desktop.get_mut(id) {
+            m.fullscreen = fullscreen;
+        }
         self.place(id);
         self.size_floating_to_client(id);
         self.refresh();
