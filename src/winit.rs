@@ -11,12 +11,11 @@ use smithay::{
 
 use crate::State;
 
-fn new_output(name: &str, model: &str, mode: Mode, state: &State) -> Output {
+fn new_output(name: &str, model: &str, mode: Mode) -> Output {
     let output = Output::new(
         name.to_string(),
         PhysicalProperties { size: (0, 0).into(), subpixel: Subpixel::Unknown, make: "Splice".into(), model: model.into() },
     );
-    output.create_global::<State>(&state.display_handle);
     output.set_preferred(mode);
     output
 }
@@ -27,7 +26,7 @@ pub fn init(event_loop: &mut EventLoop<State>, state: &mut State) -> Result<(), 
     state.image_capture.finish_in_redraw = true;
 
     let mode = Mode { size: backend.window_size(), refresh: 60_000 };
-    let output = new_output("winit", "Winit", mode, state);
+    let output = new_output("winit", "Winit", mode);
     output.change_current_state(Some(mode), Some(Transform::Flipped180), None, Some((0, 0).into()));
     state.add_output(output.clone(), Some((0, 0).into()));
 
@@ -36,10 +35,11 @@ pub fn init(event_loop: &mut EventLoop<State>, state: &mut State) -> Result<(), 
     let virtual_count: usize = std::env::var("SPLICE_VIRTUAL_OUTPUTS").ok().and_then(|v| v.parse().ok()).unwrap_or(0);
     for index in 1..=virtual_count {
         let mode = Mode { size: (1280, 800).into(), refresh: 60_000 };
-        let extra = new_output(&format!("virtual-{index}"), "Virtual", mode, state);
+        let extra = new_output(&format!("virtual-{index}"), "Virtual", mode);
         extra.change_current_state(Some(mode), Some(Transform::Normal), None, None);
         state.add_output(extra, None);
     }
+    state.announce_outputs();
 
     let mut damage_tracker = OutputDamageTracker::from_output(&output);
 

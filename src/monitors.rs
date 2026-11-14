@@ -23,6 +23,8 @@ pub struct OutputEntry {
     pub id: u32,
     /// The display is on (`false` while switched off for idle).
     pub powered: bool,
+    /// Its `wl_output` global exists (see `State::announce_outputs`).
+    announced: bool,
     /// Windows kept out of captures as last drawn here (see `State::capture_view`).
     pub capture_blanks: Vec<crate::render::Blank>,
     /// Tiled windows lie beyond the left and the right edge: a strip there says so and keeps its width
@@ -93,6 +95,7 @@ impl State {
             output,
             id,
             powered: true,
+            announced: false,
             capture_blanks: Vec::new(),
             edges: (false, false),
             edge_markers: Default::default(),
@@ -102,6 +105,20 @@ impl State {
         self.refresh();
         self.output_management_changed();
         monitor
+    }
+
+    /// Create the `wl_output` global of every output that has none yet. Call it once all outputs of a
+    /// scan are added: a client gets the globals in creation order and SDL2 takes the first one as
+    /// the primary display, which should be the gaming monitor and not whatever DRM lists first.
+    /// A monitor plugged in later is announced last; reordering would mean taking the other outputs
+    /// away from running clients.
+    pub fn announce_outputs(&mut self) {
+        for monitor in self.desktop.desk.announce_order() {
+            if let Some(entry) = self.outputs.get_mut(monitor).filter(|entry| !entry.announced) {
+                entry.output.create_global::<State>(&self.display_handle);
+                entry.announced = true;
+            }
+        }
     }
 
     pub fn remove_output(&mut self, output: &Output) {

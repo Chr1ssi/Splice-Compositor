@@ -71,6 +71,25 @@ transform = "270"
 Im Log steht pro Monitor eine Zeile `DP-3: 2560x1440@143.97 scale 1`. Fehlt ein
 Monitor, steht dort der Grund (kein CRTC, Modus nicht angeboten, Surface-Fehler).
 
+### Reihenfolge der Monitore für Clients
+
+Splice kündigt die `wl_output`-Globals nicht in der Reihenfolge an, in der DRM die Anschlüsse
+liefert, sondern den Gaming-Monitor (`gaming_output`, sonst der Monitor mit Arbeitsfläche 1) zuerst
+und die übrigen nach ihrer Arbeitsfläche. SDL2 nimmt den ersten Monitor als primären und richtet
+Fenstergröße und Bildwiederholrate eines Spiels danach aus; SDL3 wählt selbst (Querformat vor
+Hochformat, dann die höchste Auflösung) und ist davon unabhängig.
+
+1. `wayland-info | grep -A12 wl_output | grep -E "name:|transform"`: der Gaming-Monitor steht zuerst.
+2. Ein SDL2-Spiel im Fenstermodus natives Wayland (`SDL_VIDEODRIVER=wayland`, z. B. Hearts of Iron IV
+   ohne `fullScreen=yes` und ohne gespeicherte `size` in `settings.txt`): Es nimmt Auflösung und
+   Bildwiederholrate des Gaming-Monitors, nicht die des gedrehten.
+3. Monitor ab- und wieder anstecken, VT-Wechsel hin und zurück:
+   Arbeitsflächen, Positionen und Bar verhalten sich wie vorher.
+
+Grenze: Ein Monitor, der erst im laufenden Betrieb dazukommt (auch der Gaming-Monitor nach Aus- und
+Einschalten, falls er sich dabei abmeldet), wird als letzter angekündigt. Die Reihenfolge stimmt
+wieder nach einem Neustart von Splice.
+
 ## Was zu prüfen ist
 
 1. Bild auf allen Monitoren, Position und Drehung wie konfiguriert.
