@@ -43,7 +43,8 @@ pub struct Greeter {
 /// The sessions of `.desktop` files `(file name, contents)`, sorted by file name: each one's first `Name=` and
 /// `Exec=` line, without the field codes (`%U`) of the command.
 fn sessions(mut files: Vec<(String, String)>) -> Vec<Session> {
-    files.sort_by(|a, b| a.0.cmp(&b.0));
+    // Without the extension, so `splice` sorts (and is preselected) before `splice-dev`.
+    files.sort_by(|a, b| a.0.trim_end_matches(".desktop").cmp(b.0.trim_end_matches(".desktop")));
     files
         .into_iter()
         .filter_map(|(_, contents)| {
@@ -242,6 +243,7 @@ mod tests {
     fn sessions_read_like_greeter_qml() {
         let files = vec![
             ("sway.desktop".into(), "[Desktop Entry]\nName=Andere\nExec=/run/other-launch --flag %U\n".into()),
+            ("splice-dev.desktop".into(), "[Desktop Entry]\nName=splice (Dev)\nExec=/run/splice-dev-launch\n".into()),
             ("splice.desktop".into(), "[Desktop Entry]\nName=splice\nName[de]=Splice\nExec=/run/splice-launch\nType=Application\n".into()),
             ("broken.desktop".into(), "[Desktop Entry]\nName=Ohne Befehl\n".into()),
         ];
@@ -249,6 +251,7 @@ mod tests {
             sessions(files),
             vec![
                 Session { name: "splice".into(), command: vec!["/run/splice-launch".into()] },
+                Session { name: "splice (Dev)".into(), command: vec!["/run/splice-dev-launch".into()] },
                 Session { name: "Andere".into(), command: vec!["/run/other-launch".into(), "--flag".into()] },
             ]
         );
