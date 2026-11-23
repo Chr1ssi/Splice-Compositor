@@ -60,6 +60,15 @@ impl<T: Clone + Eq> Desk<T> {
             .or_else(|| (!self.monitors.is_empty()).then_some(0))
     }
 
+    /// Monitors in the order their `wl_output` is announced: the gaming monitor first, the others by
+    /// home workspace. Clients without a notion of a primary display (SDL2) take the first one.
+    pub fn announce_order(&self) -> Vec<usize> {
+        let gaming = self.gaming_monitor();
+        let mut order: Vec<_> = (0..self.monitors.len()).collect();
+        order.sort_by_key(|index| (Some(*index) != gaming, self.home_number(*index)));
+        order
+    }
+
     /// The monitor a workspace number lives on, if that workspace exists. The gaming
     /// workspace always belongs to the gaming monitor.
     pub fn owner(&self, number: usize) -> Option<usize> {
@@ -382,6 +391,17 @@ mod tests {
         desk.monitors[1].workspaces.select(GAMING);
         assert_eq!(desk.prune(), vec![1], "the monitor left the emptied gaming workspace");
         assert_eq!(desk.monitors[1].workspaces.active, 2);
+    }
+
+    #[test]
+    fn outputs_are_announced_gaming_monitor_first() {
+        let mut desk = Desk::<u32>::new(vec!["C".into(), "A".into()], Some("B".into()));
+        for name in ["A", "B", "C", "D"] {
+            desk.add_monitor(Some(name.into()), area(0, 0, 100, 100));
+        }
+        assert_eq!(desk.announce_order(), [1, 2, 0, 3], "gaming monitor, listed ones by workspace, then the rest");
+        desk.gaming_output = None;
+        assert_eq!(desk.announce_order(), [2, 0, 1, 3], "without a gaming monitor the one with workspace 1 leads");
     }
 
     #[test]

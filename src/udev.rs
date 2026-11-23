@@ -654,6 +654,7 @@ impl State {
                 }
             }
         }
+        self.announce_outputs();
     }
 
     fn connector_connected(&mut self, info: connector::Info, crtc: crtc::Handle) {
@@ -685,7 +686,6 @@ impl State {
                 serial_number: String::new(),
             },
         );
-        output.create_global::<State>(&self.display_handle);
         output.change_current_state(Some(wl_mode), Some(output_transform), Some(Scale::Fractional(scale)), position);
         for mode in info.modes() {
             output.add_mode(Mode::from(*mode));

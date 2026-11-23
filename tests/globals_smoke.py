@@ -46,6 +46,36 @@ def list_globals(path):
                 return found
 
 
+def output_names(path):
+    """Names of the wl_output globals, in the order the registry lists them."""
+    sock = socket.socket(socket.AF_UNIX)
+    sock.connect(path)
+    sock.sendall(struct.pack("<III", 1, (12 << 16) | 1, 2) + struct.pack("<III", 1, (12 << 16) | 0, 3))
+    outputs, names, data, sync = [], {}, b"", 3
+    while True:
+        received = sock.recv(65536)
+        assert received, "the compositor closed the connection"
+        data += received
+        while len(data) >= 8:
+            object_id, size_opcode = struct.unpack_from("<II", data)
+            size, opcode = size_opcode >> 16, size_opcode & 0xFFFF
+            if len(data) < size:
+                break
+            body, data = data[8:size], data[size:]
+            if object_id == 2 and opcode == 0 and body[8:17] == b"wl_output":
+                outputs.append(struct.unpack_from("<I", body)[0])
+            elif 4 <= object_id < sync and opcode == 4:  # wl_output.name
+                names[object_id] = body[4:4 + struct.unpack_from("<I", body)[0] - 1].decode()
+            elif object_id == sync and sync == 3:
+                # wl_registry.bind(name, "wl_output", 4, new id) for each one (ids must be consecutive), then sync again.
+                for index, name in enumerate(outputs):
+                    sock.sendall(struct.pack("<IIII12sII", 2, (36 << 16) | 0, name, 10, b"wl_output", 4, 4 + index))
+                sync = 4 + len(outputs)
+                sock.sendall(struct.pack("<III", 1, (12 << 16) | 0, sync))
+            elif object_id == sync:
+                return [names[4 + index] for index in range(len(outputs))]
+
+
 comp = Compositor()
 assert wait(lambda: re.search(r'WAYLAND_DISPLAY="([^"]+)"', open(comp.dir + "/log").read()))
 display = re.search(r'WAYLAND_DISPLAY="([^"]+)"', open(comp.dir + "/log").read()).group(1)
@@ -55,5 +85,14 @@ missing = EXPECTED - set(globals_)
 assert not missing, f"missing globals: {sorted(missing)}"
 unexpected = HARDWARE_ONLY & set(globals_)
 assert not unexpected, f"hardware-only globals advertised while nested: {sorted(unexpected)}"
+assert comp.stop()
+
+# The gaming monitor is announced first: SDL2 takes the first wl_output as the primary display.
+comp = Compositor(top='gaming_output = "virtual-2"\n', extra_env={"SPLICE_VIRTUAL_OUTPUTS": "2"})
+assert wait(lambda: re.search(r'WAYLAND_DISPLAY="([^"]+)"', open(comp.dir + "/log").read()))
+display = re.search(r'WAYLAND_DISPLAY="([^"]+)"', open(comp.dir + "/log").read()).group(1)
+names = output_names(os.path.join(os.environ["XDG_RUNTIME_DIR"], display))
+print(names)
+assert names == ["virtual-2", "winit", "virtual-1"], names
 assert comp.stop()
 print("OK")
