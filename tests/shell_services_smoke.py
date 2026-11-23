@@ -90,16 +90,15 @@ try:
     assert wait(lambda: reported(comp, r"audio: Some\(Audio \{ volume: 0\.5"), 15), "no volume from the services"
     print("services report the volume OK")
 
-    # The wheel: 5 % a notch, up and down; a right click mutes and unmutes. Nested, winit reports both the press
-    # and the release of an X wheel button as a notch, so one click here is two notches.
+    # The wheel: 5 % a notch, up and down; a right click mutes and unmutes. Nested, one X wheel click is one notch.
     mouse("click", "4")
-    assert wait(lambda: volume() == (0.6, False)), volume()
+    assert wait(lambda: volume() == (0.55, False)), volume()
     mouse("click", "5", "click", "5")
-    assert wait(lambda: volume() == (0.4, False)), volume()
+    assert wait(lambda: volume() == (0.45, False)), volume()
     mouse("click", "3")
-    assert wait(lambda: volume() == (0.4, True)), volume()
+    assert wait(lambda: volume() == (0.45, True)), volume()
     mouse("click", "3")
-    assert wait(lambda: volume() == (0.4, False)), volume()
+    assert wait(lambda: volume() == (0.45, False)), volume()
     print("wheel and right click on the audio button OK")
 
     # The playing title in the middle, left of the clock; paused, it goes.

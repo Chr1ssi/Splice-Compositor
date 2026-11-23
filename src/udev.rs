@@ -678,6 +678,7 @@ impl State {
                 subpixel: Subpixel::Unknown,
                 make: "Unknown".into(),
                 model: name.clone(),
+                serial_number: String::new(),
             },
         );
         output.create_global::<State>(&self.display_handle);
@@ -696,7 +697,7 @@ impl State {
             }
         };
         let allocator = GbmAllocator::new(gbm_clone(&gpu.gbm), GbmBufferFlags::RENDERING | GbmBufferFlags::SCANOUT);
-        let exporter = GbmFramebufferExporter::new(gbm_clone(&gpu.gbm), Some(gpu.render_node));
+        let exporter = GbmFramebufferExporter::new(gbm_clone(&gpu.gbm), gpu.render_node.into());
         let formats = [Fourcc::Xrgb8888, Fourcc::Argb8888, Fourcc::Xbgr8888, Fourcc::Abgr8888];
         let render_formats = gpu.renderer.egl_context().dmabuf_render_formats().iter().copied().collect::<Vec<_>>();
         let compositor = match DrmCompositor::new(
@@ -876,7 +877,7 @@ impl State {
                     let mut feedback = OutputPresentationFeedback::new(&output);
                     for window in self.space.elements_for_output(&output) {
                         window.take_presentation_feedback(&mut feedback, surface_primary_scanout_output, |surface, _| {
-                            surface_presentation_feedback_flags_from_states(surface, &states)
+                            surface_presentation_feedback_flags_from_states(surface, None, &states)
                         });
                     }
                     match surface.compositor.queue_frame(Some(feedback)) {
@@ -1113,10 +1114,14 @@ fn surface_feedback(renderer: &GlesRenderer, compositor: &GbmCompositor, render_
         compositor.surface().plane_info().formats.iter().filter(|format| render_formats.contains(format)).copied().collect();
     let scanout_device = compositor.surface().device_fd().dev_id().ok()?;
     let builder = DmabufFeedbackBuilder::new(render_node.dev_id(), render_formats.iter().copied());
-    let render = builder.clone().add_preference_tranche(render_node.dev_id(), None, render_formats.iter().copied()).build().ok()?;
+    let render = builder
+        .clone()
+        .add_preference_tranche(render_node.dev_id(), TrancheFlags::Sampling, render_formats.iter().copied(), 3u32..=6)
+        .build()
+        .ok()?;
     let scanout = builder
-        .add_preference_tranche(scanout_device, Some(TrancheFlags::Scanout), scanout_formats)
-        .add_preference_tranche(render_node.dev_id(), None, render_formats.iter().copied())
+        .add_preference_tranche(scanout_device, TrancheFlags::Scanout, scanout_formats, 4u32..=6)
+        .add_preference_tranche(render_node.dev_id(), TrancheFlags::Sampling, render_formats.iter().copied(), 4u32..=6)
         .build()
         .ok()?;
     Some(SurfaceFeedback { render, scanout })

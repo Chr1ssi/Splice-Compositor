@@ -2,7 +2,6 @@
 use std::collections::HashSet;
 
 use smithay::{
-    delegate_idle_inhibit, delegate_idle_notify, delegate_session_lock,
     desktop::WindowSurfaceType,
     desktop::utils::under_from_surface_tree,
     output::Output,
@@ -138,8 +137,6 @@ impl SessionLockHandler for State {
     }
 }
 
-delegate_session_lock!(State);
-
 impl State {
     pub fn lock_surface_for(&self, output: &Output) -> Option<&LockSurface> {
         self.session_lock.surfaces.iter().find(|(o, _)| o == output).map(|(_, s)| s)
@@ -202,7 +199,7 @@ impl State {
         self.close_overview();
         // A button held on a client (or the shell) when locking must not keep sending it the pointer.
         let serial = smithay::utils::SERIAL_COUNTER.next_serial();
-        let time = self.start_time.elapsed().as_millis() as u32;
+        let time = smithay::backend::input::InputTime::now();
         if let Some(pointer) = self.seat.get_pointer() {
             pointer.unset_grab(self, serial, time);
         }
@@ -280,9 +277,6 @@ impl State {
         self.idle_notifier_state.set_is_inhibited(inhibited);
     }
 }
-
-delegate_idle_notify!(State);
-delegate_idle_inhibit!(State);
 
 // --- Monitor power (wlr-output-power-management) --------------------------------------------
 

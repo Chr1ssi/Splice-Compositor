@@ -1,11 +1,12 @@
-use std::os::unix::io::OwnedFd;
-
 use smithay::{
     backend::{allocator::dmabuf::Dmabuf, renderer::utils::on_commit_buffer_handler},
-    delegate_compositor, delegate_data_control, delegate_data_device, delegate_dmabuf, delegate_output, delegate_seat, delegate_shm,
-    delegate_xdg_shell,
     desktop::{PopupKind, Window, WindowSurfaceType, find_popup_root_surface, layer_map_for_output},
-    input::{Seat, SeatHandler, SeatState, keyboard::LedState, pointer::CursorImageStatus},
+    input::{
+        Seat, SeatHandler, SeatState,
+        dnd::{DnDGrab, DndGrabHandler, GrabType, Source},
+        keyboard::LedState,
+        pointer::{CursorImageStatus, Focus},
+    },
     output::Output,
     reexports::wayland_server::{
         Client,
@@ -18,7 +19,7 @@ use smithay::{
         dmabuf::{DmabufGlobal, DmabufHandler, DmabufState, ImportNotifier},
         output::OutputHandler,
         selection::{
-            data_device::{ClientDndGrabHandler, DataDeviceHandler, DataDeviceState, ServerDndGrabHandler, set_data_device_focus},
+            data_device::{DataDeviceHandler, DataDeviceState, WaylandDndGrabHandler, set_data_device_focus},
             primary_selection::set_primary_focus,
             wlr_data_control::{DataControlHandler, DataControlState},
         },
@@ -285,19 +286,35 @@ impl SeatHandler for State {
 }
 
 impl DataControlHandler for State {
-    fn data_control_state(&self) -> &DataControlState {
-        &self.data_control_state
+    fn data_control_state(&mut self) -> &mut DataControlState {
+        &mut self.data_control_state
     }
 }
 
 impl DataDeviceHandler for State {
-    fn data_device_state(&self) -> &DataDeviceState {
-        &self.data_device_state
+    fn data_device_state(&mut self) -> &mut DataDeviceState {
+        &mut self.data_device_state
     }
 }
-impl ClientDndGrabHandler for State {}
-impl ServerDndGrabHandler for State {
-    fn send(&mut self, _mime_type: String, _fd: OwnedFd, _seat: Seat<Self>) {}
+impl DndGrabHandler for State {}
+// smithay no longer starts the grab itself; without it a client's drag is cancelled at once.
+// As before, the drag icon is not drawn.
+impl WaylandDndGrabHandler for State {
+    fn dnd_requested<S: Source>(&mut self, source: S, _icon: Option<WlSurface>, seat: Seat<Self>, serial: Serial, type_: GrabType) {
+        let display = self.display_handle.clone();
+        match type_ {
+            GrabType::Pointer => {
+                let pointer = seat.get_pointer().unwrap();
+                let Some(start) = pointer.grab_start_data() else { return source.cancel() };
+                pointer.set_grab(self, DnDGrab::new_pointer(&display, start, source, seat), serial, Focus::Keep);
+            }
+            GrabType::Touch => {
+                let touch = seat.get_touch().unwrap();
+                let Some(start) = touch.grab_start_data() else { return source.cancel() };
+                touch.set_grab(self, DnDGrab::new_touch(&display, start, source, seat), serial);
+            }
+        }
+    }
 }
 impl OutputHandler for State {}
 
@@ -320,11 +337,5 @@ impl State {
     }
 }
 
-delegate_compositor!(State);
-delegate_shm!(State);
-delegate_xdg_shell!(State);
-delegate_seat!(State);
-delegate_data_device!(State);
-delegate_output!(State);
-delegate_data_control!(State);
-delegate_dmabuf!(State);
+// Dispatch for every smithay global whose user data implements `Dispatch2`.
+smithay::delegate_dispatch2!(State);

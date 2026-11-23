@@ -56,6 +56,8 @@
               libxcursor
               libxrandr
               libxi
+              # winit 0.31 (smithay master) opens it for the nested backend.
+              libxfixes
             ]);
           };
 

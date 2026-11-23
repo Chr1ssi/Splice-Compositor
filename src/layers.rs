@@ -3,7 +3,6 @@ use std::time::Duration;
 
 use smithay::{
     backend::renderer::element::{RenderElementStates, default_primary_scanout_output_compare},
-    delegate_layer_shell,
     desktop::{
         LayerSurface, PopupKind, WindowSurfaceType, layer_map_for_output,
         utils::{send_frames_surface_tree, surface_primary_scanout_output, update_surface_primary_scanout_output},
@@ -73,8 +72,6 @@ impl WlrLayerShellHandler for State {
         self.refresh();
     }
 }
-
-delegate_layer_shell!(State);
 
 impl State {
     /// Handle a commit of a layer surface. Returns whether `surface` is one.
@@ -279,7 +276,7 @@ impl State {
     /// output). Covered or cropped-away surfaces lose `output`, which throttles their frame callbacks.
     pub fn update_primary_outputs(&self, output: &Output, states: &RenderElementStates) {
         let update = |surface: &WlSurface, data: &smithay::wayland::compositor::SurfaceData| {
-            update_surface_primary_scanout_output(surface, output, data, states, default_primary_scanout_output_compare);
+            update_surface_primary_scanout_output(surface, output, data, None, states, default_primary_scanout_output_compare);
         };
         for window in self.space.elements() {
             window.with_surfaces(update);

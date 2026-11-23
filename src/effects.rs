@@ -10,7 +10,7 @@ use smithay::{
         gles::{GlesError, GlesFrame, GlesPixelProgram, GlesRenderer, GlesTexProgram, Uniform, UniformName, UniformType},
         utils::{CommitCounter, DamageSet, OpaqueRegions},
     },
-    utils::{Buffer, Physical, Point, Rectangle, Scale, Transform},
+    utils::{Buffer, Physical, Point, Rectangle, Scale, Transform, user_data::UserDataMap},
 };
 
 pub struct Shaders {
@@ -450,9 +450,10 @@ impl<E: RenderElement<GlesRenderer>> RenderElement<GlesRenderer> for Rounded<E> 
         dst: Rectangle<i32, Physical>,
         damage: &[Rectangle<i32, Physical>],
         opaque_regions: &[Rectangle<i32, Physical>],
+        cache: Option<&UserDataMap>,
     ) -> Result<(), GlesError> {
         frame.override_default_tex_program(self.program.clone(), self.uniforms.clone());
-        let result = self.inner.draw(frame, src, dst, damage, opaque_regions);
+        let result = self.inner.draw(frame, src, dst, damage, opaque_regions, cache);
         frame.clear_tex_program_override();
         result
     }

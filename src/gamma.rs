@@ -77,6 +77,7 @@ impl Dispatch<ZwlrGammaControlManagerV1, (), State> for State {
                         subpixel: smithay::output::Subpixel::Unknown,
                         make: String::new(),
                         model: String::new(),
+                        serial_number: String::new(),
                     },
                 );
                 init.init(id, GammaData { output: dead, size: 0 }).failed();

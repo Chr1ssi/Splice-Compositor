@@ -3,7 +3,6 @@
 use std::{cell::RefCell, os::unix::io::OwnedFd, process::Stdio, rc::Rc};
 
 use smithay::{
-    delegate_xwayland_shell,
     desktop::Window,
     reexports::{
         calloop::{Interest, Mode, PostAction, RegistrationToken, generic::Generic},
@@ -154,7 +153,7 @@ fn spawn(state: &mut State, sockets: X11Sockets) {
     let handle = state.loop_handle.clone();
     let registered = handle.insert_source(xwayland, move |event, _, state| match event {
         XWaylandEvent::Ready { x11_socket, display_number } => {
-            match X11Wm::start_wm(state.loop_handle.clone(), x11_socket, client.clone()) {
+            match X11Wm::start_wm(state.loop_handle.clone(), &state.display_handle, x11_socket, client.clone()) {
                 Ok(wm) => {
                     tracing::info!("X11 window manager ready on :{display_number}");
                     state.xwm = Some(wm);
@@ -215,8 +214,6 @@ impl XWaylandShellHandler for State {
     }
 }
 
-delegate_xwayland_shell!(State);
-
 impl XwmHandler for State {
     fn xwm_state(&mut self, _xwm: XwmId) -> &mut X11Wm {
         self.xwm.as_mut().expect("the X11 window manager runs while Xwayland clients exist")
@@ -238,7 +235,7 @@ impl XwmHandler for State {
 
     /// Menus, tooltips and drop-downs position themselves; they are not managed windows.
     fn mapped_override_redirect_window(&mut self, _xwm: XwmId, window: X11Surface) {
-        let location = window.geometry().loc;
+        let location = window.last_configure().loc;
         let element = Window::new_x11_window(window);
         self.space.map_element(element.clone(), location, false);
         self.override_redirect.push(element);
@@ -282,7 +279,7 @@ impl XwmHandler for State {
             }
             // Not managed (yet): grant what it asks for.
             None => {
-                let mut geometry = window.geometry();
+                let mut geometry = window.last_configure();
                 geometry.loc.x = x.unwrap_or(geometry.loc.x);
                 geometry.loc.y = y.unwrap_or(geometry.loc.y);
                 geometry.size.w = w.map_or(geometry.size.w, |w| w as i32);
@@ -333,7 +330,7 @@ impl XwmHandler for State {
     fn minimize_request(&mut self, _xwm: XwmId, window: X11Surface) {
         if let Some(m) = self.desktop.by_x11(window.window_id()).map(|m| m.id).and_then(|id| self.desktop.get_mut(id)) {
             m.minimized = true;
-            window.set_iconic(true);
+            let _ = window.set_hidden(true);
         }
     }
 
@@ -398,7 +395,7 @@ impl SelectionHandler for State {
     /// An X11 client wants the selection an X11 client owns.
     fn send_selection(&mut self, ty: SelectionTarget, mime_type: String, fd: OwnedFd, _seat: smithay::input::Seat<Self>, _user_data: &()) {
         if let Some(xwm) = self.xwm.as_mut()
-            && let Err(error) = xwm.send_selection(ty, mime_type, fd, self.loop_handle.clone())
+            && let Err(error) = xwm.send_selection(ty, mime_type, fd)
         {
             tracing::warn!("cannot read the X11 selection: {error}");
         }

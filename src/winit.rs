@@ -14,7 +14,13 @@ use crate::State;
 fn new_output(name: &str, model: &str, mode: Mode, state: &State) -> Output {
     let output = Output::new(
         name.to_string(),
-        PhysicalProperties { size: (0, 0).into(), subpixel: Subpixel::Unknown, make: "Splice".into(), model: model.into() },
+        PhysicalProperties {
+            size: (0, 0).into(),
+            subpixel: Subpixel::Unknown,
+            make: "Splice".into(),
+            model: model.into(),
+            serial_number: String::new(),
+        },
     );
     output.create_global::<State>(&state.display_handle);
     output.set_preferred(mode);

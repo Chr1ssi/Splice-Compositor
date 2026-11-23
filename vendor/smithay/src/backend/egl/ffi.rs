@@ -138,14 +138,20 @@ pub fn make_sure_egl_is_loaded() -> Result<Vec<String>, Error> {
 }
 
 /// Module containing raw egl function bindings
-#[allow(clippy::all, missing_debug_implementations)]
+#[allow(clippy::all, missing_debug_implementations, unsafe_op_in_unsafe_fn)]
 pub mod egl {
     use super::*;
     use libloading::Library;
     use std::sync::{LazyLock, Once};
 
+    const LIB_NAME: &'static str = if cfg!(target_os = "openbsd") {
+        "libEGL.so"
+    } else {
+        "libEGL.so.1"
+    };
+
     pub static LIB: LazyLock<Library> =
-        LazyLock::new(|| unsafe { Library::new("libEGL.so.1") }.expect("Failed to load LibEGL"));
+        LazyLock::new(|| unsafe { Library::new(LIB_NAME) }.expect("Failed to load LibEGL"));
 
     pub static LOAD: Once = Once::new();
     pub static DEBUG: Once = Once::new();
@@ -234,7 +240,7 @@ pub mod egl {
     }
 
     mod wayland_storage {
-        use super::{FnPtr, __gl_imports::raw};
+        use super::{__gl_imports::raw, FnPtr};
         pub static mut BindWaylandDisplayWL: FnPtr = FnPtr {
             f: super::missing_fn_panic as *const raw::c_void,
             is_loaded: false,
@@ -255,8 +261,8 @@ pub mod egl {
 
     #[allow(non_snake_case)]
     pub mod DebugMessageControlKHR {
-        use super::FnPtr;
         use super::__gl_imports::raw;
+        use super::FnPtr;
         use super::{metaloadfn, wayland_storage};
 
         #[inline]
@@ -279,7 +285,7 @@ pub mod egl {
 
     #[allow(non_snake_case)]
     pub mod BindWaylandDisplayWL {
-        use super::{FnPtr, __gl_imports::raw, metaloadfn, wayland_storage};
+        use super::{__gl_imports::raw, FnPtr, metaloadfn, wayland_storage};
 
         #[inline]
         #[allow(dead_code)]
@@ -301,7 +307,7 @@ pub mod egl {
 
     #[allow(non_snake_case)]
     pub mod UnbindWaylandDisplayWL {
-        use super::{FnPtr, __gl_imports::raw, metaloadfn, wayland_storage};
+        use super::{__gl_imports::raw, FnPtr, metaloadfn, wayland_storage};
 
         #[inline]
         #[allow(dead_code)]
@@ -323,7 +329,7 @@ pub mod egl {
 
     #[allow(non_snake_case)]
     pub mod QueryWaylandBufferWL {
-        use super::{FnPtr, __gl_imports::raw, metaloadfn, wayland_storage};
+        use super::{__gl_imports::raw, FnPtr, metaloadfn, wayland_storage};
 
         #[inline]
         #[allow(dead_code)]

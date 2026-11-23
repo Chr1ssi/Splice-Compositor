@@ -1,6 +1,6 @@
 use smithay::{
     backend::input::{
-        AbsolutePositionEvent, Axis, AxisSource, ButtonState, Event, InputBackend, InputEvent, KeyState, KeyboardKeyEvent,
+        AbsolutePositionEvent, Axis, AxisSource, ButtonState, Event, InputBackend, InputEvent, InputTime, KeyState, KeyboardKeyEvent,
         PointerAxisEvent, PointerButtonEvent, PointerMotionEvent,
     },
     backend::session::Session,
@@ -150,7 +150,7 @@ impl State {
         match event {
             InputEvent::Keyboard { event } => {
                 let serial = SERIAL_COUNTER.next_serial();
-                let time = Event::time_msec(&event);
+                let time = Event::time(&event);
                 let keyboard = self.seat.get_keyboard().unwrap();
                 let keycode = event.key_code();
                 let action = keyboard.input::<Intercepted, _>(self, keycode, event.state(), serial, time, |state, mods, handle| {
@@ -252,7 +252,7 @@ impl State {
             InputEvent::PointerMotionAbsolute { event } => {
                 let Some(geo) = output.and_then(|o| self.space.output_geometry(o)) else { return };
                 self.pointer_location = event.position_transformed(geo.size) + geo.loc.to_f64();
-                self.pointer_moved(event.time_msec());
+                self.pointer_moved(event.time());
             }
             InputEvent::PointerMotion { event } => {
                 let pointer = self.seat.get_pointer().unwrap();
@@ -261,7 +261,7 @@ impl State {
                 pointer.relative_motion(
                     self,
                     focus.clone(),
-                    &RelativeMotionEvent { delta: event.delta(), delta_unaccel: event.delta_unaccel(), utime: event.time() },
+                    &RelativeMotionEvent { delta: event.delta(), delta_unaccel: event.delta_unaccel(), time: event.time() },
                 );
                 let mut target = self.pointer_location + event.delta();
                 if let Some((surface, origin)) = &focus {
@@ -278,9 +278,9 @@ impl State {
                 }
                 let (x, y) = self.desktop.desk.clamp_to_monitors((target.x, target.y));
                 self.pointer_location = (x, y).into();
-                self.pointer_moved(event.time_msec());
+                self.pointer_moved(event.time());
             }
-            InputEvent::PointerButton { event } => self.pointer_button(event.button_code(), event.state(), event.time_msec()),
+            InputEvent::PointerButton { event } => self.pointer_button(event.button_code(), event.state(), event.time()),
             InputEvent::PointerAxis { event } => {
                 // The wheel reaches nobody behind the built-in lock screen.
                 if self.session_lock.is_own() {
@@ -303,7 +303,7 @@ impl State {
                     return;
                 }
                 let source = event.source();
-                let mut frame = AxisFrame::new(event.time_msec()).source(source);
+                let mut frame = AxisFrame::new(event.time()).source(source);
                 for axis in [Axis::Horizontal, Axis::Vertical] {
                     let amount = event.amount(axis).unwrap_or_else(|| event.amount_v120(axis).unwrap_or(0.0) * 15.0 / 120.0);
                     if amount != 0.0 {
@@ -322,7 +322,7 @@ impl State {
         }
     }
 
-    fn pointer_button(&mut self, button: u32, state: ButtonState, time: u32) {
+    fn pointer_button(&mut self, button: u32, state: ButtonState, time: InputTime) {
         // No client gets a click behind the built-in lock screen; its card does.
         if self.session_lock.is_own() {
             let hit = self.shell_at_pointer();
@@ -383,7 +383,7 @@ impl State {
         pointer.frame(self);
     }
 
-    fn pointer_moved(&mut self, time: u32) {
+    fn pointer_moved(&mut self, time: InputTime) {
         // Only the outputs the cursor leaves and enters change, and nothing moves on them while a client
         // (a game) hides the cursor; an empty frame there would hold back the game's next one.
         let current = self.space.output_under(self.pointer_location).next().cloned();
@@ -426,7 +426,7 @@ impl State {
     /// Move the pointer to `location` as if the user did.
     pub fn warp_pointer(&mut self, location: Point<f64, Logical>) {
         self.pointer_location = location;
-        let time = self.start_time.elapsed().as_millis() as u32;
+        let time = InputTime::now();
         self.pointer_motion(time);
     }
 
@@ -492,7 +492,7 @@ impl State {
             .or_else(|| surface(self.layer_surface_at(&[Layer::Bottom, Layer::Background])))
     }
 
-    fn pointer_motion(&mut self, time: u32) {
+    fn pointer_motion(&mut self, time: InputTime) {
         self.update_pointer_monitor();
         let pointer = self.seat.get_pointer().unwrap();
         let serial = SERIAL_COUNTER.next_serial();
@@ -546,7 +546,7 @@ impl State {
         let old = std::mem::replace(&mut self.pointer_focus_surface, surface.clone());
         self.pointer_focus_changed(old.as_ref(), surface.as_ref());
         let serial = SERIAL_COUNTER.next_serial();
-        let time = self.start_time.elapsed().as_millis() as u32;
+        let time = InputTime::now();
         pointer.motion(self, under, &MotionEvent { location: self.pointer_location, serial, time });
         pointer.frame(self);
     }

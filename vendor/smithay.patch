@@ -1,129 +1,16 @@
 diff -ru a/src/lib.rs b/src/lib.rs
---- a/src/lib.rs	2026-09-30 12:22:33.654011443 +0000
-+++ b/src/lib.rs	2026-09-30 12:22:33.683601909 +0000
+--- a/src/lib.rs
++++ b/src/lib.rs
 @@ -1,3 +1,5 @@
-+// MyWM patch: vendored dependency, keep its lint noise out of our build output.
++// Splice patch: vendored dependency, keep its lint noise out of our build output.
 +#![allow(warnings)]
  #![cfg_attr(docsrs, feature(doc_auto_cfg))]
  #![warn(missing_docs, missing_debug_implementations, rust_2018_idioms)]
  // Allow acronyms like EGL
-diff -ru a/src/xwayland/xwm/surface.rs b/src/xwayland/xwm/surface.rs
---- a/src/xwayland/xwm/surface.rs	2026-09-30 12:22:33.670564562 +0000
-+++ b/src/xwayland/xwm/surface.rs	2026-09-30 12:22:33.688070758 +0000
-@@ -539,6 +539,62 @@
-         Ok(())
-     }
- 
-+    /// MyWM patch: give the X11 window (`true`) or nobody (`false`) the X11 input focus.
-+    ///
-+    /// This is the X11 half of `KeyboardTarget::enter`/`leave` for compositors whose keyboard
-+    /// focus is a plain `wl_surface`. Without it Xwayland has no focused X11 window and
-+    /// clients that wait for `WM_TAKE_FOCUS` (Wine and Proton games) never receive keys.
-+    pub fn set_x11_input_focus(&self, focused: bool) {
-+        let Some(conn) = self.conn.upgrade() else { return };
-+        if !focused {
-+            if self.input_mode() != InputMode::None {
-+                if let Err(err) = conn.set_input_focus(InputFocus::NONE, x11rb::NONE, x11rb::CURRENT_TIME) {
-+                    warn!("Unable to unfocus X11Surface ({:?}): {}", self.window, err);
-+                }
-+            }
-+            let _ = conn.flush();
-+            return;
-+        }
-+        let (set_input_focus, send_take_focus) = match self.input_mode() {
-+            InputMode::None => return,
-+            InputMode::Passive => (true, false),
-+            InputMode::LocallyActive => (true, true),
-+            InputMode::GloballyActive => (false, true),
-+        };
-+        if set_input_focus {
-+            if let Err(err) = conn.set_input_focus(InputFocus::NONE, self.window, x11rb::CURRENT_TIME) {
-+                warn!("Unable to set focus for X11Surface ({:?}): {}", self.window, err);
-+            }
-+        }
-+        if send_take_focus {
-+            let event = ClientMessageEvent::new(
-+                32,
-+                self.window,
-+                self.atoms.WM_PROTOCOLS,
-+                [self.atoms.WM_TAKE_FOCUS, x11rb::CURRENT_TIME, 0, 0, 0],
-+            );
-+            if let Err(err) = conn.send_event(false, self.window, EventMask::NO_EVENT, event) {
-+                warn!("Unable to send take focus event for X11Surface ({:?}): {}", self.window, err);
-+            }
-+        }
-+        let _ = conn.flush();
-+    }
-+
-+    /// MyWM patch: tell the client it is minimized (`true`: `WM_STATE` iconic and `_NET_WM_STATE_HIDDEN`) or
-+    /// restored (`false`) without unmapping the window, so that it keeps its picture and its place.
-+    ///
-+    /// Wine minimizes an exclusive-fullscreen window when it loses the focus, and only follows a restore if
-+    /// the window manager reports it through `WM_STATE`.
-+    pub fn set_iconic(&self, iconic: bool) {
-+        let Some(conn) = self.conn.upgrade() else { return };
-+        let property = [if iconic { 3u32 /*IconicState*/ } else { 1u32 /*NormalState*/ }, 0 /*WINDOW_NONE*/];
-+        if let Err(err) = conn.change_property32(PropMode::REPLACE, self.window, self.atoms.WM_STATE, self.atoms.WM_STATE, &property) {
-+            warn!("Unable to set WM_STATE of X11Surface ({:?}): {}", self.window, err);
-+        }
-+        let _ = self.set_suspended(iconic);
-+        let _ = conn.flush();
-+    }
-+
-     /// Sets the window as activated or not.
-     ///
-     /// Allows the client to reflect this state in their UI.
-@@ -864,6 +920,26 @@
-         Ok(())
-     }
- 
-+    /// Reads the `_NET_WM_STATE` the client set itself. The property is the client's only while the
-+    /// window is withdrawn: EWMH has the window manager honor it when the window asks to be mapped.
-+    pub(super) fn read_initial_net_state(&self) -> Result<(), ConnectionError> {
-+        let conn = self.conn.upgrade().ok_or(ConnectionError::UnknownError)?;
-+        let atoms = match conn
-+            .get_property(false, self.window, self.atoms._NET_WM_STATE, AtomEnum::ATOM, 0, 1024)?
-+            .reply_unchecked()
-+        {
-+            Ok(atoms) => atoms,
-+            Err(ConnectionError::ParseError(_)) => return Ok(()),
-+            Err(err) => return Err(err),
-+        };
-+
-+        let mut state = self.state.lock().unwrap();
-+        state.net_state = atoms
-+            .and_then(|atoms| Some(atoms.value32()?.collect()))
-+            .unwrap_or_default();
-+        Ok(())
-+    }
-+
-     fn read_window_property_string(&self, atom: impl Into<Atom>) -> Result<Option<String>, ConnectionError> {
-         let conn = self.conn.upgrade().ok_or(ConnectionError::UnknownError)?;
-         let reply = match conn
-diff -ru a/src/xwayland/xwm/mod.rs b/src/xwayland/xwm/mod.rs
---- a/src/xwayland/xwm/mod.rs
-+++ b/src/xwayland/xwm/mod.rs
-@@ -1156,6 +1156,9 @@
-                 .set_selection_owner(x11rb::NONE, selection.atom, selection.timestamp)?;
-         }
-+        // Without this the request waits in the buffer until some other X event flushes it, and
-+        // X11 clients see no selection owner in the meantime.
-+        self.conn.flush()?;
- 
-         Ok(())
-     }
-@@ -1525,6 +1528,7 @@
-                     // In that case, we set the X11Surface's override-redirect state to false here
-                     // to prevent `set_mapped` and `configure` from failing.
-                     surface.state.lock().unwrap().override_redirect = false;
-+                    surface.read_initial_net_state()?;
- 
-                     drop(_guard);
-                     state.map_window_request(xwm_id, surface);
 diff -ru a/src/xwayland/mod.rs b/src/xwayland/mod.rs
---- a/src/xwayland/mod.rs	2026-11-02 16:11:30.343861372 +0100
-+++ b/src/xwayland/mod.rs	2026-11-02 16:11:30.344861395 +0100
-@@ -15,5 +15,6 @@
+--- a/src/xwayland/mod.rs
++++ b/src/xwayland/mod.rs
+@@ -17,5 +17,6 @@
  mod xserver;
  pub mod xwm;
  
@@ -131,14 +18,14 @@ diff -ru a/src/xwayland/mod.rs b/src/xwayland/mod.rs
  pub use self::xserver::{XWayland, XWaylandClientData, XWaylandEvent};
  pub use self::xwm::{X11Surface, X11Wm, XwmHandler};
 diff -ru a/src/xwayland/x11_sockets.rs b/src/xwayland/x11_sockets.rs
---- a/src/xwayland/x11_sockets.rs	2026-11-02 16:11:30.339861279 +0100
-+++ b/src/xwayland/x11_sockets.rs	2026-11-02 16:11:30.341861325 +0100
+--- a/src/xwayland/x11_sockets.rs
++++ b/src/xwayland/x11_sockets.rs
 @@ -44,6 +44,38 @@
      ))
  }
  
-+/// An X11 display slot (its lockfile) and the sockets an X server listens on, opened before the
-+/// server runs. A compositor can wait for the first client to connect to one of them
++/// Splice patch: an X11 display slot (its lockfile) and the sockets an X server listens on, opened
++/// before the server runs. A compositor can wait for the first client to connect to one of them
 +/// ([`listeners`](Self::listeners)) and only then start Xwayland with
 +/// [`XWayland::spawn_with_sockets`](super::XWayland::spawn_with_sockets); the connection waits in
 +/// the socket's backlog until Xwayland accepts it.
@@ -173,26 +60,46 @@ diff -ru a/src/xwayland/x11_sockets.rs b/src/xwayland/x11_sockets.rs
  pub(crate) struct X11Lock {
      display: u32,
 diff -ru a/src/xwayland/xserver.rs b/src/xwayland/xserver.rs
---- a/src/xwayland/xserver.rs	2026-11-02 16:11:30.335861185 +0100
-+++ b/src/xwayland/xserver.rs	2026-11-02 16:11:30.337861232 +0100
+--- a/src/xwayland/xserver.rs
++++ b/src/xwayland/xserver.rs
 @@ -18,7 +18,7 @@
  
  use crate::{utils::user_data::UserDataMap, wayland::compositor::CompositorClientState};
  
--use super::x11_sockets::{prepare_x11_sockets, X11Lock};
+-use super::x11_sockets::{X11Lock, prepare_x11_sockets};
 +use super::x11_sockets::{X11Lock, X11Sockets};
  
  /// A handle to a running XWayland process. Using XWayland as an xserver for
  /// X11-based clients requires two connections: one wayland socket, where
-@@ -124,10 +124,30 @@
-         V: AsRef<OsStr>,
-         F: FnOnce(&UserDataMap),
+@@ -136,10 +136,9 @@
      {
-+        let sockets = X11Sockets::prepare(display.into(), open_abstract_socket)?;
-+        Self::spawn_with_sockets(dh, sockets, envs, stdout, stderr, user_data)
-+    }
-+
-+    /// Like [`spawn`](Self::spawn), with the display slot and sockets opened beforehand
+         Self::spawn_inner(
+             dh,
+-            display,
++            X11Sockets::prepare(display.into(), open_abstract_socket)?,
+             envs,
+             extra_args,
+-            open_abstract_socket,
+             stdout,
+             stderr,
+             user_data,
+@@ -180,10 +179,9 @@
+     {
+         Self::spawn_inner(
+             dh,
+-            display,
++            X11Sockets::prepare(display.into(), open_abstract_socket)?,
+             envs,
+             extra_args,
+-            open_abstract_socket,
+             stdout,
+             stderr,
+             user_data,
+@@ -191,13 +189,31 @@
+         )
+     }
+ 
++    /// Splice patch: like [`spawn`](Self::spawn), with the display slot and sockets opened beforehand
 +    /// ([`X11Sockets::prepare`]), so that the server can be started when the first client connects.
 +    pub fn spawn_with_sockets<K, V, I, F>(
 +        dh: &DisplayHandle,
@@ -208,6 +115,21 @@ diff -ru a/src/xwayland/xserver.rs b/src/xwayland/xserver.rs
 +        V: AsRef<OsStr>,
 +        F: FnOnce(&UserDataMap),
 +    {
++        Self::spawn_inner(dh, sockets, envs, std::iter::empty::<&OsStr>(), stdout, stderr, user_data, true)
++    }
++
+     #[allow(clippy::too_many_arguments)]
+     fn spawn_inner<K, V, I, A, AI, F>(
+         dh: &DisplayHandle,
+-        display: impl Into<Option<u32>>,
++        sockets: X11Sockets,
+         envs: I,
+         extra_args: AI,
+-        open_abstract_socket: bool,
+         stdout: impl Into<std::process::Stdio>,
+         stderr: impl Into<std::process::Stdio>,
+         user_data: F,
+@@ -214,7 +230,7 @@
          let (x_wm_x11, x_wm_me) = UnixStream::pair()?;
          let (wl_x11, wl_me) = UnixStream::pair()?;
  
@@ -216,3 +138,75 @@ diff -ru a/src/xwayland/xserver.rs b/src/xwayland/xserver.rs
          let display_number = lock.display_number();
  
          // XWayland writes the the display number and a newline to this pipe when it's ready.
+diff -ru a/src/xwayland/xwm/mod.rs b/src/xwayland/xwm/mod.rs
+--- a/src/xwayland/xwm/mod.rs
++++ b/src/xwayland/xwm/mod.rs
+@@ -1309,6 +1309,9 @@
+             self.conn
+                 .set_selection_owner(x11rb::NONE, selection.atom, selection.timestamp)?;
+         }
++        // Splice patch: without this the request waits in the buffer until some other X event
++        // flushes it, and X11 clients see no selection owner in the meantime.
++        self.conn.flush()?;
+ 
+         Ok(())
+     }
+diff -ru a/src/xwayland/xwm/surface.rs b/src/xwayland/xwm/surface.rs
+--- a/src/xwayland/xwm/surface.rs
++++ b/src/xwayland/xwm/surface.rs
+@@ -1365,11 +1365,55 @@
+                     self.atoms.WM_STATE,
+                     &[wm_state, 0 /*WINDOW_NONE*/],
+                 )?;
++                // Splice patch: change_net_state flushed before this; Wine only follows a restore it
++                // sees through WM_STATE, so it must not wait in the buffer for the next X event.
++                conn.flush()?;
+             }
+         }
+         Ok(())
+     }
+ 
++    /// Splice patch: give the X11 window (`true`) or nobody (`false`) the X11 input focus.
++    ///
++    /// This is the X11 half of `KeyboardTarget::enter`/`leave` for compositors whose keyboard
++    /// focus is a plain `wl_surface`. Without it Xwayland has no focused X11 window and
++    /// clients that wait for `WM_TAKE_FOCUS` (Wine and Proton games) never receive keys.
++    pub fn set_x11_input_focus(&self, focused: bool) {
++        let Some(conn) = self.conn.upgrade() else { return };
++        if !focused {
++            if self.input_model() != WmInputModel::None {
++                if let Err(err) = conn.set_input_focus(InputFocus::NONE, x11rb::NONE, x11rb::CURRENT_TIME) {
++                    warn!("Unable to unfocus X11Surface ({:?}): {}", self.window, err);
++                }
++            }
++            let _ = conn.flush();
++            return;
++        }
++        let (set_input_focus, send_take_focus) = match self.input_model() {
++            WmInputModel::None => return,
++            WmInputModel::Passive => (true, false),
++            WmInputModel::LocallyActive => (true, true),
++            WmInputModel::GloballyActive => (false, true),
++        };
++        if set_input_focus {
++            if let Err(err) = conn.set_input_focus(InputFocus::NONE, self.window, x11rb::CURRENT_TIME) {
++                warn!("Unable to set focus for X11Surface ({:?}): {}", self.window, err);
++            }
++        }
++        if send_take_focus {
++            let event = ClientMessageEvent::new(
++                32,
++                self.window,
++                self.atoms.WM_PROTOCOLS,
++                [self.atoms.WM_TAKE_FOCUS, x11rb::CURRENT_TIME, 0, 0, 0],
++            );
++            if let Err(err) = conn.send_event(false, self.window, EventMask::NO_EVENT, event) {
++                warn!("Unable to send take focus event for X11Surface ({:?}): {}", self.window, err);
++            }
++        }
++        let _ = conn.flush();
++    }
++
+     /// Sets the window as activated or not.
+     ///
+     /// Allows the client to reflect this state in their UI.

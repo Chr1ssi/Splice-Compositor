@@ -29,7 +29,7 @@ pub(crate) fn prepare_x11_sockets(
                     // we got a lockfile, try and create the socket
                     match open_x11_sockets_for_display(d, open_abstract_socket) {
                         Ok(sockets) => return Ok((lock, sockets)),
-                        Err(err) => warn!(display = d, "Failed to create sockets: {}", err),
+                        Err(err) => warn!(display = d, "Failed to create sockets: {err}"),
                     }
                 }
             }
@@ -44,8 +44,8 @@ pub(crate) fn prepare_x11_sockets(
     ))
 }
 
-/// An X11 display slot (its lockfile) and the sockets an X server listens on, opened before the
-/// server runs. A compositor can wait for the first client to connect to one of them
+/// Splice patch: an X11 display slot (its lockfile) and the sockets an X server listens on, opened
+/// before the server runs. A compositor can wait for the first client to connect to one of them
 /// ([`listeners`](Self::listeners)) and only then start Xwayland with
 /// [`XWayland::spawn_with_sockets`](super::XWayland::spawn_with_sockets); the connection waits in
 /// the socket's backlog until Xwayland accepts it.
@@ -84,8 +84,8 @@ pub(crate) struct X11Lock {
 impl X11Lock {
     /// Try to grab a lockfile for given X display number
     fn grab(number: u32) -> Result<X11Lock, ()> {
-        debug!(display = number, "Attempting to aquire an X11 display lock");
-        let filename = format!("/tmp/.X{}-lock", number);
+        debug!(display = number, "Attempting to acquire an X11 display lock");
+        let filename = format!("/tmp/.X{number}-lock");
         let lockfile = ::std::fs::OpenOptions::new()
             .write(true)
             .create_new(true)
@@ -173,7 +173,7 @@ fn open_x11_sockets_for_display(
     display: u32,
     open_abstract_socket: bool,
 ) -> rustix::io::Result<Vec<UnixStream>> {
-    let path = format!("/tmp/.X11-unix/X{}", display);
+    let path = format!("/tmp/.X11-unix/X{display}");
     let _ = ::std::fs::remove_file(&path);
     // We know this path is not too long, these unwrap cannot fail
     let fs_addr = SocketAddrUnix::new(path.as_bytes()).unwrap();

@@ -289,6 +289,7 @@ fn dead_frame() -> FrameData {
                 subpixel: smithay::output::Subpixel::Unknown,
                 make: String::new(),
                 model: String::new(),
+                serial_number: String::new(),
             },
         ),
         overlay_cursor: false,

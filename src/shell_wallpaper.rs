@@ -28,7 +28,7 @@ use smithay::{
         channel,
         timer::{TimeoutAction, Timer},
     },
-    utils::{Buffer, Logical, Physical, Point, Rectangle, Scale, Size, Transform},
+    utils::{Buffer, Logical, Physical, Point, Rectangle, Scale, Size, Transform, user_data::UserDataMap},
 };
 use splice_ui::{
     edit::Input,
@@ -813,9 +813,10 @@ impl RenderElement<GlesRenderer> for TileElement {
         dst: Rectangle<i32, Physical>,
         damage: &[Rectangle<i32, Physical>],
         opaque_regions: &[Rectangle<i32, Physical>],
+        cache: Option<&UserDataMap>,
     ) -> Result<(), GlesError> {
         frame.override_default_tex_program(self.program.clone(), self.uniforms.clone());
-        let result = RenderElement::<GlesRenderer>::draw(&self.inner, frame, src, dst, damage, opaque_regions);
+        let result = RenderElement::<GlesRenderer>::draw(&self.inner, frame, src, dst, damage, opaque_regions, cache);
         frame.clear_tex_program_override();
         result
     }

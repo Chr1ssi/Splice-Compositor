@@ -3,10 +3,7 @@
 use calloop::Interest;
 use smithay::{
     backend::allocator::dmabuf::Dmabuf,
-    delegate_commit_timing, delegate_content_type, delegate_cursor_shape, delegate_drm_syncobj, delegate_fifo, delegate_fractional_scale,
-    delegate_pointer_constraints, delegate_presentation, delegate_primary_selection, delegate_relative_pointer, delegate_viewporter,
-    delegate_xdg_decoration, delegate_xdg_foreign,
-    input::pointer::PointerHandle,
+    input::{pointer::PointerHandle, tablet::TabletSeatHandler},
     reexports::{
         wayland_protocols::xdg::decoration::zv1::server::zxdg_toplevel_decoration_v1::Mode,
         wayland_server::{Resource, protocol::wl_surface::WlSurface},
@@ -20,7 +17,6 @@ use smithay::{
         pointer_constraints::{PointerConstraintsHandler, with_pointer_constraint},
         selection::primary_selection::{PrimarySelectionHandler, PrimarySelectionState},
         shell::xdg::{ToplevelSurface, decoration::XdgDecorationHandler},
-        tablet_manager::TabletSeatHandler,
     },
 };
 
@@ -40,6 +36,9 @@ impl XdgDecorationHandler for State {
     fn unset_mode(&mut self, toplevel: ToplevelSurface) {
         self.force_server_side(&toplevel);
     }
+
+    // The client withdrew its decoration object: it draws its own again, nothing to do here.
+    fn decoration_destroyed(&mut self, _toplevel: ToplevelSurface) {}
 }
 
 impl State {
@@ -80,8 +79,8 @@ impl State {
 // --- Selection ----------------------------------------------------------------------------
 
 impl PrimarySelectionHandler for State {
-    fn primary_selection_state(&self) -> &PrimarySelectionState {
-        &self.primary_selection_state
+    fn primary_selection_state(&mut self) -> &mut PrimarySelectionState {
+        &mut self.primary_selection_state
     }
 }
 
@@ -187,27 +186,12 @@ impl State {
     }
 }
 
-impl TabletSeatHandler for State {}
+impl TabletSeatHandler for State {
+    type ToolFocus = WlSurface;
+}
 
 impl smithay::wayland::xdg_foreign::XdgForeignHandler for State {
     fn xdg_foreign_state(&mut self) -> &mut smithay::wayland::xdg_foreign::XdgForeignState {
         &mut self.xdg_foreign_state
     }
 }
-
-// --- Plain delegates ----------------------------------------------------------------------
-
-delegate_viewporter!(State);
-delegate_fractional_scale!(State);
-delegate_cursor_shape!(State);
-delegate_content_type!(State);
-// Released with the frames that show the surface (see `barriers`).
-delegate_fifo!(State);
-delegate_commit_timing!(State);
-delegate_xdg_decoration!(State);
-delegate_xdg_foreign!(State);
-delegate_primary_selection!(State);
-delegate_relative_pointer!(State);
-delegate_pointer_constraints!(State);
-delegate_presentation!(State);
-delegate_drm_syncobj!(State);

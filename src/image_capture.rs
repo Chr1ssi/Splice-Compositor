@@ -53,8 +53,6 @@ use crate::{
     screencopy::{PendingCopy, Readback, capture_tracker, offscreen_texture, render_to_buffer, start_readback},
 };
 
-smithay::delegate_foreign_toplevel_list!(State);
-
 impl ForeignToplevelListHandler for State {
     fn foreign_toplevel_list_state(&mut self) -> &mut ForeignToplevelListState {
         &mut self.foreign_toplevels
@@ -822,6 +820,7 @@ fn dead_source() -> Source {
             subpixel: smithay::output::Subpixel::Unknown,
             make: String::new(),
             model: String::new(),
+            serial_number: String::new(),
         },
     ))
 }

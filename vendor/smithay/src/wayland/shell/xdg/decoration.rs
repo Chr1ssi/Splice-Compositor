@@ -8,7 +8,6 @@
 //! ```no_run
 //! # extern crate wayland_server;
 //! #
-//! use smithay::{delegate_xdg_decoration, delegate_xdg_shell};
 //! use smithay::wayland::shell::xdg::{ToplevelSurface, XdgShellHandler};
 //! # use smithay::utils::Serial;
 //! # use smithay::wayland::shell::xdg::{XdgShellState, PopupSurface, PositionerState};
@@ -60,10 +59,18 @@
 //!     }
 //!     fn request_mode(&mut self, toplevel: ToplevelSurface, mode: Mode) { /* ... */ }
 //!     fn unset_mode(&mut self, toplevel: ToplevelSurface) { /* ... */ }
+//!     fn decoration_destroyed(&mut self, toplevel: ToplevelSurface) { /* ... */ }
 //! }
 //!
+//! # use smithay::wayland::compositor::{CompositorHandler, CompositorState, CompositorClientState};
 //! use smithay::input::{Seat, SeatState, SeatHandler, pointer::CursorImageStatus};
+//! # use smithay::wayland::pointer_constraints::PointerConstraintsHandler;
 //!
+//! # impl CompositorHandler for State {
+//! #     fn compositor_state(&mut self) -> &mut CompositorState { unimplemented!() }
+//! #     fn client_compositor_state<'a>(&self, client: &'a wayland_server::Client) -> &'a CompositorClientState { unimplemented!() }
+//! #     fn commit(&mut self, surface: &wayland_server::protocol::wl_surface::WlSurface) {}
+//! # }
 //! type Target = wl_surface::WlSurface;
 //! impl SeatHandler for State {
 //!     type KeyboardFocus = Target;
@@ -81,10 +88,11 @@
 //!         // handle new images for the cursor ...
 //!     }
 //! }
-//! delegate_xdg_shell!(State);
-//! delegate_xdg_decoration!(State);
+//! # impl PointerConstraintsHandler for State {}
 //!
-//! // You are ready to go!  
+//! smithay::delegate_dispatch2!(State);
+//!
+//! // You are ready to go!
 // TODO: Describe how to change decoration mode.
 
 use wayland_protocols::xdg::decoration::zv1::server::{
@@ -92,11 +100,16 @@ use wayland_protocols::xdg::decoration::zv1::server::{
     zxdg_toplevel_decoration_v1::{self, Mode},
 };
 use wayland_server::{
-    backend::GlobalId, Client, DataInit, Dispatch, DisplayHandle, GlobalDispatch, New, Resource, WEnum,
+    Client, DataInit, Dispatch, DisplayHandle, GlobalDispatch, New, Resource, WEnum, backend::GlobalId,
+    protocol::wl_surface::WlSurface,
 };
 
 use super::{ToplevelSurface, XdgShellHandler};
-use crate::wayland::shell::xdg::XdgShellSurfaceUserData;
+use crate::wayland::{
+    Dispatch2, GlobalData, GlobalDispatch2,
+    compositor::{self, Cacheable, MultiCache},
+    shell::xdg::{XdgShellSurfaceUserData, XdgToplevelSurfaceRoleAttributes},
+};
 
 /// Delegate type for handling xdg decoration events.
 #[derive(Debug)]
@@ -119,7 +132,7 @@ impl XdgDecorationState {
         D: GlobalDispatch<
                 zxdg_decoration_manager_v1::ZxdgDecorationManagerV1,
                 XdgDecorationManagerGlobalData,
-            > + Dispatch<zxdg_decoration_manager_v1::ZxdgDecorationManagerV1, ()>
+            > + Dispatch<zxdg_decoration_manager_v1::ZxdgDecorationManagerV1, GlobalData>
             + 'static,
     {
         Self::new_with_filter::<D, _>(display, |_| true)
@@ -135,7 +148,7 @@ impl XdgDecorationState {
         D: GlobalDispatch<
                 zxdg_decoration_manager_v1::ZxdgDecorationManagerV1,
                 XdgDecorationManagerGlobalData,
-            > + Dispatch<zxdg_decoration_manager_v1::ZxdgDecorationManagerV1, ()>
+            > + Dispatch<zxdg_decoration_manager_v1::ZxdgDecorationManagerV1, GlobalData>
             + 'static,
         F: for<'c> Fn(&'c Client) -> bool + Send + Sync + 'static,
     {
@@ -143,7 +156,7 @@ impl XdgDecorationState {
             filter: Box::new(filter),
         };
         let global =
-            display.create_global::<D, zxdg_decoration_manager_v1::ZxdgDecorationManagerV1, _>(1, data);
+            display.create_global::<D, zxdg_decoration_manager_v1::ZxdgDecorationManagerV1, _>(2, data);
 
         XdgDecorationState { global }
     }
@@ -164,25 +177,64 @@ pub trait XdgDecorationHandler {
 
     /// Notification the client does not prefer a particular decoration mode on the toplevel.
     fn unset_mode(&mut self, toplevel: ToplevelSurface);
+
+    /// Notification the decoration object of the toplevel was destroyed, and the toplevel must switched back to CSD.
+    ///
+    /// This is called once the commit applying the destruction takes effect, right before [`CompositorHandler::commit`](crate::wayland::compositor::CompositorHandler::commit)
+    /// By then the decoration mode of the toplevel has been reset to `None`.
+    fn decoration_destroyed(&mut self, toplevel: ToplevelSurface);
 }
 
-/// Macro to delegate implementation of the xdg decoration to [`XdgDecorationState`].
-///
-/// You must also implement [`XdgDecorationHandler`] to use this.
-#[macro_export]
-macro_rules! delegate_xdg_decoration {
-    ($(@<$( $lt:tt $( : $clt:tt $(+ $dlt:tt )* )? ),+>)? $ty: ty) => {
-        $crate::reexports::wayland_server::delegate_global_dispatch!($(@< $( $lt $( : $clt $(+ $dlt )* )? ),+ >)? $ty: [
-            $crate::reexports::wayland_protocols::xdg::decoration::zv1::server::zxdg_decoration_manager_v1::ZxdgDecorationManagerV1: $crate::wayland::shell::xdg::decoration::XdgDecorationManagerGlobalData
-        ] => $crate::wayland::shell::xdg::decoration::XdgDecorationState);
+/// Marks a surface that already has [`post_commit_hook`] installed
+struct PostCommitHookInstalled;
 
-        $crate::reexports::wayland_server::delegate_dispatch!($(@< $( $lt $( : $clt $(+ $dlt )* )? ),+ >)? $ty: [
-            $crate::reexports::wayland_protocols::xdg::decoration::zv1::server::zxdg_decoration_manager_v1::ZxdgDecorationManagerV1: ()
-        ] => $crate::wayland::shell::xdg::decoration::XdgDecorationState);
-        $crate::reexports::wayland_server::delegate_dispatch!($(@< $( $lt $( : $clt $(+ $dlt )* )? ),+ >)? $ty: [
-            $crate::reexports::wayland_protocols::xdg::decoration::zv1::server::zxdg_toplevel_decoration_v1::ZxdgToplevelDecorationV1: $crate::wayland::shell::xdg::ToplevelSurface
-        ] => $crate::wayland::shell::xdg::decoration::XdgDecorationState);
-    };
+fn post_commit_hook<D>(state: &mut D, _dh: &DisplayHandle, surface: &WlSurface)
+where
+    D: XdgShellHandler + XdgDecorationHandler + 'static,
+{
+    let is_destroy_committed = compositor::with_states(surface, |states| {
+        DecorationDestroyStateMachine::is_destroy_committed(&states.cached_state)
+    });
+
+    if !is_destroy_committed {
+        return;
+    }
+
+    let toplevel = state
+        .xdg_shell_state()
+        .toplevel_surfaces()
+        .iter()
+        .find(|toplevel| toplevel.wl_surface() == surface)
+        .cloned();
+    if let Some(toplevel) = toplevel {
+        state.decoration_destroyed(toplevel);
+    }
+}
+
+/// Called by [`super::ToplevelSurface::pre_commit_hook`] to make the ordering more obvious
+pub(super) fn xdg_toplevel_pre_commit_hook(
+    cached_state: &MultiCache,
+    role: &mut XdgToplevelSurfaceRoleAttributes,
+) {
+    if !DecorationDestroyStateMachine::is_destroy_waiting_for_commit(cached_state) {
+        return;
+    }
+
+    // Destroy is about to be committed so let's clean up the decoration state
+
+    role.initial_decoration_configure_sent = false;
+
+    if let Some(pending) = role.server_pending.as_mut() {
+        pending.decoration_mode = None;
+    }
+
+    for configure in role.pending_configures.iter_mut() {
+        configure.state.decoration_mode = None;
+    }
+
+    if let Some(configure) = role.last_acked.as_mut() {
+        configure.state.decoration_mode = None;
+    }
 }
 
 pub(super) fn send_decoration_configure(
@@ -192,46 +244,44 @@ pub(super) fn send_decoration_configure(
     id.configure(mode)
 }
 
-impl<D> GlobalDispatch<zxdg_decoration_manager_v1::ZxdgDecorationManagerV1, XdgDecorationManagerGlobalData, D>
-    for XdgDecorationState
+impl<D> GlobalDispatch2<zxdg_decoration_manager_v1::ZxdgDecorationManagerV1, D>
+    for XdgDecorationManagerGlobalData
 where
-    D: GlobalDispatch<zxdg_decoration_manager_v1::ZxdgDecorationManagerV1, XdgDecorationManagerGlobalData>
-        + Dispatch<zxdg_decoration_manager_v1::ZxdgDecorationManagerV1, ()>
+    D: Dispatch<zxdg_decoration_manager_v1::ZxdgDecorationManagerV1, GlobalData>
         + Dispatch<zxdg_toplevel_decoration_v1::ZxdgToplevelDecorationV1, ToplevelSurface>
         + XdgShellHandler
         + XdgDecorationHandler
         + 'static,
 {
     fn bind(
+        &self,
         _: &mut D,
         _: &DisplayHandle,
         _: &Client,
         resource: New<zxdg_decoration_manager_v1::ZxdgDecorationManagerV1>,
-        _: &XdgDecorationManagerGlobalData,
         data_init: &mut DataInit<'_, D>,
     ) {
-        data_init.init(resource, ());
+        data_init.init(resource, GlobalData);
     }
 
-    fn can_view(client: Client, global_data: &XdgDecorationManagerGlobalData) -> bool {
-        (global_data.filter)(&client)
+    fn can_view(&self, client: &Client) -> bool {
+        (self.filter)(client)
     }
 }
 
-impl<D> Dispatch<zxdg_decoration_manager_v1::ZxdgDecorationManagerV1, (), D> for XdgDecorationState
+impl<D> Dispatch2<zxdg_decoration_manager_v1::ZxdgDecorationManagerV1, D> for GlobalData
 where
-    D: Dispatch<zxdg_decoration_manager_v1::ZxdgDecorationManagerV1, ()>
-        + Dispatch<zxdg_toplevel_decoration_v1::ZxdgToplevelDecorationV1, ToplevelSurface>
+    D: Dispatch<zxdg_toplevel_decoration_v1::ZxdgToplevelDecorationV1, ToplevelSurface>
         + XdgShellHandler
         + XdgDecorationHandler
         + 'static,
 {
     fn request(
+        &self,
         state: &mut D,
         _: &Client,
         resource: &zxdg_decoration_manager_v1::ZxdgDecorationManagerV1,
         request: zxdg_decoration_manager_v1::Request,
-        _: &(),
         _dh: &DisplayHandle,
         data_init: &mut DataInit<'_, D>,
     ) {
@@ -240,6 +290,14 @@ where
         match request {
             Request::GetToplevelDecoration { id, toplevel } => {
                 let data = toplevel.data::<XdgShellSurfaceUserData>().unwrap();
+
+                if !data.alive_tracker.alive() {
+                    resource.post_error(
+                        zxdg_toplevel_decoration_v1::Error::Orphaned,
+                        "toplevel is already destroyed",
+                    );
+                    return;
+                }
 
                 let mut decoration_guard = data.decoration.lock().unwrap();
 
@@ -257,7 +315,27 @@ where
                 *decoration_guard = Some(toplevel_decoration);
                 drop(decoration_guard);
 
-                state.new_decoration(toplevel);
+                let (recreated, install_hook) = compositor::with_states(toplevel.wl_surface(), |data| {
+                    // Check for uncommitted destroy, if we got one it means we should inherit the
+                    // state of the old decor object
+                    let recreated =
+                        DecorationDestroyStateMachine::is_destroy_waiting_for_commit(&data.cached_state);
+
+                    DecorationDestroyStateMachine::set_idle(&data.cached_state);
+
+                    let install_hook = data
+                        .data_map
+                        .insert_if_missing_threadsafe(|| PostCommitHookInstalled);
+                    (recreated, install_hook)
+                });
+
+                if install_hook {
+                    compositor::add_post_commit_hook(toplevel.wl_surface(), post_commit_hook::<D>);
+                }
+
+                if !recreated {
+                    state.new_decoration(toplevel);
+                }
             }
 
             Request::Destroy => {}
@@ -269,41 +347,85 @@ where
 
 // zxdg_toplevel_decoration_v1
 
-impl<D> Dispatch<zxdg_toplevel_decoration_v1::ZxdgToplevelDecorationV1, ToplevelSurface, D>
-    for XdgDecorationState
+impl<D> Dispatch2<zxdg_toplevel_decoration_v1::ZxdgToplevelDecorationV1, D> for ToplevelSurface
 where
-    D: Dispatch<zxdg_toplevel_decoration_v1::ZxdgToplevelDecorationV1, ToplevelSurface>
-        + XdgDecorationHandler,
+    D: XdgDecorationHandler,
 {
     fn request(
+        &self,
         state: &mut D,
         _: &Client,
-        _: &zxdg_toplevel_decoration_v1::ZxdgToplevelDecorationV1,
+        resource: &zxdg_toplevel_decoration_v1::ZxdgToplevelDecorationV1,
         request: zxdg_toplevel_decoration_v1::Request,
-        data: &ToplevelSurface,
         _dh: &DisplayHandle,
         _: &mut DataInit<'_, D>,
     ) {
-        use self::zxdg_toplevel_decoration_v1::Request;
+        use self::zxdg_toplevel_decoration_v1::{Error, Request};
 
         match request {
             Request::SetMode { mode } => {
                 if let WEnum::Value(mode) = mode {
-                    state.request_mode(data.clone(), mode);
+                    state.request_mode(self.clone(), mode);
+                } else {
+                    resource.post_error(Error::InvalidMode, "invalid decoration mode");
                 }
             }
 
             Request::UnsetMode => {
-                state.unset_mode(data.clone());
+                state.unset_mode(self.clone());
             }
 
             Request::Destroy => {
-                if let Some(data) = data.xdg_toplevel().data::<XdgShellSurfaceUserData>() {
+                if let Some(data) = self.xdg_toplevel().data::<XdgShellSurfaceUserData>() {
                     data.decoration.lock().unwrap().take();
                 }
+
+                compositor::with_states(self.wl_surface(), |data| {
+                    DecorationDestroyStateMachine::set_destroy_waiting_for_commit(&data.cached_state);
+                });
             }
 
             _ => unreachable!(),
         }
+    }
+}
+
+#[derive(Default, Debug, Clone, Copy, Eq, PartialEq)]
+enum DecorationDestroyStateMachine {
+    #[default]
+    Idle,
+    DestroyWaitingForCommit,
+    DestroyCommitted,
+}
+
+impl DecorationDestroyStateMachine {
+    fn set_idle(cached_state: &MultiCache) {
+        *cached_state.get::<DecorationDestroyStateMachine>().pending() = Self::Idle;
+    }
+
+    fn set_destroy_waiting_for_commit(cached_state: &MultiCache) {
+        *cached_state.get::<DecorationDestroyStateMachine>().pending() = Self::DestroyWaitingForCommit;
+    }
+
+    fn is_destroy_waiting_for_commit(cached_state: &MultiCache) -> bool {
+        *cached_state.get::<DecorationDestroyStateMachine>().pending() == Self::DestroyWaitingForCommit
+    }
+
+    fn is_destroy_committed(cached_state: &MultiCache) -> bool {
+        *cached_state.get::<DecorationDestroyStateMachine>().current() == Self::DestroyCommitted
+    }
+}
+
+impl Cacheable for DecorationDestroyStateMachine {
+    fn commit(&mut self, _dh: &DisplayHandle) -> Self {
+        *self = match self {
+            Self::Idle => Self::Idle,
+            Self::DestroyWaitingForCommit => Self::DestroyCommitted,
+            Self::DestroyCommitted => Self::Idle,
+        };
+        *self
+    }
+    fn merge_into(self, into: &mut Self, _dh: &DisplayHandle) {
+        *into = self;
     }
 }

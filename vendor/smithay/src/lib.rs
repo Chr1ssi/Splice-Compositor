@@ -1,9 +1,11 @@
-// MyWM patch: vendored dependency, keep its lint noise out of our build output.
+// Splice patch: vendored dependency, keep its lint noise out of our build output.
 #![allow(warnings)]
 #![cfg_attr(docsrs, feature(doc_auto_cfg))]
 #![warn(missing_docs, missing_debug_implementations, rust_2018_idioms)]
 // Allow acronyms like EGL
-#![allow(clippy::upper_case_acronyms)]
+#![allow(clippy::upper_case_acronyms, clippy::collapsible_match)]
+// TODO: Produces a lot of lints; apply at some point
+#![allow(clippy::collapsible_if)]
 
 //! # Smithay: the Wayland compositor smithy
 //!

@@ -369,7 +369,7 @@ impl State {
                 // Steam and friends: dialogs and popups float above their owner, fixed-size windows too.
                 let parent = x11.is_transient_for().and_then(|w| self.desktop.by_x11(w).map(|p| p.id));
                 let class = x11.class();
-                let floats = x11.is_popup()
+                let floats = x11.is_modal()
                     || x11.is_transient_for().is_some()
                     || matches!(
                         x11.window_type(),
@@ -677,7 +677,7 @@ impl State {
             } else if let Some(x11) = m.window.x11_surface() {
                 // X11 windows know their position on the (global) screen.
                 let target = Rectangle::new((p.content.x, p.content.y).into(), (p.content.width, p.content.height).into());
-                if x11.geometry() != target {
+                if x11.last_configure() != target {
                     let _ = x11.configure(target);
                 }
                 if x11.is_fullscreen() != p.fullscreen {
@@ -792,7 +792,7 @@ impl State {
         let Some(m) = self.desktop.get_mut(id).filter(|m| m.minimized) else { return false };
         m.minimized = false;
         if let Some(x11) = m.window.x11_surface() {
-            x11.set_iconic(false);
+            let _ = x11.set_hidden(false);
         }
         true
     }

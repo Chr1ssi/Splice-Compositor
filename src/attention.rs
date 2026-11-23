@@ -1,6 +1,5 @@
 //! Keyboard shortcut inhibiting (games, VMs) and focus requests (`xdg-activation`).
 use smithay::{
-    delegate_keyboard_shortcuts_inhibit, delegate_xdg_activation,
     reexports::wayland_server::protocol::wl_surface::WlSurface,
     wayland::{
         compositor::get_parent,
@@ -26,8 +25,6 @@ impl KeyboardShortcutsInhibitHandler for State {
         inhibitor.activate();
     }
 }
-
-delegate_keyboard_shortcuts_inhibit!(State);
 
 impl State {
     /// The focused client asked for the keyboard shortcuts and has them.
@@ -75,5 +72,3 @@ impl XdgActivationHandler for State {
         }
     }
 }
-
-delegate_xdg_activation!(State);
