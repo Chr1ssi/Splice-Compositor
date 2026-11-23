@@ -38,6 +38,7 @@ rustPlatform.buildRustPackage {
       ../src
       ../crates
       ../vendor/smithay
+      ../vendor/smithay-drm-extras
       ../scripts/splice-settings.desktop
     ];
   };

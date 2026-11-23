@@ -8,10 +8,12 @@ description = "Smithay-based Wayland compositor for Splice"
 [patch.crates-io]
 # smithay master (a38bb709) plus a few small patches; see vendor/README.md.
 smithay = { path = "vendor/smithay" }
+# The same commit, unpatched: its DrmScanner hotplug fixes.
+smithay-drm-extras = { path = "vendor/smithay-drm-extras" }
 
 [workspace]
 members = [".", "crates/*"]
-exclude = ["vendor/smithay"]
+exclude = ["vendor/smithay", "vendor/smithay-drm-extras"]
 
 # The one version of all crates and of the Nix packages (nix/package.nix, nix/settings.nix).
 [workspace.package]

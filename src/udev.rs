@@ -648,6 +648,10 @@ impl State {
                     self.connector_disconnected(crtc);
                 }
                 DrmScanEvent::Disconnected { .. } => {}
+                // New in drm-extras master; the output keeps its mode, as before the event existed.
+                DrmScanEvent::Changed { connector, .. } => {
+                    tracing::info!("{}: its mode list changed (ignored)", connector_name(&connector));
+                }
             }
         }
     }

@@ -23,13 +23,18 @@
 Upstream since took over two earlier patches: `set_hidden` replaced our `set_iconic`, and the map request reads
 the `_NET_WM_STATE` the client set before mapping (our `read_initial_net_state`).
 
-`smithay-drm-extras` still comes from crates.io (0.1.0); the hotplug fixes to its `DrmScanner` on master are
-not in it.
+## smithay-drm-extras from the same commit (unpatched)
 
-The root `Cargo.toml` redirects `smithay` here with `[patch.crates-io]`.
+`vendor/smithay-drm-extras` is `smithay-drm-extras` from the same commit, packaged the same way
+(`cargo package -p smithay-drm-extras`), without changes. It is still 0.1.0 like the crates.io release, but has
+the `DrmScanner` hotplug fixes since: CRTC reservations of vanished connectors are released, connectors that
+disappear from the resource list are reported as unplugged, and a new `DrmScanEvent::Changed` reports a changed
+mode list of a connected display (Splice logs it and keeps the mode).
 
-To drop a change once smithay supports it upstream, adjust `smithay.patch`; to drop all of them, delete the
-`[patch.crates-io]` section, `vendor/smithay` and this directory.
+The root `Cargo.toml` redirects `smithay` and `smithay-drm-extras` here with `[patch.crates-io]`.
+
+To drop a change once smithay supports it upstream, adjust `smithay.patch`; to go back to crates.io, delete the
+`[patch.crates-io]` section and this directory.
 
 To check what differs from upstream: package that commit the same way, unpack the `.crate` next to
 `vendor/smithay` and run `diff -ru smithay-0.7.0 vendor/smithay`.
