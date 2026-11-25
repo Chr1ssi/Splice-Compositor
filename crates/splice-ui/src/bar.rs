@@ -162,12 +162,6 @@ pub fn control_icon(bluetooth: Option<(bool, usize)>, night_light: bool) -> Stri
     if icons.is_empty() { "󰒓".into() } else { icons.join(" ") }
 }
 
-/// The cyberdeck bar's volume as eight segments, filled from the left.
-fn volume_segments(volume: f32) -> String {
-    let filled = (volume.clamp(0.0, 1.0) * 8.0).round() as usize;
-    "▮".repeat(filled) + &"▯".repeat(8 - filled)
-}
-
 /// The volume after `steps` wheel notches over the audio button (5 % each).
 pub fn scrolled_volume(volume: f32, steps: f32) -> f32 {
     (volume + steps * 0.05).clamp(0.0, 1.0)
@@ -226,7 +220,7 @@ pub fn scene(model: &BarModel, theme: &Theme, measure: &mut impl Measure) -> Sce
     let audio = match model.audio {
         None => "󰕾 —".to_owned(),
         Some(Audio { muted: true, .. }) => format!("󰖁 {}", tr("Stumm")),
-        Some(Audio { volume, .. }) if deck => format!("󰕾 {} {}%", volume_segments(volume), (volume * 100.0).round()),
+        Some(Audio { volume, .. }) if deck => format!("󰕾 {}%", (volume * 100.0).round()),
         Some(Audio { volume, .. }) => format!("󰕾 {} %", (volume * 100.0).round()),
     };
     right.push(Content::Buttons(vec![
@@ -498,12 +492,12 @@ mod tests {
     }
 
     #[test]
-    fn the_cyberdeck_bar_numbers_workspaces_segments_the_volume_and_lights_the_selection() {
+    fn the_cyberdeck_bar_numbers_workspaces_and_lights_the_selection() {
         let deck = theme().with_shape(Shape::Chamfer);
         let audio = Some(Audio { volume: 0.5, muted: false });
         let scene = scene(&BarModel { audio, ..model() }, &deck, &mut Mono);
         assert_eq!(label(&scene, BarTarget::Workspace(1)), "01");
-        assert_eq!(label(&scene, BarTarget::Panel(Panel::Audio)), "󰕾 ▮▮▮▮▯▯▯▯ 50%");
+        assert_eq!(label(&scene, BarTarget::Panel(Panel::Audio)), "󰕾 50%");
         assert_eq!(label(&scene, BarTarget::Panel(Panel::Calendar)), "DI. 20. OKT.  19:15");
         // The selected workspace is filled with the accent and its number is dark.
         let first = scene.target_rect(&BarTarget::Workspace(1)).unwrap();
@@ -514,14 +508,6 @@ mod tests {
         assert_eq!(label(&plain, BarTarget::Workspace(1)), "1");
         assert_eq!(label(&plain, BarTarget::Panel(Panel::Audio)), "󰕾 50 %");
         assert!(plain.nodes.iter().any(|n| matches!(n, Node::Label { text, color, .. } if text == "1" && *color == theme().accent)));
-    }
-
-    #[test]
-    fn volume_segments_are_filled_from_the_left() {
-        assert_eq!(volume_segments(0.0), "▯▯▯▯▯▯▯▯");
-        assert_eq!(volume_segments(0.62), "▮▮▮▮▮▯▯▯");
-        assert_eq!(volume_segments(1.0), "▮▮▮▮▮▮▮▮");
-        assert_eq!(volume_segments(1.5), "▮▮▮▮▮▮▮▮");
     }
 
     #[test]
