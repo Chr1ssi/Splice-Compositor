@@ -7,6 +7,7 @@ use crate::{
     Align, Measure, Node, Rect, Scene, Shape, TextStyle, Theme,
     bar::{BUTTON_HEIGHT, BUTTON_TEXT, button_shape_tinted},
     i18n::Language,
+    notifications::NotificationView,
     theme::ISLAND_HEIGHT,
 };
 
@@ -133,6 +134,8 @@ pub struct LockModel {
     pub session: usize,
     /// The login screen's restart and shut down.
     pub show_power: bool,
+    /// The notifications, newest first: the cyberdeck's lock screen lists them beside the card.
+    pub notices: Vec<NotificationView>,
     pub language: Language,
 }
 
@@ -524,6 +527,57 @@ fn side_scenes(model: &LockModel, theme: &Theme, measure: &mut impl Measure, car
     vec![(flow, flow_at), (status, status_at)]
 }
 
+/// Notifications the lock screen lists at most; it says how many more there are.
+const MAX_NOTICES: usize = 5;
+
+/// The cyberdeck's lock screen: left of the card the newest notifications as console text, each its app and summary
+/// and up to two lines of its body, centered on the card's height. Only where the monitor is wide enough.
+fn notice_scene(model: &LockModel, theme: &Theme, measure: &mut impl Measure, card_middle: f32) -> Option<(Scene<LockTarget>, (f32, f32))> {
+    let (w, h) = model.output;
+    let card_w = CARD_WIDTH.min(w - 48.0).max(0.0);
+    let k = side_scale(h);
+    let side_w = (SIDE_WIDTH * k).floor();
+    if theme.shape != Shape::Chamfer || model.show_power || model.notices.is_empty() || w < CARD_WIDTH + 2.0 * (side_w + SIDE_GAP) {
+        return None;
+    }
+    let style = TextStyle::new(SIDE.size * k);
+    let line_h = measure.line_height(style);
+    let mut scene = Scene::new(side_w, 0.0);
+    let mut y = 0.0;
+    let line = |scene: &mut Scene<LockTarget>, x: f32, text: String, color, y: f32| {
+        let width = (side_w - x).max(0.0);
+        scene.push(Node::Label { rect: Rect::new(x, y, width, line_h), text, style, color, align: Align::Left });
+    };
+    line(&mut scene, 0.0, format!("// splice::notices ({})", model.notices.len()), theme.accent, y);
+    y += line_h * 1.5;
+    for note in model.notices.iter().take(MAX_NOTICES) {
+        let app = if note.app_name.is_empty() { "—".to_owned() } else { note.app_name.to_lowercase() };
+        let app_w = measure.width(&app, style).ceil() + measure.width(" ", style);
+        line(&mut scene, 0.0, app, if note.critical { theme.alert } else { theme.tertiary }, y);
+        line(&mut scene, app_w, note.summary.clone(), theme.text, y);
+        y += line_h;
+        if !note.body.is_empty() {
+            let body_h = measure.rich_height(&note.body, style, side_w, 2);
+            scene.push(Node::RichText {
+                rect: Rect::new(0.0, y, side_w, body_h),
+                spans: note.body.clone(),
+                style,
+                color: theme.muted,
+                max_lines: 2,
+            });
+            y += body_h;
+        }
+        y += line_h * 0.6;
+    }
+    if model.notices.len() > MAX_NOTICES {
+        line(&mut scene, 0.0, format!("+{}", model.notices.len() - MAX_NOTICES), theme.muted, y);
+        y += line_h;
+    }
+    scene.height = y;
+    let x = ((w - card_w) / 2.0 - SIDE_GAP - side_w).floor();
+    Some((scene, (x, (card_middle - y / 2.0).floor().max(0.0))))
+}
+
 /// What the primary monitor shows in front of the background: the card's scene and, on the login screen, the
 /// islands (and the cyberdeck's side texts), each with where its origin lies on the monitor.
 pub fn scenes(model: &LockModel, theme: &Theme, measure: &mut impl Measure) -> Vec<(Scene<LockTarget>, (f32, f32))> {
@@ -532,6 +586,7 @@ pub fn scenes(model: &LockModel, theme: &Theme, measure: &mut impl Measure) -> V
     let card_middle = card.target_rect(&LockTarget::Card).map_or(origin.1 + card.height / 2.0, |rect| origin.1 + rect.y + rect.h / 2.0);
     let mut scenes = vec![(card, origin)];
     scenes.extend(side_scenes(model, theme, measure, card_middle));
+    scenes.extend(notice_scene(model, theme, measure, card_middle));
     if model.sessions.len() > 1 {
         let buttons: Vec<_> =
             model.sessions.iter().enumerate().map(|(i, name)| (name.clone(), false, i == model.session, LockTarget::Session(i))).collect();
@@ -570,6 +625,7 @@ mod tests {
             sessions: Vec::new(),
             session: 0,
             show_power: false,
+            notices: Vec::new(),
             language: Language::German,
         }
     }
@@ -692,6 +748,32 @@ mod tests {
         assert!(deck_labels(&greeter()).contains(&"SPLICE // LOGIN".to_owned()));
         // The normal card has neither.
         assert!(!labels_of(&model()).iter().any(|text| text.starts_with("SPLICE")));
+    }
+
+    #[test]
+    fn the_cyberdeck_lock_screen_lists_notifications_left_of_the_card() {
+        let note = |id: u32| NotificationView {
+            id,
+            summary: format!("Nachricht {id}"),
+            app_name: "Signal".into(),
+            body: crate::markup::parse("Kommst du <b>morgen</b>?"),
+            critical: false,
+            actions: Vec::new(),
+            picture: None,
+        };
+        let locked = LockModel { output: (1920.0, 1080.0), notices: (1..=7).map(note).collect(), ..model() };
+        let shown = scenes(&locked, &deck(), &mut Mono);
+        assert_eq!(shown.len(), 2);
+        let labels = deck_labels(&locked);
+        assert!(labels.contains(&"// splice::notices (7)".to_owned()) && labels.contains(&"Nachricht 5".to_owned()), "{labels:?}");
+        // Five are listed, the rest counted.
+        assert!(!labels.contains(&"Nachricht 6".to_owned()) && labels.contains(&"+2".to_owned()), "{labels:?}");
+        let card = shown[0].0.target_rect(&LockTarget::Card).unwrap().translated(shown[0].1.0, shown[0].1.1);
+        assert!(shown[1].1.0 + shown[1].0.width + SIDE_GAP <= card.x);
+        // Not on the normal style, the login screen or a narrow monitor.
+        assert_eq!(scenes(&locked, &theme(), &mut Mono).len(), 1);
+        assert_eq!(scenes(&LockModel { output: (1000.0, 800.0), ..locked.clone() }, &deck(), &mut Mono).len(), 1);
+        assert!(!deck_labels(&LockModel { notices: locked.notices.clone(), ..greeter() }).iter().any(|t| t.contains("notices")));
     }
 
     fn labels_of(model: &LockModel) -> Vec<String> {

@@ -383,6 +383,8 @@ impl State {
             sessions: greeter.map(|g| g.sessions.iter().map(|s| s.name.clone()).collect()).unwrap_or_default(),
             session: greeter.map_or(0, |g| g.session),
             show_power: greeter.is_some(),
+            // The login screen belongs to no one yet.
+            notices: if greeter.is_some() { Vec::new() } else { self.notification_views() },
             language: self.shell.language,
         };
         let scale = output.current_scale().fractional_scale();
