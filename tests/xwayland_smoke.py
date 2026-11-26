@@ -53,9 +53,23 @@ client = subprocess.Popen(["xterm", "-e", "sleep 30"], env=dict(os.environ, DISP
 assert wait(lambda: 'app_id=Some("XTerm")' in log(lazy), 20), "a late X11 client was not managed"
 assert spawned(), "Xwayland is not running after its first client"
 assert "X11 primary output" in log(lazy), "the primary output was not set\n" + log(lazy)[-1500:]
-client.terminate()
-assert lazy.stop()
 print("Xwayland on demand OK")
+
+# Xwayland that dies takes its windows with it, and the next X11 client starts it again, on the same display.
+bar = Bar(lazy.sock)
+bar.until(lambda s: s[0]["workspaces"].get(1))
+subprocess.run(["pkill", "-KILL", "-P", str(lazy.process.pid), "-x", "Xwayland"], check=True)
+assert wait(lambda: "Xwayland exited" in log(lazy), 10), "the compositor did not notice Xwayland exit"
+bar.until(lambda s: not s[0]["workspaces"].get(1))
+client.wait(10)
+assert lazy.process.poll() is None, "the compositor died with Xwayland"
+again = subprocess.Popen(["xterm", "-e", "sleep 30"], env=dict(os.environ, DISPLAY=f":{number}"))
+assert wait(lambda: log(lazy).count('app_id=Some("XTerm")') == 2, 20), "no X11 client after Xwayland exited\n" + log(lazy)[-1500:]
+assert log(lazy).count("X11 window manager ready") == 2
+bar.until(lambda s: s[0]["workspaces"].get(1))
+again.terminate()
+assert lazy.stop()
+print("Xwayland after its exit OK")
 
 off = Compositor(top="xwayland = false\n", extra_args="sleep 2 & ")
 time.sleep(3)

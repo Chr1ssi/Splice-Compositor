@@ -111,6 +111,8 @@ pub struct State {
     pub x11_focus: Option<X11Surface>,
     /// Display number of Xwayland, once started.
     pub xdisplay: Option<u32>,
+    /// The running Xwayland's event source; removing it frees its display for the next one.
+    pub xwayland: Option<smithay::reexports::calloop::RegistrationToken>,
     /// Menus, tooltips and other X11 windows that position themselves.
     pub override_redirect: Vec<Window>,
     pub lock_manager_state: SessionLockManagerState,
@@ -318,6 +320,7 @@ impl State {
             xwm: None,
             x11_focus: None,
             xdisplay: None,
+            xwayland: None,
             override_redirect: Vec::new(),
             lock_manager_state: SessionLockManagerState::new::<State, _>(&dh, |_| true),
             session_lock: SessionLock::new(),

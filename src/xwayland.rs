@@ -64,7 +64,8 @@ pub fn start(state: &mut State) {
     if !state.config.xwayland {
         return;
     }
-    let sockets = match X11Sockets::prepare(None, true) {
+    // After a restart the display of the Xwayland before, if it is free: that is the `DISPLAY` the session exported.
+    let sockets = match X11Sockets::prepare(state.xdisplay, true).or_else(|_| X11Sockets::prepare(None, true)) {
         Ok(sockets) => sockets,
         Err(error) => {
             tracing::warn!("cannot open the X11 sockets: {error}");
@@ -167,8 +168,9 @@ fn spawn(state: &mut State, sockets: X11Sockets) {
             state.xdisplay = None;
         }
     });
-    if let Err(error) = registered {
-        tracing::error!("cannot watch Xwayland: {}", error.error);
+    match registered {
+        Ok(token) => state.xwayland = Some(token),
+        Err(error) => tracing::error!("cannot watch Xwayland: {}", error.error),
     }
 }
 
@@ -217,6 +219,26 @@ impl XWaylandShellHandler for State {
 impl XwmHandler for State {
     fn xwm_state(&mut self, _xwm: XwmId) -> &mut X11Wm {
         self.xwm.as_mut().expect("the X11 window manager runs while Xwayland clients exist")
+    }
+
+    /// Xwayland is gone (it crashed or was killed): its windows go with it, and the next X11 client starts it again.
+    fn disconnected(&mut self, _xwm: XwmId) {
+        tracing::error!("Xwayland exited; the next X11 client starts it again");
+        self.xwm = None;
+        self.x11_focus = None;
+        let windows: Vec<u32> = self.desktop.windows.iter().filter_map(|m| m.window.x11_surface().map(X11Surface::window_id)).collect();
+        for window in windows {
+            self.remove_x11_window(window);
+        }
+        for element in std::mem::take(&mut self.override_redirect) {
+            self.space.unmap_elem(&element);
+        }
+        // Dropping the server's source frees its display lock and socket for the next one.
+        if let Some(token) = self.xwayland.take() {
+            self.loop_handle.remove(token);
+        }
+        start(self);
+        self.queue_redraw_all();
     }
 
     fn new_window(&mut self, _xwm: XwmId, _window: X11Surface) {}
