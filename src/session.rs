@@ -24,7 +24,12 @@ use smithay::{
     },
 };
 
-use crate::State;
+use crate::{State, monitors::OutputEntry};
+
+/// The outputs a lock waits for: one that is switched off draws nothing, so it shows nothing either.
+fn lit_output_names(outputs: &[OutputEntry]) -> HashSet<String> {
+    outputs.iter().filter(|e| e.powered).map(|e| e.output.name()).collect()
+}
 
 enum LockState {
     Unlocked,
@@ -98,7 +103,7 @@ impl SessionLockHandler for State {
         // Pickers would keep the keyboard from the lock screen.
         self.selecting = None;
         self.picking = None;
-        self.session_lock.unconfirmed = self.outputs.iter().map(|e| e.output.name()).collect();
+        self.session_lock.unconfirmed = lit_output_names(&self.outputs);
         if self.session_lock.unconfirmed.is_empty() {
             confirmation.lock();
             self.session_lock.state = LockState::Locked;
@@ -162,7 +167,7 @@ impl State {
             .map(|(surface, origin)| (surface, (origin + geo.loc).to_f64()))
     }
 
-    /// An output showed a frame: once all did while locking, the lock counts.
+    /// An output showed a frame (or went dark, or away): once all did while locking, the lock counts.
     pub fn note_locked_frame(&mut self, output: &Output) {
         if !matches!(self.session_lock.state, LockState::Locking(_) | LockState::OwnLocking) {
             return;
@@ -190,7 +195,7 @@ impl State {
         lock.surfaces.clear();
         // A confirmed lock (its locker gone) stays confirmed: the screen showed nothing behind it already.
         let confirmed = lock.is_locked();
-        lock.unconfirmed = if confirmed { HashSet::new() } else { self.outputs.iter().map(|e| e.output.name()).collect() };
+        lock.unconfirmed = if confirmed { HashSet::new() } else { lit_output_names(&self.outputs) };
         lock.state = if lock.unconfirmed.is_empty() { LockState::OwnLocked } else { LockState::OwnLocking };
         self.end_drag();
         // Pickers and the overview would take the keyboard from the lock screen.
@@ -294,6 +299,9 @@ impl State {
         entry.powered = on;
         tracing::info!("{}: display {}", output.name(), if on { "on" } else { "off" });
         self.udev_set_power(output, on);
+        if !on {
+            self.note_locked_frame(output);
+        }
         let mode = if on { zwlr_output_power_v1::Mode::On } else { zwlr_output_power_v1::Mode::Off };
         self.output_power_objects.retain(|(o, resource)| {
             if o == output && resource.is_alive() {

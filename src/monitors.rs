@@ -145,6 +145,8 @@ impl State {
         self.desktop.desk.prune();
         self.refresh();
         self.output_management_changed();
+        // A lock still waiting for this output's frame would never be confirmed.
+        self.note_locked_frame(output);
         // Keep the pointer somewhere visible.
         let p = self.desktop.desk.clamp_to_monitors((self.pointer_location.x, self.pointer_location.y));
         if (p.0, p.1) != (self.pointer_location.x, self.pointer_location.y) {
