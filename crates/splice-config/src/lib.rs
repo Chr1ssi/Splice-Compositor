@@ -132,17 +132,6 @@ pub fn state_dir() -> Option<PathBuf> {
     Some(base.join("splice"))
 }
 
-/// The project was called mywm until 2026-10: moves its state directory (wallpaper choice, theme, night
-/// light, floating memory) to `state_dir()` once, if that does not exist yet. Call before anything
-/// creates files there. Remove together with the `mywm/config.toml` fallback in `Config::path`.
-pub fn migrate_legacy_state_dir() {
-    let Some(new) = state_dir() else { return };
-    let Some(old) = new.parent().map(|base| base.join("mywm")) else { return };
-    if old.is_dir() && !new.exists() {
-        let _ = std::fs::rename(old, new);
-    }
-}
-
 /// This program's path, also after `nix-store --optimise` swapped its file for a hard link: Linux then
 /// reports the old inode as `<path> (deleted)` although `<path>` is still there with the same content.
 pub fn current_exe() -> std::io::Result<PathBuf> {
@@ -446,10 +435,7 @@ impl Config {
                 .filter(|p| !p.is_empty())
                 .map(PathBuf::from)
                 .or_else(|| std::env::var_os("HOME").map(|p| PathBuf::from(p).join(".config")))?;
-            let path = base.join("splice/config.toml");
-            // The project was called mywm until 2026-10: keep reading a config that is still there.
-            let legacy = base.join("mywm/config.toml");
-            Some(if !path.exists() && legacy.exists() { legacy } else { path })
+            Some(base.join("splice/config.toml"))
         })
     }
 

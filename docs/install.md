@@ -32,10 +32,8 @@ und der offene Kernelmodul-Treiber wie bisher.
 
 Umstieg von mywm (so hieß das Projekt bis Oktober 2026): Pfade, Umgebungsvariablen (`MYWM_*` →
 `SPLICE_*`), Crates, Binaries, die Sitzung, der PAM-Dienst und `programs.mywm` heißen jetzt splice.
-Nur zwei Dinge werden übernommen: Fehlt `~/.config/splice/config.toml`, liest der Compositor noch
-`~/.config/mywm/config.toml`, und `~/.local/state/mywm` zieht beim ersten Start nach
-`~/.local/state/splice` um (Wallpaper-Wahl, Theme, Nachtlicht, Fensterspeicher). Beides entfällt,
-sobald keine Installation mehr darauf angewiesen ist.
+Alte Pfade liest er nicht mehr: `~/.config/mywm/config.toml` gehört nach `~/.config/splice/config.toml`,
+`~/.local/state/mywm` nach `~/.local/state/splice` (Wallpaper-Wahl, Theme, Nachtlicht, Fensterspeicher).
 
 Anmeldung: Mit `programs.splice.greeter.enable = true` (und `programs.splice.greeterDirectory`)
 richtet das Modul greetd mit dem eingebauten Anmeldebildschirm ein. Er läuft in

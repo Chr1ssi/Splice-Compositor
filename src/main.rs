@@ -48,7 +48,6 @@ use tracing_subscriber::EnvFilter;
 pub use state::State;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    splice_config::migrate_legacy_state_dir();
     // Client modes (`--lock`, `--idle`) write to the terminal only; the compositor logs to a file too.
     let client_mode =
         matches!(std::env::args().nth(1).as_deref(), Some("--lock" | "--idle" | "--theme-from-wallpaper" | "--theme-from-state"));
