@@ -82,11 +82,7 @@ pub fn write(path: &Path, text: &str) -> Result<(), String> {
 
 /// Make the running compositor reload its configuration. Returns whether one answered.
 pub fn reload_compositor() -> bool {
-    let socket = std::env::var_os("SPLICE_SOCKET")
-        .filter(|p| !p.is_empty())
-        .map(PathBuf::from)
-        .or_else(|| std::env::var_os("XDG_RUNTIME_DIR").map(|dir| PathBuf::from(dir).join("splice.sock")));
-    let Some(socket) = socket else { return false };
+    let Some(socket) = std::env::var_os("SPLICE_SOCKET").filter(|p| !p.is_empty()) else { return false };
     UnixStream::connect(socket).and_then(|mut stream| stream.write_all(splice_ipc::Command::ThemeReload.encode().as_bytes())).is_ok()
 }
 

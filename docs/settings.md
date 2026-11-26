@@ -17,8 +17,8 @@ cargo run -p splice-settings -- [--config /pfad/zur/config.toml]
   unter „Datei“ eintragen (er wird gemerkt, in `~/.config/splice-settings/config-path`).
 - **Prüfung:** Vor dem Speichern prüft dieselbe Funktion wie im Compositor die Datei. Ungültiges
   (Werte außerhalb der Grenzen, doppelte Tasten, unbekannte Tasten) lässt sich nicht speichern; der Grund steht oben.
-- **Live:** Nach dem Speichern bekommt der laufende Compositor den Befehl zum Neuladen (über `SPLICE_SOCKET`,
-  sonst `$XDG_RUNTIME_DIR/splice.sock`). Felder mit „(Neustart)“ (Monitore, Idle, VRR, Xwayland, eingebaute Shell) wirken erst
+- **Live:** Nach dem Speichern bekommt der laufende Compositor den Befehl zum Neuladen (über `SPLICE_SOCKET`).
+  Felder mit „(Neustart)“ (Monitore, Idle, VRR, Xwayland, eingebaute Shell) wirken erst
   nach dem nächsten Start; die GUI sagt es nach dem Speichern.
 
 ## Seiten

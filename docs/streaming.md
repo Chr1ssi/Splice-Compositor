@@ -65,7 +65,7 @@ Einrichtung:
    setzen `XDG_CURRENT_DESKTOP=splice`).
    Unter NixOS gehört `splice.portal` in ein Paket, das unter `xdg.portal.extraPortals` steht.
 3. Das Portal braucht in seiner Umgebung `WAYLAND_DISPLAY` und `SPLICE_SOCKET` (derselbe Socket wie
-   für die Bar, sonst `$XDG_RUNTIME_DIR/splice.sock`). Die Sitzung sollte sie dem D-Bus bekanntmachen:
+   für die Bar). Die Sitzung sollte sie dem D-Bus bekanntmachen:
    `dbus-update-activation-environment --systemd WAYLAND_DISPLAY XDG_CURRENT_DESKTOP SPLICE_SOCKET`.
 4. `xdg-desktop-portal-wlr` nicht mehr starten. Nötig bleiben `xdg-desktop-portal`, `pipewire`, `wireplumber`.
 

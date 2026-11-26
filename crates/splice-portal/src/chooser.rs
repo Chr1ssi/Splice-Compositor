@@ -8,15 +8,12 @@ use std::{
 use splice_ipc::{Chosen, Command, SourceKinds};
 
 pub fn socket_path() -> Option<PathBuf> {
-    std::env::var_os("SPLICE_SOCKET")
-        .filter(|p| !p.is_empty())
-        .map(PathBuf::from)
-        .or_else(|| std::env::var_os("XDG_RUNTIME_DIR").map(|dir| PathBuf::from(dir).join("splice.sock")))
+    std::env::var_os("SPLICE_SOCKET").filter(|p| !p.is_empty()).map(PathBuf::from)
 }
 
 /// Show the compositor's chooser and wait for the answer (can take as long as the user needs).
 pub fn choose(kinds: SourceKinds) -> Result<Chosen, String> {
-    let path = socket_path().ok_or("no SPLICE_SOCKET and no XDG_RUNTIME_DIR")?;
+    let path = socket_path().ok_or("SPLICE_SOCKET is not set")?;
     let mut stream = UnixStream::connect(&path).map_err(|e| format!("cannot reach the compositor at {}: {e}", path.display()))?;
     stream.write_all(Command::ChooseSource(kinds).encode().as_bytes()).map_err(|e| e.to_string())?;
     let mut lines = BufReader::new(stream).lines();

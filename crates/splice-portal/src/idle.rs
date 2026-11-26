@@ -44,7 +44,7 @@ impl Inhibitions {
 
 /// A connection to the compositor that inhibits idle until it is shut down.
 fn connect() -> Result<UnixStream, String> {
-    let path = crate::chooser::socket_path().ok_or("no SPLICE_SOCKET and no XDG_RUNTIME_DIR")?;
+    let path = crate::chooser::socket_path().ok_or("SPLICE_SOCKET is not set")?;
     let mut stream = UnixStream::connect(&path).map_err(|e| format!("cannot reach the compositor at {}: {e}", path.display()))?;
     stream.write_all(splice_ipc::Command::InhibitIdle.encode().as_bytes()).map_err(|e| e.to_string())?;
     // The compositor sends every client its state; read it away, or it would drop the connection
