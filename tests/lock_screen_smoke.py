@@ -9,7 +9,7 @@ Needs grim, `cargo build --workspace` and $SPLICE_TEST_PAM_MODULES (the smoke sh
 root with $DISPLAY set:
     PYTHONPATH=tests python3 tests/lock_screen_smoke.py
 """
-import json, os, struct, subprocess, sys, tempfile, time, zlib
+import json, os, shutil, struct, subprocess, sys, tempfile, time, zlib
 from smoke_support import Bar, Compositor, pixel, wait
 
 CLIENT = "./target/debug/splice-test-client"
@@ -21,6 +21,8 @@ FIELD_BORDER = (469, 599)
 SUBMIT = (787, 599)
 # The theme's alert color without a theme.json.
 ALERT = bytes.fromhex("f38ba8")
+# What the check that never answers runs, unique to this run: found among the processes by its exact command line.
+HANGING = f"{shutil.which('sleep')} 600.{os.getpid()}"
 
 if not os.environ.get("SPLICE_TEST_PAM_MODULES"):
     print("SKIP: $SPLICE_TEST_PAM_MODULES is not set (run in the smoke shell)")
@@ -28,13 +30,15 @@ if not os.environ.get("SPLICE_TEST_PAM_MODULES"):
 
 
 def pam_directory(base):
-    """A PAM service `splice-lock` that accepts PASSWORD only; `abbruch` kills the check midway."""
+    """A PAM service `splice-lock` that accepts PASSWORD only; `abbruch` kills the check midway, `haengt` never answers."""
     modules = os.environ["SPLICE_TEST_PAM_MODULES"]
     check = f"{base}/check-password"
     with open(check, "w") as f:
-        # pam_exec hands the password over on stdin, ended by a NUL; its parent is the compositor's check.
+        # pam_exec hands the password over on stdin, ended by a NUL; its parent is the compositor's check. Its PATH
+        # is not the test's.
         f.write("#!/usr/bin/env bash\nIFS= read -r -d '' password\n"
                 "[ \"$password\" = abbruch ] && kill -KILL $PPID\n"
+                f"[ \"$password\" = haengt ] && {HANGING}\n"
                 f"[ \"$password\" = {PASSWORD} ]\n")
     os.chmod(check, 0o755)
     os.makedirs(f"{base}/pam.d")
@@ -113,6 +117,20 @@ assert "the password check failed" in log()
 bar.poll()
 assert bar.locked, "a check that died unlocked"
 print("dead check OK")
+
+# A check that never answers: Escape gives up on it and ends its helper; typing works again (the right password below
+# unlocks). pam_exec starts its program in a session of its own, so that one is left to the test to end.
+running = lambda line: subprocess.run(["pgrep", "-f", f"^{line}$"], capture_output=True).returncode == 0
+type_text("haengt")
+comp.key("Return")
+assert wait(lambda: running(HANGING), 10), "the hanging check did not start"
+comp.key("Escape")
+assert wait(lambda: not running(r"\S*/splice-shell-services --authenticate"), 5), "the hanging check still runs"
+subprocess.run(["pkill", "-f", f"^{HANGING}$"])
+assert "the password check was given up" in log()
+bar.poll()
+assert bar.locked, "giving up on a check unlocked"
+print("hanging check OK")
 
 # Another screen locker is refused and cannot end the lock.
 locker = subprocess.run([CLIENT, "lock", "1"], env=comp.env(), capture_output=True, text=True, timeout=20)

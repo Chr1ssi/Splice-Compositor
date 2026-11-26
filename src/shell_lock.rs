@@ -3,8 +3,8 @@
 //! accepts unlocks it.
 //!
 //! Each check runs `splice-shell-services --authenticate` in a process of its own, the password on its stdin:
-//! a PAM module that crashes ends that attempt, never the lock (one that hangs keeps it waiting). The session unlocks only when that process exits cleanly and answers `success` for the attempt still
-//! being checked.
+//! a PAM module that crashes ends that attempt, never the lock, and Escape ends one that hangs. The session unlocks only when that
+//! process exits cleanly and answers `success` for the attempt still being checked.
 //!
 //! The picture: the theme's image (`source` of `theme.json`), cut to each monitor's size on a worker thread
 //! and dimmed, the theme's background until it is ready; on the primary monitor the clock and the card in
@@ -13,6 +13,7 @@ use std::{
     io::{Read, Write},
     path::PathBuf,
     process::{Command, Stdio},
+    sync::{Arc, Mutex},
 };
 
 use smithay::{
@@ -53,6 +54,8 @@ pub struct LockScreen {
     /// The attempt being checked; keys wait meanwhile, as the disabled field did.
     pub(crate) checking: Option<u64>,
     pub(crate) attempts: u64,
+    /// The process id of the check running, while it runs: Escape ends it.
+    running: Arc<Mutex<Option<i32>>>,
     /// What the last check said; nothing before the first one and while checking.
     pub message: Option<LockMessage>,
     /// The message is an error (the password field turns red).
@@ -136,8 +139,9 @@ impl Drop for LockScreen {
     }
 }
 
-/// Check `password` in a helper process (see the module); its bytes are zeroed once it is written.
-fn check(mut password: Vec<u8>) -> Option<AuthOutcome> {
+/// Check `password` in a helper process (see the module); its bytes are zeroed once it is written. The helper's
+/// id is in `running` until it is reaped, so a kill of it never meets a reused id.
+fn check(mut password: Vec<u8>, running: &Mutex<Option<i32>>) -> Option<AuthOutcome> {
     let child = Command::new(crate::shell_services::program()).arg("--authenticate").stdin(Stdio::piped()).stdout(Stdio::piped()).spawn();
     let mut child = match child {
         Ok(child) => child,
@@ -147,6 +151,7 @@ fn check(mut password: Vec<u8>) -> Option<AuthOutcome> {
             return None;
         }
     };
+    *running.lock().unwrap_or_else(|e| e.into_inner()) = i32::try_from(child.id()).ok();
     // Dropping stdin ends the password for the helper, which reads to the end.
     if let Some(mut stdin) = child.stdin.take()
         && let Err(error) = stdin.write_all(&password)
@@ -160,6 +165,7 @@ fn check(mut password: Vec<u8>) -> Option<AuthOutcome> {
     {
         tracing::warn!("cannot read what the password check said: {error}");
     }
+    *running.lock().unwrap_or_else(|e| e.into_inner()) = None;
     match child.wait() {
         Ok(status) if status.success() => AuthOutcome::parse(&answer),
         Ok(status) => {
@@ -246,10 +252,14 @@ impl State {
     /// (the user field also Delete, the arrows, Home and End); a button Return and Space. Nothing while a check
     /// runs.
     pub fn lock_key(&mut self, sym: Keysym, modified: bool) {
+        let raw = sym.raw();
         if self.shell.lock.checking.is_some() {
+            // A PAM module that never answers would keep the lock screen waiting for good.
+            if raw == keysyms::KEY_Escape && self.shell.lock.greeter.is_none() {
+                self.lock_cancel_check();
+            }
             return;
         }
-        let raw = sym.raw();
         if matches!(raw, keysyms::KEY_Tab | keysyms::KEY_ISO_Left_Tab) {
             let chain = self.lock_focus_chain();
             let lock = &mut self.shell.lock;
@@ -316,13 +326,34 @@ impl State {
             return self.lock_checked(attempt, None);
         };
         let password = lock.password.as_bytes().to_vec();
+        lock.running = Arc::default();
+        let running = lock.running.clone();
         let started = std::thread::Builder::new().name("password-check".into()).spawn(move || {
-            let _ = results.send((attempt, check(password)));
+            let _ = results.send((attempt, check(password, &running)));
         });
         if let Err(error) = started {
             tracing::error!("cannot check the password: {error}");
             self.lock_checked(attempt, None);
         }
+        self.shell.dirty = true;
+    }
+
+    /// Escape while a check runs: end its helper and take typing again. Its answer, if one still comes, is for an
+    /// attempt no longer checked and counts for nothing.
+    fn lock_cancel_check(&mut self) {
+        let lock = &mut self.shell.lock;
+        let running = lock.running.lock().unwrap_or_else(|e| e.into_inner());
+        if let Some(pid) = *running {
+            // SAFETY: plain kill(2) of the helper, whose id cannot be reused yet: it is reaped only after `check`
+            // emptied `running`, and this holds its lock.
+            unsafe { libc::kill(pid, libc::SIGKILL) };
+        }
+        drop(running);
+        lock.checking = None;
+        lock.message = None;
+        lock.failed = false;
+        wipe(&mut lock.password);
+        tracing::info!("the password check was given up");
         self.shell.dirty = true;
     }
 

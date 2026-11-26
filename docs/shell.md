@@ -118,7 +118,8 @@ Propo“, das dafür installiert sein muss. Die Panels gliedern ihren Inhalt in 
   Bildschirmsperrer wird abgewiesen (`finished`) und kann die Sperre weder übernehmen noch aufheben. Das Passwort
   prüft PAM (Dienst `splice-lock`, mit `$SPLICE_PAM_DIR` aus einem anderen Verzeichnis) mit
   `splice-shell-services --authenticate`, einem eigenen Prozess je Versuch: Stirbt ein PAM-Modul, endet nur dieser
-  Versuch; hängt es, wartet der Sperrbildschirm, bis es endet, und nimmt so lange keine Taste an.
+  Versuch; hängt es, nimmt der Sperrbildschirm keine Taste an außer Escape, das die Prüfung abbricht (ihr Prozess
+  endet).
   Entsperrt wird nur bei sauberem Ende mit `success` für den laufenden Versuch. Jedes
   andere Ergebnis außer „Zu viele Versuche“ heißt „Falsches Passwort“. Das Bild: auf jedem Monitor das Bild des Themes (`source`
   in `theme.json`, beim Sperren gelesen wie die Farben), in einem Worker-Thread auf den Monitor zugeschnitten und
