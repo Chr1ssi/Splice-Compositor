@@ -62,7 +62,8 @@ Propo“, das dafür installiert sein muss. Die Panels gliedern ihren Inhalt in 
   ersten Monitor, höchstens vier, mit Bild oder App-Symbol, Fett/Kursiv/Unterstrichen aus der Markup, Aktionen und
   „×“. Ein Toast verschwindet nach der Zeit, die die App angibt, sonst nach 4 Sekunden (niedrige Dringlichkeit) oder
   7 Sekunden, mit 0 bleibt er stehen; unter dem Mauszeiger bleibt er, danach läuft seine Zeit neu. Während ein Spiel
-  im Vollbild läuft, erscheinen nur kritische Meldungen, die anderen warten in der Liste. Die Glocke zeigt die Zahl
+  im Vollbild läuft, erscheinen nur kritische Meldungen, die anderen warten in der Liste. Sie behält die
+  100 neuesten, ältere werden geschlossen. Die Glocke zeigt die Zahl
   und öffnet die Benachrichtigungszentrale (rechts oben, Liste zum Scrollen, „Alle löschen“); ein Klick hinein und
   dann Escape oder ein Klick daneben schließen sie, solange sie offen ist, ruhen die Toasts. Eine Aktion schließt die
   Meldung, außer sie ist `resident`. Startet der Dienstprozess neu, ist die Liste leer.

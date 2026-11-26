@@ -39,8 +39,8 @@ def call(method, signature="", *args):
     return result.stdout.strip()
 
 
-def notify(summary, timeout, actions=(), body="", app=""):
-    out = call("Notify", "susssasa{sv}i", app, "0", "", summary, body, str(len(actions)), *actions, "0", str(timeout))
+def notify(summary, timeout, actions=(), body="", app="", icon=""):
+    out = call("Notify", "susssasa{sv}i", app, "0", icon, summary, body, str(len(actions)), *actions, "0", str(timeout))
     return int(out.split()[1])
 
 
@@ -149,6 +149,12 @@ try:
     click(300, 500)
     assert wait(lambda: not panel_shows(comp), 5), "a click elsewhere did not close the notification center"
     print("notification center closes OK")
+
+    # The list keeps the newest 100: the oldest is dismissed for the app. (An icon that is no file is not looked up.)
+    many = [notify(f"Viele {n}", 1, icon="/nonexistent") for n in range(101)]
+    assert wait(lambda: signalled(rf"NotificationClosed\s+uint32 {many[0]}\s+uint32 2"), 10), "the oldest was kept"
+    assert not signalled(rf"NotificationClosed\s+uint32 {many[1]}\s+uint32"), "more than the oldest went"
+    print("notification limit OK")
     assert comp.stop()
     print("OK")
 except BaseException:

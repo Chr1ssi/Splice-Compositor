@@ -15,6 +15,8 @@ use splice_ui::{markup, notifications::NotificationView, scene::Picture};
 use crate::{State, shell::ShellHit};
 
 const MAX_TOASTS: usize = 4;
+/// The list keeps the newest; older ones are dismissed (an app that never closes its own would grow it for good).
+const MAX_NOTIFICATIONS: usize = 100;
 
 struct Note {
     view: NotificationView,
@@ -79,6 +81,10 @@ impl State {
                 notes.toasts.truncate(MAX_TOASTS);
             }
             notes.list.insert(0, note);
+        }
+        let dropped: Vec<u32> = notes.list.iter().skip(MAX_NOTIFICATIONS).map(|n| n.view.id).collect();
+        for id in dropped {
+            self.notification_dismiss(id);
         }
         self.toasts_arm();
         self.shell_changed();
