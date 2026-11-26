@@ -71,7 +71,9 @@ Einrichtung:
 
 Ruhige Bilder: Steht das Bild still, liefert der Compositor trotzdem etwa alle 0,4 s ein Bild (Keepalive),
 sonst hält Chromium (Discord, Vesktop) den Strom für tot. Öffnet eine App zwei Sitzungen gleichzeitig (Vesktop tut das),
-beantwortet die Auswahl beide; die zweite wird nicht abgelehnt.
+beantwortet die Auswahl beide; die zweite wird nicht abgelehnt. Eine Auswahl gilt außerdem 8 s lang für weitere
+Sitzungen derselben App über dieselbe D-Bus-Verbindung mit denselben Quellarten: Apps ohne Sandbox haben alle eine
+leere App-ID, eine andere App wird also selbst gefragt.
 
 Logs: `journalctl --user -u splice-portal` bzw. die Ausgabe von `splice-portal` zeigt Format, Bildgröße,
 Verbraucher und Bilder pro 5 s; im Compositor-Log stehen `capture session: …` (Quelle, Größe, erstes Bild, Ende).

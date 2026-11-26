@@ -204,8 +204,8 @@ try:
         busctl("org.freedesktop.impl.portal.desktop.splice", session, "org.freedesktop.impl.portal.Session", "Close")
 
     # Vesktop's second question within a moment reuses the first answer; a later one asks again.
-    def ask(label):
-        session = f"/org/freedesktop/portal/desktop/session/test/{label}"
+    def ask(label, sender="test"):
+        session = f"/org/freedesktop/portal/desktop/session/{sender}/{label}"
         busctl(*PORTAL[:2], PORTAL[2], "CreateSession", "oosa{sv}", f"/req/{label}1", session, "again", "0")
         busctl(*PORTAL[:2], PORTAL[2], "SelectSources", "oosa{sv}", f"/req/{label}2", session, "again", "2", "types", "u", "3")
         return session, subprocess.Popen(["busctl", f"--address={bus_address}", "--user", "call", *PORTAL, "Start", "oossa{sv}", f"/req/{label}3", session, "again", "", "0"],
@@ -221,7 +221,15 @@ try:
     out, _ = p2.communicate(timeout=10)  # no key press: the answer is reused
     assert out.startswith("ua{sv} 0"), out
     print("a follow-up session reuses the choice")
-    for session in (first, second):
+    # Another connection with the same app id (every app outside a sandbox has an empty one) is asked itself.
+    other, p4 = ask("reuse4", sender="other")
+    time.sleep(1.5)
+    assert p4.poll() is None, "another connection got the choice without being asked"
+    comp.key("Return")
+    out, _ = p4.communicate(timeout=30)
+    assert out.startswith("ua{sv} 0"), out
+    print("another connection is asked itself")
+    for session in (first, second, other):
         busctl("org.freedesktop.impl.portal.desktop.splice", session, "org.freedesktop.impl.portal.Session", "Close")
     time.sleep(9)
     third, p3 = ask("reuse3")

@@ -152,33 +152,33 @@ struct Answer {
     ready: Condvar,
 }
 
-/// Chromium-based apps (Discord, Vesktop) open two sessions within a moment: ask once per app and
-/// let the second session, which arrives while the first is being answered, take that answer
+/// Chromium-based apps (Discord, Vesktop) open two sessions within a moment: ask once per requester (see
+/// `start_stream`) and let the second session, which arrives while the first is being answered, take that answer
 /// instead of being refused.
 static ANSWERS: Mutex<Vec<(String, Arc<Answer>)>> = Mutex::new(Vec::new());
 
 /// Vesktop asks once to list the sources and again, a moment later, to start: a choice made
-/// within this window counts for the follow-up sessions of the same app.
+/// within this window counts for the follow-up sessions of the same requester.
 const REUSE: Duration = Duration::from_secs(8);
 
 static RECENT: Mutex<Vec<(String, std::time::Instant, Chosen)>> = Mutex::new(Vec::new());
 
-fn choose_once(app_id: &str, kinds: SourceKinds) -> Result<Chosen, String> {
+fn choose_once(requester: &str, kinds: SourceKinds) -> Result<Chosen, String> {
     let (answer, mine) = {
         let mut answers = ANSWERS.lock().unwrap();
         let now = std::time::Instant::now();
         let mut recent = RECENT.lock().unwrap();
         recent.retain(|(_, at, _)| now.duration_since(*at) < REUSE);
-        if let Some((_, _, chosen)) = recent.iter().find(|(id, _, _)| id == app_id) {
-            tracing::info!("{app_id}: reusing the choice made a moment ago");
+        if let Some((_, _, chosen)) = recent.iter().find(|(id, _, _)| id == requester) {
+            tracing::info!("{requester}: reusing the choice made a moment ago");
             return Ok(chosen.clone());
         }
         drop(recent);
-        match answers.iter().find(|(id, _)| id == app_id) {
+        match answers.iter().find(|(id, _)| id == requester) {
             Some((_, answer)) => (answer.clone(), false),
             None => {
                 let answer = Arc::new(Answer::default());
-                answers.push((app_id.to_owned(), answer.clone()));
+                answers.push((requester.to_owned(), answer.clone()));
                 (answer, true)
             }
         }
@@ -194,19 +194,19 @@ fn choose_once(app_id: &str, kinds: SourceKinds) -> Result<Chosen, String> {
         if let Ok(chosen) = &result
             && !matches!(chosen, Chosen::Nothing)
         {
-            RECENT.lock().unwrap().push((app_id.to_owned(), std::time::Instant::now(), chosen.clone()));
+            RECENT.lock().unwrap().push((requester.to_owned(), std::time::Instant::now(), chosen.clone()));
         }
         *answer.value.lock().unwrap() = Some(result.clone());
         answer.ready.notify_all();
         // Sessions that were waiting hold the answer; a later one asks again.
-        ANSWERS.lock().unwrap().retain(|(id, _)| id != app_id);
+        ANSWERS.lock().unwrap().retain(|(id, _)| id != requester);
         result
     } else {
         let mut value = answer.value.lock().unwrap();
         while value.is_none() {
             value = answer.ready.wait(value).unwrap();
         }
-        tracing::info!("{app_id}: a second session shares the choice of the first");
+        tracing::info!("{requester}: a second session shares the choice of the first");
         value.clone().unwrap()
     }
 }
@@ -224,7 +224,10 @@ fn start_stream(
         2 => SourceKinds::Window,
         _ => SourceKinds::Both,
     };
-    let source = match choose_once(app_id, kinds)? {
+    // Who asks: apps outside a sandbox all have an empty id, so also the connection that asked (the session's path is
+    // `…/session/<sender>/<token>`) and what it may share.
+    let sender = session_path.rsplit('/').nth(1).unwrap_or_default();
+    let source = match choose_once(&format!("{app_id} {sender} {kinds:?}"), kinds)? {
         Chosen::Monitor(name) => Source::Monitor(name),
         Chosen::Window(id) => Source::Window(id),
         Chosen::Dynamic => Source::Dynamic,
